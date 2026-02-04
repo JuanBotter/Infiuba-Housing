@@ -32,15 +32,27 @@ export function PlaceFilters({
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedNeighborhood, setSelectedNeighborhood] = useState("all");
   const [recommendedFilter, setRecommendedFilter] = useState("any");
+  const [priceMin, setPriceMin] = useState("");
+  const [priceMax, setPriceMax] = useState("");
+  const [minRating, setMinRating] = useState("any");
+  const [sortBy, setSortBy] = useState("default");
   const [viewMode, setViewMode] = useState<"cards" | "map" | "review">("cards");
   const [selectedMapListingId, setSelectedMapListingId] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
+    const normalizedSearch = searchTerm.trim().toLowerCase();
+    const minPriceValue = Number(priceMin);
+    const maxPriceValue = Number(priceMax);
+    const minRatingValue = Number(minRating);
+    const hasMinPrice = priceMin !== "" && Number.isFinite(minPriceValue);
+    const hasMaxPrice = priceMax !== "" && Number.isFinite(maxPriceValue);
+    const hasMinRating = minRating !== "any" && Number.isFinite(minRatingValue);
+
     return listings.filter((listing) => {
       const searchMatch =
-        !searchTerm ||
-        listing.address.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        listing.neighborhood.toLowerCase().includes(searchTerm.toLowerCase());
+        !normalizedSearch ||
+        listing.address.toLowerCase().includes(normalizedSearch) ||
+        listing.neighborhood.toLowerCase().includes(normalizedSearch);
 
       const neighborhoodMatch =
         selectedNeighborhood === "all" || listing.neighborhood === selectedNeighborhood;
@@ -50,30 +62,182 @@ export function PlaceFilters({
         (recommendedFilter === "yes" && (listing.recommendationRate ?? 0) >= 0.5) ||
         (recommendedFilter === "no" && (listing.recommendationRate ?? 0) < 0.5);
 
-      return searchMatch && neighborhoodMatch && recommendationMatch;
+      const minPriceMatch =
+        !hasMinPrice || (typeof listing.priceUsd === "number" && listing.priceUsd >= minPriceValue);
+
+      const maxPriceMatch =
+        !hasMaxPrice || (typeof listing.priceUsd === "number" && listing.priceUsd <= maxPriceValue);
+
+      const minRatingMatch =
+        !hasMinRating ||
+        (typeof listing.averageRating === "number" && listing.averageRating >= minRatingValue);
+
+      return (
+        searchMatch &&
+        neighborhoodMatch &&
+        recommendationMatch &&
+        minPriceMatch &&
+        maxPriceMatch &&
+        minRatingMatch
+      );
     });
-  }, [listings, recommendedFilter, searchTerm, selectedNeighborhood]);
+  }, [listings, minRating, priceMax, priceMin, recommendedFilter, searchTerm, selectedNeighborhood]);
+
+  const filteredAndSorted = useMemo(() => {
+    const sorted = [...filtered];
+
+    const numberCompare = (
+      left: number | undefined,
+      right: number | undefined,
+      direction: "asc" | "desc",
+    ) => {
+      if (left === undefined && right === undefined) {
+        return 0;
+      }
+      if (left === undefined) {
+        return 1;
+      }
+      if (right === undefined) {
+        return -1;
+      }
+      return direction === "asc" ? left - right : right - left;
+    };
+
+    sorted.sort((left, right) => {
+      if (sortBy === "rating_desc") {
+        const ratingOrder = numberCompare(left.averageRating, right.averageRating, "desc");
+        if (ratingOrder !== 0) {
+          return ratingOrder;
+        }
+        return right.totalReviews - left.totalReviews;
+      }
+
+      if (sortBy === "price_asc") {
+        const priceOrder = numberCompare(left.priceUsd, right.priceUsd, "asc");
+        if (priceOrder !== 0) {
+          return priceOrder;
+        }
+      }
+
+      if (sortBy === "reviews_desc") {
+        const reviewsOrder = right.totalReviews - left.totalReviews;
+        if (reviewsOrder !== 0) {
+          return reviewsOrder;
+        }
+      }
+
+      if (sortBy === "recent_desc") {
+        const recentOrder = numberCompare(left.recentYear, right.recentYear, "desc");
+        if (recentOrder !== 0) {
+          return recentOrder;
+        }
+      }
+
+      return left.address.localeCompare(right.address, undefined, { sensitivity: "base" });
+    });
+
+    return sorted;
+  }, [filtered, sortBy]);
 
   useEffect(() => {
-    if (filtered.length === 0) {
+    if (filteredAndSorted.length === 0) {
       setSelectedMapListingId(null);
       return;
     }
 
-    const selectedStillExists = filtered.some((listing) => listing.id === selectedMapListingId);
+    const selectedStillExists = filteredAndSorted.some(
+      (listing) => listing.id === selectedMapListingId,
+    );
     if (!selectedMapListingId || !selectedStillExists) {
-      setSelectedMapListingId(filtered[0].id);
+      setSelectedMapListingId(filteredAndSorted[0].id);
     }
-  }, [filtered, selectedMapListingId]);
+  }, [filteredAndSorted, selectedMapListingId]);
 
   const selectedMapListing =
-    filtered.find((listing) => listing.id === selectedMapListingId) || filtered[0] || null;
+    filteredAndSorted.find((listing) => listing.id === selectedMapListingId) ||
+    filteredAndSorted[0] ||
+    null;
   const selectedMapQuery = selectedMapListing
     ? encodeURIComponent(
         `${selectedMapListing.address}, ${selectedMapListing.neighborhood}, Buenos Aires, Argentina`,
       )
     : "";
   const isReviewMode = viewMode === "review";
+
+  const activeFilters = useMemo(() => {
+    const chips: string[] = [];
+
+    if (searchTerm.trim()) {
+      chips.push(`${messages.searchLabel}: ${searchTerm.trim()}`);
+    }
+
+    if (selectedNeighborhood !== "all") {
+      chips.push(`${messages.neighborhoodLabel}: ${selectedNeighborhood}`);
+    }
+
+    if (recommendedFilter === "yes") {
+      chips.push(`${messages.recommendationLabel}: ${messages.recommendationYes}`);
+    } else if (recommendedFilter === "no") {
+      chips.push(`${messages.recommendationLabel}: ${messages.recommendationNo}`);
+    }
+
+    if (priceMin !== "" && Number.isFinite(Number(priceMin))) {
+      chips.push(`${messages.filterPriceMinLabel}: ${formatUsd(Number(priceMin), lang)}`);
+    }
+
+    if (priceMax !== "" && Number.isFinite(Number(priceMax))) {
+      chips.push(`${messages.filterPriceMaxLabel}: ${formatUsd(Number(priceMax), lang)}`);
+    }
+
+    if (minRating !== "any" && Number.isFinite(Number(minRating))) {
+      chips.push(`${messages.filterMinRatingLabel}: ${minRating}+`);
+    }
+
+    if (sortBy !== "default") {
+      const sortLabelMap: Record<string, string> = {
+        rating_desc: messages.sortRatingDesc,
+        price_asc: messages.sortPriceAsc,
+        reviews_desc: messages.sortReviewsDesc,
+        recent_desc: messages.sortRecentDesc,
+      };
+      chips.push(`${messages.sortLabel}: ${sortLabelMap[sortBy] || messages.sortDefault}`);
+    }
+
+    return chips;
+  }, [
+    lang,
+    messages.filterMinRatingLabel,
+    messages.filterPriceMaxLabel,
+    messages.filterPriceMinLabel,
+    messages.neighborhoodLabel,
+    messages.recommendationLabel,
+    messages.recommendationNo,
+    messages.recommendationYes,
+    messages.searchLabel,
+    messages.sortDefault,
+    messages.sortLabel,
+    messages.sortPriceAsc,
+    messages.sortRatingDesc,
+    messages.sortRecentDesc,
+    messages.sortReviewsDesc,
+    minRating,
+    priceMax,
+    priceMin,
+    recommendedFilter,
+    searchTerm,
+    selectedNeighborhood,
+    sortBy,
+  ]);
+
+  function clearFilters() {
+    setSearchTerm("");
+    setSelectedNeighborhood("all");
+    setRecommendedFilter("any");
+    setPriceMin("");
+    setPriceMax("");
+    setMinRating("any");
+    setSortBy("default");
+  }
 
   return (
     <>
@@ -142,21 +306,84 @@ export function PlaceFilters({
                 <option value="no">{messages.recommendationNo}</option>
               </select>
             </label>
+
+            <label>
+              <span>{messages.filterPriceMinLabel}</span>
+              <input
+                type="number"
+                min={0}
+                step="1"
+                value={priceMin}
+                onChange={(event) => setPriceMin(event.target.value)}
+                placeholder="0"
+              />
+            </label>
+
+            <label>
+              <span>{messages.filterPriceMaxLabel}</span>
+              <input
+                type="number"
+                min={0}
+                step="1"
+                value={priceMax}
+                onChange={(event) => setPriceMax(event.target.value)}
+                placeholder="2000"
+              />
+            </label>
+
+            <label>
+              <span>{messages.filterMinRatingLabel}</span>
+              <select value={minRating} onChange={(event) => setMinRating(event.target.value)}>
+                <option value="any">{messages.filterMinRatingAny}</option>
+                <option value="2">2+</option>
+                <option value="3">3+</option>
+                <option value="3.5">3.5+</option>
+                <option value="4">4+</option>
+                <option value="4.5">4.5+</option>
+              </select>
+            </label>
+
+            <label>
+              <span>{messages.sortLabel}</span>
+              <select value={sortBy} onChange={(event) => setSortBy(event.target.value)}>
+                <option value="default">{messages.sortDefault}</option>
+                <option value="rating_desc">{messages.sortRatingDesc}</option>
+                <option value="price_asc">{messages.sortPriceAsc}</option>
+                <option value="reviews_desc">{messages.sortReviewsDesc}</option>
+                <option value="recent_desc">{messages.sortRecentDesc}</option>
+              </select>
+            </label>
           </section>
 
+          {activeFilters.length > 0 ? (
+            <section className="active-filters">
+              <p className="active-filters__label">{messages.activeFiltersLabel}</p>
+              <div className="active-filters__list">
+                {activeFilters.map((chip) => (
+                  <span key={chip} className="active-filters__chip">
+                    {chip}
+                  </span>
+                ))}
+              </div>
+              <button type="button" className="active-filters__clear" onClick={clearFilters}>
+                {messages.clearFilters}
+              </button>
+            </section>
+          ) : null}
+
           <p className="result-count">
-            {filtered.length} {messages.resultsLabel}
+            {filteredAndSorted.length} {messages.resultsLabel}
           </p>
         </>
       ) : null}
 
       {isReviewMode ? (
         <AddStayReviewForm lang={lang} listings={listings} />
-      ) : filtered.length === 0 ? (
+      ) : filteredAndSorted.length === 0 ? (
         <p className="empty-state">{messages.noResults}</p>
       ) : viewMode === "cards" ? (
         <section className="cards-grid">
-          {filtered.map((listing) => (
+          {filteredAndSorted.map((listing) => (
             <Link
               key={listing.id}
               href={`/${lang}/place/${listing.id}`}
@@ -215,7 +442,7 @@ export function PlaceFilters({
       ) : (
         <section className="map-layout">
           <aside className="map-layout__list">
-            {filtered.map((listing) => {
+            {filteredAndSorted.map((listing) => {
               const isSelected = selectedMapListing?.id === listing.id;
               return (
                 <article
@@ -268,7 +495,7 @@ export function PlaceFilters({
                 <p>{selectedMapListing.neighborhood}</p>
                 <ListingsMap
                   lang={lang}
-                  listings={filtered}
+                  listings={filteredAndSorted}
                   selectedListingId={selectedMapListing.id}
                   onSelectListing={setSelectedMapListingId}
                 />

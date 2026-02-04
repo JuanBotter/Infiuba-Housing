@@ -22,6 +22,7 @@ Do not defer AGENTS updates.
 - Core domain: listings, owner contacts, survey reviews, web reviews with moderation, multilingual review text.
 - Admin UX: split views for reviews, invites, and access management under `/{lang}/admin/*`; access view supports client-side search by email/role.
 - Main listings UI uses a view toggle: `Cards`, `Map`, and (for whitelisted/admin) `Add review`.
+- Cards/Map filters include search, neighborhood, recommendation, min/max price, minimum rating, sorting, and active filter chips with clear-all.
 
 ## Runtime and Commands
 

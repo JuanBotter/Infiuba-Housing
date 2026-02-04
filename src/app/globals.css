@@ -485,6 +485,52 @@ textarea {
   font-weight: 600;
 }
 
+.active-filters {
+  margin-top: 0.2rem;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.active-filters__label {
+  margin: 0;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
+.active-filters__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.active-filters__chip {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--chip-bg);
+  padding: 0.24rem 0.58rem;
+  font-size: 0.75rem;
+  color: var(--ink-soft);
+}
+
+.active-filters__clear {
+  width: fit-content;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--subtle-bg);
+  color: var(--ink-soft);
+  padding: 0.24rem 0.62rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.active-filters__clear:hover {
+  filter: brightness(1.04);
+}
+
 .empty-state {
   margin: 0;
   border-radius: 16px;
