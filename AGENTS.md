@@ -17,18 +17,21 @@ Do not defer AGENTS updates.
 - Project: Infiuba housing portal for exchange students in Buenos Aires.
 - Stack: Next.js App Router + TypeScript + PostgreSQL + Leaflet.
 - Languages: `en`, `es`, `fr`, `de`, `pt`, `it`, `no`.
+- Default landing language is Spanish (`/` redirects to `/es`).
 - Theme: light/dark with persisted browser preference.
 - Typography: unified sans-serif stack for headings and body (`Avenir Next` fallback stack).
 - Core domain: listings, owner contacts, survey reviews, web reviews with moderation, multilingual review text, and review-level rent history.
 - Admin UX: split views for reviews, invites, and access management under `/{lang}/admin/*`; access view supports client-side search by email/role.
-- Main listings UI uses a view toggle: `Cards`, `Map`, and (for whitelisted/admin) `Add review`.
+- Main listings UI uses a view toggle: `Map` (default), `List`, and (for whitelisted/admin) `Add review`.
 - Cards/Map filters include search, neighborhood, recommendation, min/max price, minimum rating, sorting (default: newest), and active filter chips that support one-click removal plus clear-all.
 - Cards/Map filter state (including selected view mode) is persisted in browser `localStorage` using shared key `infiuba:filters:v2` so navigation/reloads and language switches keep the same filters/view; legacy per-language keys are auto-migrated on read.
 - Filter persistence loading is gated so initial render defaults never overwrite stored filters before hydration applies them.
 - Map panel shows up to 3 latest approved review comments for the selected listing (translated to current UI language when available), with the same "show original/translation" toggle used in listing detail reviews.
+- Map view includes full selected-listing details (stats, owner contacts when visible by role, details link); historical reviews render before the inline per-listing review form for whitelisted/admin users.
 - On mobile/narrow layouts (`<=1100px`), map mode is map-first: a horizontal property rail sits under the map, and the full results list opens as a bottom-sheet drawer with backdrop.
-- On mobile/narrow layouts (`<=1100px`), the selected listing details (stats + owner contacts when visible to role + details link) are shown under the horizontal rail in map mode.
-- Selecting a listing from map markers keeps list/rail selection in sync and auto-scrolls the corresponding item into view when visible.
+- In map mode, selected listing details (stats + owner contacts when visible to role + details link) render under the map panel content; on mobile/narrow layouts they appear under the horizontal rail.
+- Selecting a listing from map markers keeps list/rail selection in sync and auto-scrolls the corresponding item into view when visible; when sort order changes in map mode, selection resets to the first result in the new order.
+- On desktop map layout, the left listing column uses viewport-capped internal scrolling (`max-height`), while the right panel keeps a matching viewport-based minimum height.
 - Header menus (language/access) are layered above map controls/popups to avoid overlap while using map view.
 
 ## Runtime and Commands

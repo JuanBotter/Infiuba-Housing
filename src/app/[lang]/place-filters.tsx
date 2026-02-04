@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import { AddStayReviewForm } from "@/app/[lang]/add-stay-review-form";
 import { ReviewComment } from "@/app/[lang]/place/[id]/review-comment";
+import { ReviewForm } from "@/app/[lang]/place/[id]/review-form";
 import { formatDecimal, formatPercent, formatUsd, formatUsdRange } from "@/lib/format";
 import type { Messages } from "@/i18n/messages";
 import type { Lang, Listing } from "@/types";
@@ -88,9 +89,10 @@ export function PlaceFilters({
   const [priceMax, setPriceMax] = useState("");
   const [minRating, setMinRating] = useState("any");
   const [sortBy, setSortBy] = useState<SortBy>("recent_desc");
-  const [viewMode, setViewMode] = useState<"cards" | "map" | "review">("cards");
+  const [viewMode, setViewMode] = useState<"cards" | "map" | "review">("map");
   const [selectedMapListingId, setSelectedMapListingId] = useState<string | null>(null);
   const [isMapListOpen, setIsMapListOpen] = useState(false);
+  const previousSortByRef = useRef<SortBy>(sortBy);
 
   useEffect(() => {
     try {
@@ -136,7 +138,7 @@ export function PlaceFilters({
       if (persisted.viewMode === "cards" || persisted.viewMode === "map") {
         setViewMode(persisted.viewMode);
       } else if (persisted.viewMode === "review") {
-        setViewMode(canWriteReviews ? "review" : "cards");
+        setViewMode(canWriteReviews ? "review" : "map");
       }
     } catch {
       // Ignore invalid persisted values.
@@ -276,6 +278,14 @@ export function PlaceFilters({
   useEffect(() => {
     if (filteredAndSorted.length === 0) {
       setSelectedMapListingId(null);
+      previousSortByRef.current = sortBy;
+      return;
+    }
+
+    const sortChanged = previousSortByRef.current !== sortBy;
+    previousSortByRef.current = sortBy;
+    if (sortChanged && viewMode === "map") {
+      setSelectedMapListingId(filteredAndSorted[0].id);
       return;
     }
 
@@ -285,7 +295,7 @@ export function PlaceFilters({
     if (!selectedMapListingId || !selectedStillExists) {
       setSelectedMapListingId(filteredAndSorted[0].id);
     }
-  }, [filteredAndSorted, selectedMapListingId]);
+  }, [filteredAndSorted, selectedMapListingId, sortBy, viewMode]);
 
   useEffect(() => {
     if (viewMode !== "map") {
@@ -447,17 +457,17 @@ export function PlaceFilters({
       <section className="view-toggle" aria-label={messages.viewModeLabel}>
         <button
           type="button"
-          className={`view-toggle__button ${viewMode === "cards" ? "is-active" : ""}`}
-          onClick={() => setViewMode("cards")}
-        >
-          {messages.viewCards}
-        </button>
-        <button
-          type="button"
           className={`view-toggle__button ${viewMode === "map" ? "is-active" : ""}`}
           onClick={() => setViewMode("map")}
         >
           {messages.viewMap}
+        </button>
+        <button
+          type="button"
+          className={`view-toggle__button ${viewMode === "cards" ? "is-active" : ""}`}
+          onClick={() => setViewMode("cards")}
+        >
+          {messages.viewCards}
         </button>
         {canWriteReviews ? (
           <button
@@ -792,10 +802,10 @@ export function PlaceFilters({
                   </button>
                 </section>
 
-                <section className="map-mobile-selected">
-                  <p className="map-mobile-selected__eyebrow">{selectedMapListing.neighborhood}</p>
+                <section className="map-selected-details">
+                  <p className="map-selected-details__eyebrow">{selectedMapListing.neighborhood}</p>
                   <h4>{selectedMapListing.address}</h4>
-                  <div className="map-mobile-selected__stats">
+                  <div className="map-selected-details__stats">
                     <p className="stat-chip">
                       <span>{messages.ratingLabel}</span>
                       <strong>
@@ -839,8 +849,8 @@ export function PlaceFilters({
                   </div>
                   {selectedMapListing.contacts.length > 0 ? (
                     <>
-                      <p className="map-mobile-selected__contacts-label">{messages.ownerContacts}</p>
-                      <ul className="contact-list map-mobile-selected__contacts">
+                      <p className="map-selected-details__contacts-label">{messages.ownerContacts}</p>
+                      <ul className="contact-list map-selected-details__contacts">
                         {selectedMapListing.contacts.map((contact) => (
                           <li key={contact}>{contact}</li>
                         ))}
@@ -872,6 +882,18 @@ export function PlaceFilters({
                     </ul>
                   )}
                 </section>
+
+                {canWriteReviews ? (
+                  <section className="map-selected-review">
+                    <h4>{messages.leaveReviewTitle}</h4>
+                    <p>{messages.leaveReviewSubtitle}</p>
+                    <ReviewForm
+                      key={`map-review-${selectedMapListing.id}`}
+                      lang={lang}
+                      listingId={selectedMapListing.id}
+                    />
+                  </section>
+                ) : null}
               </>
             ) : null}
           </div>

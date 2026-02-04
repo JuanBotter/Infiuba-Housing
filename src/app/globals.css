@@ -618,12 +618,14 @@ textarea {
   display: grid;
   gap: 0.9rem;
   grid-template-columns: minmax(260px, 0.9fr) minmax(0, 1.1fr);
+  align-items: start;
 }
 
 .map-layout__list {
   display: grid;
   gap: 0.6rem;
-  max-height: 66vh;
+  max-height: calc(100vh - 8.6rem);
+  min-height: 0;
   overflow: auto;
   padding-right: 0.15rem;
 }
@@ -709,6 +711,7 @@ textarea {
   display: grid;
   gap: 0.55rem;
   align-content: start;
+  min-height: calc(100vh - 8.6rem);
 }
 
 .map-layout__hint,
@@ -730,8 +733,8 @@ textarea {
   gap: 0.5rem;
 }
 
-.map-mobile-selected {
-  display: none;
+.map-selected-details {
+  display: grid;
   border: 1px solid var(--line);
   border-radius: 14px;
   background: var(--surface-strong);
@@ -739,7 +742,7 @@ textarea {
   gap: 0.52rem;
 }
 
-.map-mobile-selected .map-mobile-selected__eyebrow {
+.map-selected-details .map-selected-details__eyebrow {
   margin: 0;
   font-size: 0.7rem;
   letter-spacing: 0.08em;
@@ -748,19 +751,19 @@ textarea {
   color: var(--ink-soft);
 }
 
-.map-mobile-selected h4 {
+.map-selected-details h4 {
   margin: 0;
   font-family: var(--font-heading);
   font-size: 1.05rem;
 }
 
-.map-mobile-selected__stats {
+.map-selected-details__stats {
   display: grid;
   gap: 0.4rem;
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-.map-mobile-selected .map-mobile-selected__contacts-label {
+.map-selected-details .map-selected-details__contacts-label {
   margin: 0;
   font-size: 0.74rem;
   letter-spacing: 0.06em;
@@ -769,12 +772,31 @@ textarea {
   color: var(--ink-soft);
 }
 
-.map-mobile-selected__contacts {
+.map-selected-details__contacts {
   gap: 0.4rem;
 }
 
-.map-mobile-selected .inline-link {
+.map-selected-details .inline-link {
   margin: 0;
+}
+
+.map-selected-review {
+  border-top: 1px solid var(--line);
+  padding-top: 0.68rem;
+  display: grid;
+  gap: 0.42rem;
+}
+
+.map-selected-review h4 {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: 1.05rem;
+}
+
+.map-selected-review p {
+  margin: 0;
+  font-size: 0.84rem;
+  color: var(--ink-soft);
 }
 
 .map-mobile-rail__hint {
@@ -1620,10 +1642,6 @@ textarea {
   }
 
   .map-mobile-rail {
-    display: grid;
-  }
-
-  .map-mobile-selected {
     display: grid;
   }
 
