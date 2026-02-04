@@ -507,12 +507,33 @@ textarea {
 }
 
 .active-filters__chip {
+  appearance: none;
+  font: inherit;
   border: 1px solid var(--line);
   border-radius: 999px;
   background: var(--chip-bg);
-  padding: 0.24rem 0.58rem;
+  padding: 0.24rem 0.54rem;
   font-size: 0.75rem;
+  color: var(--ink);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.34rem;
+  cursor: pointer;
+}
+
+.active-filters__chip:hover {
+  border-color: color-mix(in srgb, var(--line) 70%, var(--primary) 30%);
+}
+
+.active-filters__chip:focus-visible {
+  outline: none;
+  border-color: rgba(19, 139, 132, 0.6);
+  box-shadow: 0 0 0 3px rgba(19, 139, 132, 0.18);
+}
+
+.active-filters__chip-close {
   color: var(--ink-soft);
+  line-height: 1;
 }
 
 .active-filters__clear {

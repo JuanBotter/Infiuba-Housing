@@ -34,6 +34,19 @@ interface PersistedFilters {
 }
 
 type SortBy = "rating_desc" | "price_asc" | "reviews_desc" | "recent_desc";
+type ActiveFilterId =
+  | "search"
+  | "neighborhood"
+  | "recommended"
+  | "priceMin"
+  | "priceMax"
+  | "minRating"
+  | "sort";
+
+interface ActiveFilterChip {
+  id: ActiveFilterId;
+  label: string;
+}
 
 function normalizeSortBy(value: string | undefined): SortBy {
   if (
@@ -262,32 +275,47 @@ export function PlaceFilters({
   const isReviewMode = viewMode === "review";
 
   const activeFilters = useMemo(() => {
-    const chips: string[] = [];
+    const chips: ActiveFilterChip[] = [];
 
     if (searchTerm.trim()) {
-      chips.push(`${messages.searchLabel}: ${searchTerm.trim()}`);
+      chips.push({ id: "search", label: `${messages.searchLabel}: ${searchTerm.trim()}` });
     }
 
     if (selectedNeighborhood !== "all") {
-      chips.push(`${messages.neighborhoodLabel}: ${selectedNeighborhood}`);
+      chips.push({
+        id: "neighborhood",
+        label: `${messages.neighborhoodLabel}: ${selectedNeighborhood}`,
+      });
     }
 
     if (recommendedFilter === "yes") {
-      chips.push(`${messages.recommendationLabel}: ${messages.recommendationYes}`);
+      chips.push({
+        id: "recommended",
+        label: `${messages.recommendationLabel}: ${messages.recommendationYes}`,
+      });
     } else if (recommendedFilter === "no") {
-      chips.push(`${messages.recommendationLabel}: ${messages.recommendationNo}`);
+      chips.push({
+        id: "recommended",
+        label: `${messages.recommendationLabel}: ${messages.recommendationNo}`,
+      });
     }
 
     if (priceMin !== "" && Number.isFinite(Number(priceMin))) {
-      chips.push(`${messages.filterPriceMinLabel}: ${formatUsd(Number(priceMin), lang)}`);
+      chips.push({
+        id: "priceMin",
+        label: `${messages.filterPriceMinLabel}: ${formatUsd(Number(priceMin), lang)}`,
+      });
     }
 
     if (priceMax !== "" && Number.isFinite(Number(priceMax))) {
-      chips.push(`${messages.filterPriceMaxLabel}: ${formatUsd(Number(priceMax), lang)}`);
+      chips.push({
+        id: "priceMax",
+        label: `${messages.filterPriceMaxLabel}: ${formatUsd(Number(priceMax), lang)}`,
+      });
     }
 
     if (minRating !== "any" && Number.isFinite(Number(minRating))) {
-      chips.push(`${messages.filterMinRatingLabel}: ${minRating}+`);
+      chips.push({ id: "minRating", label: `${messages.filterMinRatingLabel}: ${minRating}+` });
     }
 
     if (sortBy !== "recent_desc") {
@@ -297,7 +325,7 @@ export function PlaceFilters({
         reviews_desc: messages.sortReviewsDesc,
         recent_desc: messages.sortRecentDesc,
       };
-      chips.push(`${messages.sortLabel}: ${sortLabelMap[sortBy]}`);
+      chips.push({ id: "sort", label: `${messages.sortLabel}: ${sortLabelMap[sortBy]}` });
     }
 
     return chips;
@@ -324,6 +352,34 @@ export function PlaceFilters({
     selectedNeighborhood,
     sortBy,
   ]);
+
+  function clearSingleFilter(id: ActiveFilterId) {
+    if (id === "search") {
+      setSearchTerm("");
+      return;
+    }
+    if (id === "neighborhood") {
+      setSelectedNeighborhood("all");
+      return;
+    }
+    if (id === "recommended") {
+      setRecommendedFilter("any");
+      return;
+    }
+    if (id === "priceMin") {
+      setPriceMin("");
+      return;
+    }
+    if (id === "priceMax") {
+      setPriceMax("");
+      return;
+    }
+    if (id === "minRating") {
+      setMinRating("any");
+      return;
+    }
+    setSortBy("recent_desc");
+  }
 
   function clearFilters() {
     setSearchTerm("");
@@ -458,9 +514,18 @@ export function PlaceFilters({
               <p className="active-filters__label">{messages.activeFiltersLabel}</p>
               <div className="active-filters__list">
                 {activeFilters.map((chip) => (
-                  <span key={chip} className="active-filters__chip">
-                    {chip}
-                  </span>
+                  <button
+                    key={chip.id}
+                    type="button"
+                    className="active-filters__chip"
+                    onClick={() => clearSingleFilter(chip.id)}
+                    aria-label={chip.label}
+                  >
+                    {chip.label}
+                    <span className="active-filters__chip-close" aria-hidden="true">
+                      ×
+                    </span>
+                  </button>
                 ))}
               </div>
               <button type="button" className="active-filters__clear" onClick={clearFilters}>
