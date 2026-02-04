@@ -1,6 +1,7 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 import { ModerationPanel } from "@/app/[lang]/admin/moderation/panel";
+import { canAccessAdmin, getCurrentUserRole } from "@/lib/auth";
 import { getListings } from "@/lib/data";
 import { getMessages, isSupportedLanguage } from "@/lib/i18n";
 import type { Lang } from "@/types";
@@ -18,8 +19,13 @@ export default async function ModerationPage({ params }: ModerationPageProps) {
   }
 
   const lang = resolvedParams.lang as Lang;
+  const role = await getCurrentUserRole();
+  if (!canAccessAdmin(role)) {
+    redirect(`/${lang}`);
+  }
+
   const messages = getMessages(lang);
-  const listings = await getListings();
+  const listings = await getListings({ includePrivateContactInfo: true });
   const listingMap = Object.fromEntries(
     listings.map((listing) => [listing.id, `${listing.address} · ${listing.neighborhood}`]),
   );

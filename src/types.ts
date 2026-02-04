@@ -1,4 +1,5 @@
 export type Lang = "en" | "es" | "fr" | "de" | "pt" | "it" | "no";
+export type UserRole = "visitor" | "whitelisted" | "admin";
 
 export type ReviewSource = "survey" | "web";
 

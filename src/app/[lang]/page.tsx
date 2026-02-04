@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 
 import { AddStayReviewForm } from "@/app/[lang]/add-stay-review-form";
 import { PlaceFilters } from "@/app/[lang]/place-filters";
+import { canSubmitReviews, canViewContactInfo, getCurrentUserRole } from "@/lib/auth";
 import { getDatasetMeta, getListings, getNeighborhoods } from "@/lib/data";
 import { getLocaleForLang } from "@/lib/format";
 import { getMessages, isSupportedLanguage } from "@/lib/i18n";
@@ -21,8 +22,11 @@ export default async function ListingsPage({ params }: PageProps) {
 
   const lang = resolvedParams.lang as Lang;
   const messages = getMessages(lang);
+  const role = await getCurrentUserRole();
+  const canViewPrivateInfo = canViewContactInfo(role);
+  const canWriteReviews = canSubmitReviews(role);
   const [listings, neighborhoods, meta] = await Promise.all([
-    getListings(),
+    getListings({ includePrivateContactInfo: canViewPrivateInfo }),
     getNeighborhoods(),
     getDatasetMeta(),
   ]);
@@ -62,7 +66,7 @@ export default async function ListingsPage({ params }: PageProps) {
         neighborhoods={neighborhoods}
       />
 
-      <AddStayReviewForm lang={lang} listings={listings} />
+      {canWriteReviews ? <AddStayReviewForm lang={lang} listings={listings} /> : null}
 
       <p className="data-footnote">
         {meta.totalListings} {messages.footnotePlacesLabel} · {messages.footnoteUpdatedLabel}{" "}

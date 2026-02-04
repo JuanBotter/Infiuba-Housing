@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { ReviewComment } from "@/app/[lang]/place/[id]/review-comment";
 import { ReviewForm } from "@/app/[lang]/place/[id]/review-form";
+import { canSubmitReviews, canViewContactInfo, getCurrentUserRole } from "@/lib/auth";
 import { getListingById } from "@/lib/data";
 import { formatDecimal, formatPercent, formatUsd } from "@/lib/format";
 import { getMessages, isSupportedLanguage } from "@/lib/i18n";
@@ -24,12 +25,19 @@ export default async function PlaceDetailPage({ params }: PlaceDetailPageProps) 
 
   const lang = resolvedParams.lang as Lang;
   const messages = getMessages(lang);
-  const listing = await getListingById(resolvedParams.id, lang);
+  const role = await getCurrentUserRole();
+  const canViewPrivateInfo = canViewContactInfo(role);
+  const canWriteReviews = canSubmitReviews(role);
+  const listing = await getListingById(resolvedParams.id, lang, {
+    includePrivateContactInfo: canViewPrivateInfo,
+  });
   if (!listing) {
     notFound();
   }
 
-  const approvedWebReviews = await getApprovedReviewsForListing(listing.id, lang);
+  const approvedWebReviews = await getApprovedReviewsForListing(listing.id, lang, {
+    includePrivateContactInfo: canViewPrivateInfo,
+  });
   const mergedReviews: Review[] = [
     ...listing.reviews,
     ...approvedWebReviews.map((review) => ({
@@ -93,16 +101,20 @@ export default async function PlaceDetailPage({ params }: PlaceDetailPageProps) 
           </p>
         </div>
 
-        <h2>{messages.ownerContacts}</h2>
-        {listing.contacts.length > 0 ? (
-          <ul className="contact-list">
-            {listing.contacts.map((contact) => (
-              <li key={contact}>{contact}</li>
-            ))}
-          </ul>
-        ) : (
-          <p>-</p>
-        )}
+        {canViewPrivateInfo ? (
+          <>
+            <h2>{messages.ownerContacts}</h2>
+            {listing.contacts.length > 0 ? (
+              <ul className="contact-list">
+                {listing.contacts.map((contact) => (
+                  <li key={contact}>{contact}</li>
+                ))}
+              </ul>
+            ) : (
+              <p>-</p>
+            )}
+          </>
+        ) : null}
       </article>
 
       <article className="detail-card detail-card--reviews">
@@ -157,11 +169,13 @@ export default async function PlaceDetailPage({ params }: PlaceDetailPageProps) 
         )}
       </article>
 
-      <article className="detail-card detail-card--form">
-        <h2>{messages.leaveReviewTitle}</h2>
-        <p>{messages.leaveReviewSubtitle}</p>
-        <ReviewForm lang={lang} listingId={listing.id} />
-      </article>
+      {canWriteReviews ? (
+        <article className="detail-card detail-card--form">
+          <h2>{messages.leaveReviewTitle}</h2>
+          <p>{messages.leaveReviewSubtitle}</p>
+          <ReviewForm lang={lang} listingId={listing.id} />
+        </article>
+      ) : null}
     </section>
   );
 }

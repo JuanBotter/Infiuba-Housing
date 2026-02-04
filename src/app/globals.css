@@ -152,6 +152,7 @@ a {
 }
 
 .top-bar__language,
+.top-bar__role,
 .theme-toggle {
   width: 2.1rem;
   height: 2.1rem;
@@ -172,11 +173,33 @@ a {
   background: linear-gradient(120deg, var(--primary-deep), var(--primary));
 }
 
+.top-bar__role {
+  color: #ffffff;
+  border: 0;
+  background: linear-gradient(120deg, #5f7081, #8498aa);
+}
+
+.top-bar__role--whitelisted {
+  background: linear-gradient(120deg, var(--primary-deep), var(--primary));
+}
+
+.top-bar__role--admin {
+  background: linear-gradient(120deg, #a24f2c, #d47c4a);
+}
+
 .top-bar__language::-webkit-details-marker {
   display: none;
 }
 
+.top-bar__role::-webkit-details-marker {
+  display: none;
+}
+
 .top-bar__language::marker {
+  content: "";
+}
+
+.top-bar__role::marker {
   content: "";
 }
 
@@ -186,18 +209,24 @@ a {
 }
 
 .top-bar__language svg,
+.top-bar__role svg,
 .theme-toggle svg {
   width: 1.06rem;
   height: 1.06rem;
 }
 
 .top-bar__language:hover,
+.top-bar__role:hover,
 .theme-toggle:hover {
   transform: translateY(-1px);
   filter: brightness(1.04);
 }
 
 .language-menu {
+  position: relative;
+}
+
+.role-menu {
   position: relative;
 }
 
@@ -217,6 +246,59 @@ a {
 
 .language-menu[open] .language-menu__popover {
   display: grid;
+}
+
+.role-menu__popover {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.38rem);
+  min-width: 240px;
+  padding: 0.55rem;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--surface-strong);
+  box-shadow: var(--shadow-soft);
+  display: none;
+  z-index: 50;
+}
+
+.role-menu[open] .role-menu__popover {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.role-menu__current {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+}
+
+.role-menu__current strong {
+  color: var(--ink);
+}
+
+.role-menu__hint {
+  margin: 0;
+  font-size: 0.77rem;
+  color: var(--ink-soft);
+}
+
+.role-menu__form {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.role-menu__form label {
+  display: grid;
+  gap: 0.38rem;
+}
+
+.role-menu__form span {
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--ink-soft);
 }
 
 .language-menu__item {
@@ -1106,6 +1188,7 @@ textarea {
 }
 
 :root[data-theme="dark"] .top-bar__admin,
+:root[data-theme="dark"] .top-bar__role,
 :root[data-theme="dark"] .theme-toggle,
 :root[data-theme="dark"] .inline-link {
   color: var(--ink);
@@ -1193,12 +1276,14 @@ textarea {
   }
 
   .top-bar__language,
+  .top-bar__role,
   .theme-toggle {
     width: 1.9rem;
     height: 1.9rem;
   }
 
   .top-bar__language svg,
+  .top-bar__role svg,
   .theme-toggle svg {
     width: 0.94rem;
     height: 0.94rem;

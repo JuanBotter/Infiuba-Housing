@@ -2,8 +2,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { LanguageSwitcher } from "@/components/language-switcher";
+import { RoleSwitcher } from "@/components/role-switcher";
 import { ThemeLogo } from "@/components/theme-logo";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { canAccessAdmin, getCurrentUserRole } from "@/lib/auth";
 import { getMessages, isSupportedLanguage, supportedLanguages } from "@/lib/i18n";
 import type { Lang } from "@/types";
 
@@ -24,6 +26,7 @@ export default async function LanguageLayout({ children, params }: LayoutProps) 
 
   const lang = resolvedParams.lang as Lang;
   const t = getMessages(lang);
+  const role = await getCurrentUserRole();
 
   return (
     <div className="page-shell">
@@ -32,9 +35,12 @@ export default async function LanguageLayout({ children, params }: LayoutProps) 
           <ThemeLogo />
         </Link>
         <div className="top-bar__actions">
-          <Link className="top-bar__admin" href={`/${lang}/admin/moderation`}>
-            {t.adminLabel}
-          </Link>
+          <RoleSwitcher lang={lang} role={role} />
+          {canAccessAdmin(role) ? (
+            <Link className="top-bar__admin" href={`/${lang}/admin/moderation`}>
+              {t.adminLabel}
+            </Link>
+          ) : null}
           <LanguageSwitcher lang={lang} label={t.languageSwitch} />
           <ThemeToggle lang={lang} />
         </div>

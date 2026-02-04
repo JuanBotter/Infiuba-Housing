@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { canSubmitReviews, getRoleFromRequest } from "@/lib/auth";
 import { createListing, getListingById } from "@/lib/data";
 import { appendPendingReview } from "@/lib/reviews-store";
 
@@ -30,6 +31,14 @@ function parseContacts(value: unknown) {
 
 export async function POST(request: Request) {
   try {
+    const role = getRoleFromRequest(request);
+    if (!canSubmitReviews(role)) {
+      return NextResponse.json(
+        { error: "Only whitelisted students can submit reviews." },
+        { status: 403 },
+      );
+    }
+
     const payload = await request.json();
     const listingId = truncate(payload?.listingId, 200);
     const comment = truncate(payload?.comment, 1000);

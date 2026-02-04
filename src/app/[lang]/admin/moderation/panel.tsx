@@ -25,7 +25,6 @@ function formatDate(value: string, lang: Lang) {
 
 export function ModerationPanel({ lang, listingMap }: ModerationPanelProps) {
   const messages = useMemo(() => getMessages(lang), [lang]);
-  const [adminToken, setAdminToken] = useState("");
   const [pendingReviews, setPendingReviews] = useState<PendingWebReview[]>([]);
   const [approvedReviews, setApprovedReviews] = useState<ApprovedWebReview[]>([]);
   const [loading, setLoading] = useState(true);
@@ -36,9 +35,7 @@ export function ModerationPanel({ lang, listingMap }: ModerationPanelProps) {
     setLoading(true);
     setError("");
     try {
-      const response = await fetch("/api/admin/reviews", {
-        headers: adminToken ? { "x-admin-token": adminToken } : undefined,
-      });
+      const response = await fetch("/api/admin/reviews");
 
       if (response.status === 401) {
         setError(messages.adminAuthError);
@@ -72,7 +69,6 @@ export function ModerationPanel({ lang, listingMap }: ModerationPanelProps) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...(adminToken ? { "x-admin-token": adminToken } : {}),
         },
         body: JSON.stringify({ action, reviewId }),
       });
@@ -97,15 +93,6 @@ export function ModerationPanel({ lang, listingMap }: ModerationPanelProps) {
   return (
     <>
       <article className="detail-card moderation-toolbar">
-        <label>
-          <span>{messages.adminTokenLabel}</span>
-          <input
-            type="password"
-            value={adminToken}
-            placeholder={messages.adminTokenPlaceholder}
-            onChange={(event) => setAdminToken(event.target.value)}
-          />
-        </label>
         <button type="button" className="button-link" onClick={() => void loadModerationData()}>
           {loading ? messages.adminLoading : messages.adminRefresh}
         </button>

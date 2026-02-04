@@ -1,23 +1,14 @@
 import { NextResponse } from "next/server";
 
+import { canAccessAdmin, getRoleFromRequest } from "@/lib/auth";
 import {
   getApprovedReviews,
   getPendingReviews,
   moderatePendingReview,
 } from "@/lib/reviews-store";
 
-function isAuthorized(request: Request) {
-  const expectedToken = process.env.ADMIN_TOKEN;
-  if (!expectedToken) {
-    return true;
-  }
-
-  const providedToken = request.headers.get("x-admin-token")?.trim();
-  return Boolean(providedToken && providedToken === expectedToken);
-}
-
 export async function GET(request: Request) {
-  if (!isAuthorized(request)) {
+  if (!canAccessAdmin(getRoleFromRequest(request))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -29,7 +20,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  if (!isAuthorized(request)) {
+  if (!canAccessAdmin(getRoleFromRequest(request))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

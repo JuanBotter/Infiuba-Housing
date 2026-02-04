@@ -12,6 +12,7 @@ Multilingual MVP (English, Spanish, French, German, Portuguese, Italian, Norwegi
 - PostgreSQL-backed listings and reviews (with file fallback if `DATABASE_URL` is not set).
 - Original review comments + translated versions saved in PostgreSQL (`comment` + `comment_<lang>` columns).
 - Public review submission flow with address suggestions; existing properties get a new review, new ones are created automatically.
+- Role-based access: `visitor` (default), `whitelisted` (student full access), `admin`.
 - Admin moderation UI at `/{lang}/admin/moderation`.
 
 ## Run locally
@@ -97,10 +98,24 @@ New student reviews are written to PostgreSQL (`reviews` table, `status='pending
 - `http://localhost:3000/en/admin/moderation`
 - `http://localhost:3000/es/admin/moderation`
 
-Optional auth:
+## Access roles
 
 ```bash
-ADMIN_TOKEN=your-secret-token npm run dev
+WHITELIST_TOKEN=student-access-code
+ADMIN_TOKEN=admin-access-code
+# Optional (recommended):
+AUTH_SECRET=replace-with-a-long-random-secret
 ```
 
-If `ADMIN_TOKEN` is set, the admin page/API requires this token.
+- Default role is `visitor`:
+  - can browse listings/reviews
+  - cannot see owner/reviewer contact info
+  - cannot submit reviews
+- `whitelisted` role:
+  - full listing/review/contact visibility
+  - can submit reviews
+- `admin` role:
+  - everything from whitelisted
+  - can access `/{lang}/admin/moderation` and moderate reviews
+
+Use the access icon in the top bar to enter a code and switch roles.

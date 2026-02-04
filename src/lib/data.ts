@@ -45,6 +45,10 @@ interface ListingRow {
   recent_year: number | null;
 }
 
+interface ListingPrivacyOptions {
+  includePrivateContactInfo?: boolean;
+}
+
 function mapListingRow(row: ListingRow): Listing {
   return {
     id: row.id,
@@ -84,7 +88,11 @@ interface ReviewRow {
   created_at: string | Date;
 }
 
-function mapReviewRow(row: ReviewRow, lang: Lang): Review {
+function mapReviewRow(
+  row: ReviewRow,
+  lang: Lang,
+  includePrivateContactInfo: boolean,
+): Review {
   const originalComment = row.comment || undefined;
   const translatedComment = getTranslatedCommentForLanguage(row, lang);
 
@@ -100,7 +108,10 @@ function mapReviewRow(row: ReviewRow, lang: Lang): Review {
       translatedComment && translatedComment !== originalComment
         ? translatedComment
         : undefined,
-    studentContact: row.allow_contact_sharing ? row.student_contact || undefined : undefined,
+    studentContact:
+      includePrivateContactInfo && row.allow_contact_sharing
+        ? row.student_contact || undefined
+        : undefined,
     studentName: row.student_name || undefined,
     semester: row.semester || undefined,
     createdAt:
@@ -110,9 +121,22 @@ function mapReviewRow(row: ReviewRow, lang: Lang): Review {
   };
 }
 
-export async function getListings() {
+function applyPrivacy(listing: Listing, includePrivateContactInfo: boolean): Listing {
+  return {
+    ...listing,
+    contacts: includePrivateContactInfo ? [...listing.contacts] : [],
+    reviews: listing.reviews.map((review) => ({
+      ...review,
+      studentContact: includePrivateContactInfo ? review.studentContact : undefined,
+    })),
+  };
+}
+
+export async function getListings(options: ListingPrivacyOptions = {}) {
+  const includePrivateContactInfo = options.includePrivateContactInfo ?? true;
+
   if (!isDatabaseEnabled()) {
-    return dataset.listings;
+    return dataset.listings.map((listing) => applyPrivacy(listing, includePrivateContactInfo));
   }
 
   const result = await dbQuery<ListingRow>(
@@ -137,15 +161,19 @@ export async function getListings() {
     `,
   );
 
-  return result.rows.map(mapListingRow);
+  return result.rows.map((row) => applyPrivacy(mapListingRow(row), includePrivateContactInfo));
 }
 
 export async function getListingById(
   id: string,
   lang: Lang = "en",
+  options: ListingPrivacyOptions = {},
 ): Promise<Listing | undefined> {
+  const includePrivateContactInfo = options.includePrivateContactInfo ?? true;
+
   if (!isDatabaseEnabled()) {
-    return dataset.listings.find((listing) => listing.id === id);
+    const listing = dataset.listings.find((candidate) => candidate.id === id);
+    return listing ? applyPrivacy(listing, includePrivateContactInfo) : undefined;
   }
 
   const listingResult = await dbQuery<ListingRow>(
@@ -206,8 +234,10 @@ export async function getListingById(
   );
 
   const listing = mapListingRow(listingResult.rows[0]);
-  listing.reviews = reviewsResult.rows.map((row) => mapReviewRow(row, lang));
-  return listing;
+  listing.reviews = reviewsResult.rows.map((row) =>
+    mapReviewRow(row, lang, includePrivateContactInfo),
+  );
+  return applyPrivacy(listing, includePrivateContactInfo);
 }
 
 export interface NewListingInput {

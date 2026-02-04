@@ -84,7 +84,11 @@ function mapApprovedReviewRow(row: ReviewRow): ApprovedWebReview {
   };
 }
 
-function mapApprovedReviewRowForLanguage(row: ReviewRow, lang: Lang): ApprovedWebReview {
+function mapApprovedReviewRowForLanguage(
+  row: ReviewRow,
+  lang: Lang,
+  includePrivateContactInfo: boolean,
+): ApprovedWebReview {
   const originalComment = row.comment || undefined;
   const translatedComment = getTranslatedCommentForLanguage(row, lang);
 
@@ -92,7 +96,8 @@ function mapApprovedReviewRowForLanguage(row: ReviewRow, lang: Lang): ApprovedWe
     ...mapApprovedReviewRow(row),
     comment: translatedComment || row.comment || "",
     originalComment,
-    studentContact: row.allow_contact_sharing
+    studentEmail: includePrivateContactInfo ? toOptionalText(row.student_email) : undefined,
+    studentContact: includePrivateContactInfo && row.allow_contact_sharing
       ? toOptionalText(row.student_contact) || toOptionalText(row.student_email)
       : undefined,
     translatedComment:
@@ -102,10 +107,17 @@ function mapApprovedReviewRowForLanguage(row: ReviewRow, lang: Lang): ApprovedWe
   };
 }
 
+interface ReviewPrivacyOptions {
+  includePrivateContactInfo?: boolean;
+}
+
 export async function getApprovedReviewsForListing(
   listingId: string,
   lang: Lang = "en",
+  options: ReviewPrivacyOptions = {},
 ) {
+  const includePrivateContactInfo = options.includePrivateContactInfo ?? true;
+
   if (isDatabaseEnabled()) {
     const result = await dbQuery<ReviewRow>(
       `
@@ -137,11 +149,19 @@ export async function getApprovedReviewsForListing(
       `,
       [listingId],
     );
-    return result.rows.map((row) => mapApprovedReviewRowForLanguage(row, lang));
+    return result.rows.map((row) =>
+      mapApprovedReviewRowForLanguage(row, lang, includePrivateContactInfo),
+    );
   }
 
   const approved = await readArrayFile<ApprovedWebReview>(APPROVED_FILE);
-  return approved.filter((review) => review.listingId === listingId);
+  return approved
+    .filter((review) => review.listingId === listingId)
+    .map((review) => ({
+      ...review,
+      studentEmail: includePrivateContactInfo ? review.studentEmail : undefined,
+      studentContact: includePrivateContactInfo ? review.studentContact : undefined,
+    }));
 }
 
 export async function getPendingReviews() {
