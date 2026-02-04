@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { AddStayReviewForm } from "@/app/[lang]/add-stay-review-form";
+import { ReviewComment } from "@/app/[lang]/place/[id]/review-comment";
 import { formatDecimal, formatPercent, formatUsd, formatUsdRange } from "@/lib/format";
 import type { Messages } from "@/i18n/messages";
 import type { Lang, Listing } from "@/types";
@@ -700,7 +701,13 @@ export function PlaceFilters({
                     <ul className="map-layout__reviews-list">
                       {selectedMapReviews.map((review) => (
                         <li key={review.id} className="map-layout__review-item">
-                          <p>{review.comment}</p>
+                          <ReviewComment
+                            comment={review.comment || ""}
+                            translatedComment={review.translatedComment}
+                            originalComment={review.originalComment}
+                            showOriginalLabel={messages.reviewShowOriginal}
+                            showTranslationLabel={messages.reviewShowTranslation}
+                          />
                         </li>
                       ))}
                     </ul>
