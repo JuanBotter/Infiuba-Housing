@@ -23,8 +23,9 @@ Do not defer AGENTS updates.
 - Admin UX: split views for reviews, invites, and access management under `/{lang}/admin/*`; access view supports client-side search by email/role.
 - Main listings UI uses a view toggle: `Cards`, `Map`, and (for whitelisted/admin) `Add review`.
 - Cards/Map filters include search, neighborhood, recommendation, min/max price, minimum rating, sorting (default: newest), and active filter chips that support one-click removal plus clear-all.
-- Cards/Map filter state (including selected view mode) is persisted in browser `localStorage` per language (`infiuba:filters:<lang>`) so navigation/reloads do not reset filters.
+- Cards/Map filter state (including selected view mode) is persisted in browser `localStorage` using shared key `infiuba:filters:v2` so navigation/reloads and language switches keep the same filters/view; legacy per-language keys are auto-migrated on read.
 - Map panel shows up to 3 latest approved review comments for the selected listing (translated to current UI language when available), with the same "show original/translation" toggle used in listing detail reviews.
+- Header menus (language/access) are layered above map controls/popups to avoid overlap while using map view.
 
 ## Runtime and Commands
 

@@ -35,6 +35,16 @@ interface PersistedFilters {
 }
 
 type SortBy = "rating_desc" | "price_asc" | "reviews_desc" | "recent_desc";
+const FILTER_STORAGE_KEY = "infiuba:filters:v2";
+const LEGACY_FILTER_STORAGE_KEYS = [
+  "infiuba:filters:en",
+  "infiuba:filters:es",
+  "infiuba:filters:fr",
+  "infiuba:filters:de",
+  "infiuba:filters:pt",
+  "infiuba:filters:it",
+  "infiuba:filters:no",
+] as const;
 type ActiveFilterId =
   | "search"
   | "neighborhood"
@@ -68,7 +78,6 @@ export function PlaceFilters({
   neighborhoods,
   canWriteReviews,
 }: PlaceFiltersProps) {
-  const storageKey = `infiuba:filters:${lang}`;
   const didLoadPersistedFilters = useRef(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedNeighborhood, setSelectedNeighborhood] = useState("all");
@@ -82,7 +91,19 @@ export function PlaceFilters({
 
   useEffect(() => {
     try {
-      const raw = window.localStorage.getItem(storageKey);
+      let raw = window.localStorage.getItem(FILTER_STORAGE_KEY);
+      if (!raw) {
+        for (const legacyKey of LEGACY_FILTER_STORAGE_KEYS) {
+          const legacyRaw = window.localStorage.getItem(legacyKey);
+          if (!legacyRaw) {
+            continue;
+          }
+          raw = legacyRaw;
+          window.localStorage.setItem(FILTER_STORAGE_KEY, legacyRaw);
+          break;
+        }
+      }
+
       if (!raw) {
         didLoadPersistedFilters.current = true;
         return;
@@ -120,7 +141,7 @@ export function PlaceFilters({
     } finally {
       didLoadPersistedFilters.current = true;
     }
-  }, [canWriteReviews, storageKey]);
+  }, [canWriteReviews]);
 
   useEffect(() => {
     if (!didLoadPersistedFilters.current) {
@@ -137,7 +158,7 @@ export function PlaceFilters({
       sortBy,
       viewMode,
     };
-    window.localStorage.setItem(storageKey, JSON.stringify(payload));
+    window.localStorage.setItem(FILTER_STORAGE_KEY, JSON.stringify(payload));
   }, [
     minRating,
     priceMax,
@@ -146,7 +167,6 @@ export function PlaceFilters({
     searchTerm,
     selectedNeighborhood,
     sortBy,
-    storageKey,
     viewMode,
   ]);
 

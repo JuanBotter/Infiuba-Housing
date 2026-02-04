@@ -105,7 +105,7 @@ a {
 .top-bar {
   position: sticky;
   top: 0.75rem;
-  z-index: 30;
+  z-index: 1200;
   width: min(1120px, 92vw);
   margin: 0.75rem auto 0;
   padding: 0.78rem 1rem;
@@ -241,7 +241,7 @@ a {
   background: var(--surface-strong);
   box-shadow: var(--shadow-soft);
   display: none;
-  z-index: 50;
+  z-index: 20;
 }
 
 .language-menu[open] .language-menu__popover {
@@ -259,7 +259,7 @@ a {
   background: var(--surface-strong);
   box-shadow: var(--shadow-soft);
   display: none;
-  z-index: 50;
+  z-index: 20;
 }
 
 .role-menu[open] .role-menu__popover {
