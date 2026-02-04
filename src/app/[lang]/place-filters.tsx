@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { AddStayReviewForm } from "@/app/[lang]/add-stay-review-form";
 import { ReviewComment } from "@/app/[lang]/place/[id]/review-comment";
@@ -79,6 +79,8 @@ export function PlaceFilters({
   canWriteReviews,
 }: PlaceFiltersProps) {
   const [hasLoadedPersistedFilters, setHasLoadedPersistedFilters] = useState(false);
+  const mapListItemRefs = useRef<Record<string, HTMLElement | null>>({});
+  const mapRailItemRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedNeighborhood, setSelectedNeighborhood] = useState("all");
   const [recommendedFilter, setRecommendedFilter] = useState("any");
@@ -88,6 +90,7 @@ export function PlaceFilters({
   const [sortBy, setSortBy] = useState<SortBy>("recent_desc");
   const [viewMode, setViewMode] = useState<"cards" | "map" | "review">("cards");
   const [selectedMapListingId, setSelectedMapListingId] = useState<string | null>(null);
+  const [isMapListOpen, setIsMapListOpen] = useState(false);
 
   useEffect(() => {
     try {
@@ -283,6 +286,28 @@ export function PlaceFilters({
       setSelectedMapListingId(filteredAndSorted[0].id);
     }
   }, [filteredAndSorted, selectedMapListingId]);
+
+  useEffect(() => {
+    if (viewMode !== "map") {
+      setIsMapListOpen(false);
+    }
+  }, [viewMode]);
+
+  useEffect(() => {
+    if (viewMode !== "map" || !selectedMapListingId) {
+      return;
+    }
+
+    const selectedListItem = mapListItemRefs.current[selectedMapListingId];
+    if (selectedListItem && selectedListItem.offsetParent !== null) {
+      selectedListItem.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+
+    const selectedRailItem = mapRailItemRefs.current[selectedMapListingId];
+    if (selectedRailItem && selectedRailItem.offsetParent !== null) {
+      selectedRailItem.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+    }
+  }, [selectedMapListingId, viewMode]);
 
   const selectedMapListing =
     filteredAndSorted.find((listing) => listing.id === selectedMapListingId) ||
@@ -638,20 +663,44 @@ export function PlaceFilters({
         </section>
       ) : (
         <section className="map-layout">
-          <aside className="map-layout__list">
+          {isMapListOpen ? (
+            <button
+              type="button"
+              className="map-layout__backdrop"
+              onClick={() => setIsMapListOpen(false)}
+              aria-label={messages.mapListClose}
+            />
+          ) : null}
+
+          <aside className={`map-layout__list ${isMapListOpen ? "is-open" : ""}`}>
+            <div className="map-layout__list-header">
+              <p>
+                {filteredAndSorted.length} {messages.resultsLabel}
+              </p>
+              <button type="button" onClick={() => setIsMapListOpen(false)}>
+                {messages.mapListClose}
+              </button>
+            </div>
             {filteredAndSorted.map((listing) => {
               const isSelected = selectedMapListing?.id === listing.id;
               return (
                 <article
                   key={listing.id}
+                  ref={(element) => {
+                    mapListItemRefs.current[listing.id] = element;
+                  }}
                   className={`map-listing ${isSelected ? "is-selected" : ""}`}
                   role="button"
                   tabIndex={0}
-                  onClick={() => setSelectedMapListingId(listing.id)}
+                  onClick={() => {
+                    setSelectedMapListingId(listing.id);
+                    setIsMapListOpen(false);
+                  }}
                   onKeyDown={(event) => {
                     if (event.key === "Enter" || event.key === " ") {
                       event.preventDefault();
                       setSelectedMapListingId(listing.id);
+                      setIsMapListOpen(false);
                     }
                   }}
                 >
@@ -712,6 +761,96 @@ export function PlaceFilters({
                 >
                   {messages.openInMaps}
                 </a>
+
+                <section className="map-mobile-rail">
+                  <p className="map-mobile-rail__hint">{messages.mapMobileRailHint}</p>
+                  <div className="map-mobile-rail__track">
+                    {filteredAndSorted.map((listing) => {
+                      const isSelected = selectedMapListing?.id === listing.id;
+                      return (
+                        <button
+                          key={listing.id}
+                          type="button"
+                          ref={(element) => {
+                            mapRailItemRefs.current[listing.id] = element;
+                          }}
+                          className={`map-mobile-rail__item ${isSelected ? "is-selected" : ""}`}
+                          onClick={() => setSelectedMapListingId(listing.id)}
+                        >
+                          <span>{listing.neighborhood}</span>
+                          <strong>{listing.address}</strong>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <button
+                    type="button"
+                    className="map-mobile-list-toggle"
+                    onClick={() => setIsMapListOpen((open) => !open)}
+                  >
+                    {isMapListOpen ? messages.mapListClose : messages.mapListOpen}
+                  </button>
+                </section>
+
+                <section className="map-mobile-selected">
+                  <p className="map-mobile-selected__eyebrow">{selectedMapListing.neighborhood}</p>
+                  <h4>{selectedMapListing.address}</h4>
+                  <div className="map-mobile-selected__stats">
+                    <p className="stat-chip">
+                      <span>{messages.ratingLabel}</span>
+                      <strong>
+                        {typeof selectedMapListing.averageRating === "number"
+                          ? formatDecimal(selectedMapListing.averageRating, lang)
+                          : "-"}
+                      </strong>
+                    </p>
+                    <p className="stat-chip">
+                      <span>{messages.recommendationRateLabel}</span>
+                      <strong>
+                        {typeof selectedMapListing.recommendationRate === "number"
+                          ? formatPercent(selectedMapListing.recommendationRate, lang)
+                          : "-"}
+                      </strong>
+                    </p>
+                    <p className="stat-chip">
+                      <span>{messages.priceLabel}</span>
+                      <strong>
+                        {(() => {
+                          const priceText = formatUsdRange(
+                            {
+                              min: selectedMapListing.minPriceUsd,
+                              max: selectedMapListing.maxPriceUsd,
+                              fallback: selectedMapListing.priceUsd,
+                            },
+                            lang,
+                          );
+                          return priceText ? `${priceText} ${messages.monthSuffix}` : "-";
+                        })()}
+                      </strong>
+                    </p>
+                    <p className="stat-chip">
+                      <span>{messages.capacityLabel}</span>
+                      <strong>
+                        {typeof selectedMapListing.capacity === "number"
+                          ? `${Math.round(selectedMapListing.capacity)} ${messages.studentsSuffix}`
+                          : "-"}
+                      </strong>
+                    </p>
+                  </div>
+                  {selectedMapListing.contacts.length > 0 ? (
+                    <>
+                      <p className="map-mobile-selected__contacts-label">{messages.ownerContacts}</p>
+                      <ul className="contact-list map-mobile-selected__contacts">
+                        {selectedMapListing.contacts.map((contact) => (
+                          <li key={contact}>{contact}</li>
+                        ))}
+                      </ul>
+                    </>
+                  ) : null}
+                  <Link href={`/${lang}/place/${selectedMapListing.id}`} className="inline-link">
+                    {messages.viewDetails}
+                  </Link>
+                </section>
 
                 <section className="map-layout__reviews" aria-live="polite">
                   <p className="map-layout__reviews-title">{messages.historicalReviews}</p>

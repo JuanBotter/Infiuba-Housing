@@ -26,6 +26,9 @@ Do not defer AGENTS updates.
 - Cards/Map filter state (including selected view mode) is persisted in browser `localStorage` using shared key `infiuba:filters:v2` so navigation/reloads and language switches keep the same filters/view; legacy per-language keys are auto-migrated on read.
 - Filter persistence loading is gated so initial render defaults never overwrite stored filters before hydration applies them.
 - Map panel shows up to 3 latest approved review comments for the selected listing (translated to current UI language when available), with the same "show original/translation" toggle used in listing detail reviews.
+- On mobile/narrow layouts (`<=1100px`), map mode is map-first: a horizontal property rail sits under the map, and the full results list opens as a bottom-sheet drawer with backdrop.
+- On mobile/narrow layouts (`<=1100px`), the selected listing details (stats + owner contacts when visible to role + details link) are shown under the horizontal rail in map mode.
+- Selecting a listing from map markers keeps list/rail selection in sync and auto-scrolls the corresponding item into view when visible.
 - Header menus (language/access) are layered above map controls/popups to avoid overlap while using map view.
 
 ## Runtime and Commands
