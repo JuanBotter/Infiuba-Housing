@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { AddStayReviewForm } from "@/app/[lang]/add-stay-review-form";
 import { formatDecimal, formatPercent, formatUsd, formatUsdRange } from "@/lib/format";
@@ -22,6 +22,31 @@ interface PlaceFiltersProps {
   canWriteReviews: boolean;
 }
 
+interface PersistedFilters {
+  searchTerm?: string;
+  selectedNeighborhood?: string;
+  recommendedFilter?: string;
+  priceMin?: string;
+  priceMax?: string;
+  minRating?: string;
+  sortBy?: string;
+  viewMode?: "cards" | "map" | "review";
+}
+
+type SortBy = "rating_desc" | "price_asc" | "reviews_desc" | "recent_desc";
+
+function normalizeSortBy(value: string | undefined): SortBy {
+  if (
+    value === "rating_desc" ||
+    value === "price_asc" ||
+    value === "reviews_desc" ||
+    value === "recent_desc"
+  ) {
+    return value;
+  }
+  return "recent_desc";
+}
+
 export function PlaceFilters({
   lang,
   messages,
@@ -29,15 +54,87 @@ export function PlaceFilters({
   neighborhoods,
   canWriteReviews,
 }: PlaceFiltersProps) {
+  const storageKey = `infiuba:filters:${lang}`;
+  const didLoadPersistedFilters = useRef(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedNeighborhood, setSelectedNeighborhood] = useState("all");
   const [recommendedFilter, setRecommendedFilter] = useState("any");
   const [priceMin, setPriceMin] = useState("");
   const [priceMax, setPriceMax] = useState("");
   const [minRating, setMinRating] = useState("any");
-  const [sortBy, setSortBy] = useState("default");
+  const [sortBy, setSortBy] = useState<SortBy>("recent_desc");
   const [viewMode, setViewMode] = useState<"cards" | "map" | "review">("cards");
   const [selectedMapListingId, setSelectedMapListingId] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(storageKey);
+      if (!raw) {
+        didLoadPersistedFilters.current = true;
+        return;
+      }
+
+      const persisted = JSON.parse(raw) as PersistedFilters;
+      if (typeof persisted.searchTerm === "string") {
+        setSearchTerm(persisted.searchTerm);
+      }
+      if (typeof persisted.selectedNeighborhood === "string") {
+        setSelectedNeighborhood(persisted.selectedNeighborhood);
+      }
+      if (typeof persisted.recommendedFilter === "string") {
+        setRecommendedFilter(persisted.recommendedFilter);
+      }
+      if (typeof persisted.priceMin === "string") {
+        setPriceMin(persisted.priceMin);
+      }
+      if (typeof persisted.priceMax === "string") {
+        setPriceMax(persisted.priceMax);
+      }
+      if (typeof persisted.minRating === "string") {
+        setMinRating(persisted.minRating);
+      }
+      if (typeof persisted.sortBy === "string") {
+        setSortBy(normalizeSortBy(persisted.sortBy));
+      }
+      if (persisted.viewMode === "cards" || persisted.viewMode === "map") {
+        setViewMode(persisted.viewMode);
+      } else if (persisted.viewMode === "review") {
+        setViewMode(canWriteReviews ? "review" : "cards");
+      }
+    } catch {
+      // Ignore invalid persisted values.
+    } finally {
+      didLoadPersistedFilters.current = true;
+    }
+  }, [canWriteReviews, storageKey]);
+
+  useEffect(() => {
+    if (!didLoadPersistedFilters.current) {
+      return;
+    }
+
+    const payload: PersistedFilters = {
+      searchTerm,
+      selectedNeighborhood,
+      recommendedFilter,
+      priceMin,
+      priceMax,
+      minRating,
+      sortBy,
+      viewMode,
+    };
+    window.localStorage.setItem(storageKey, JSON.stringify(payload));
+  }, [
+    minRating,
+    priceMax,
+    priceMin,
+    recommendedFilter,
+    searchTerm,
+    selectedNeighborhood,
+    sortBy,
+    storageKey,
+    viewMode,
+  ]);
 
   const filtered = useMemo(() => {
     const normalizedSearch = searchTerm.trim().toLowerCase();
@@ -193,14 +290,14 @@ export function PlaceFilters({
       chips.push(`${messages.filterMinRatingLabel}: ${minRating}+`);
     }
 
-    if (sortBy !== "default") {
-      const sortLabelMap: Record<string, string> = {
+    if (sortBy !== "recent_desc") {
+      const sortLabelMap: Record<SortBy, string> = {
         rating_desc: messages.sortRatingDesc,
         price_asc: messages.sortPriceAsc,
         reviews_desc: messages.sortReviewsDesc,
         recent_desc: messages.sortRecentDesc,
       };
-      chips.push(`${messages.sortLabel}: ${sortLabelMap[sortBy] || messages.sortDefault}`);
+      chips.push(`${messages.sortLabel}: ${sortLabelMap[sortBy]}`);
     }
 
     return chips;
@@ -214,7 +311,6 @@ export function PlaceFilters({
     messages.recommendationNo,
     messages.recommendationYes,
     messages.searchLabel,
-    messages.sortDefault,
     messages.sortLabel,
     messages.sortPriceAsc,
     messages.sortRatingDesc,
@@ -236,7 +332,7 @@ export function PlaceFilters({
     setPriceMin("");
     setPriceMax("");
     setMinRating("any");
-    setSortBy("default");
+    setSortBy("recent_desc");
   }
 
   return (
@@ -345,12 +441,14 @@ export function PlaceFilters({
 
             <label>
               <span>{messages.sortLabel}</span>
-              <select value={sortBy} onChange={(event) => setSortBy(event.target.value)}>
-                <option value="default">{messages.sortDefault}</option>
+              <select
+                value={sortBy}
+                onChange={(event) => setSortBy(normalizeSortBy(event.target.value))}
+              >
+                <option value="recent_desc">{messages.sortRecentDesc}</option>
                 <option value="rating_desc">{messages.sortRatingDesc}</option>
                 <option value="price_asc">{messages.sortPriceAsc}</option>
                 <option value="reviews_desc">{messages.sortReviewsDesc}</option>
-                <option value="recent_desc">{messages.sortRecentDesc}</option>
               </select>
             </label>
           </section>
