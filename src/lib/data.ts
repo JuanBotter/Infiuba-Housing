@@ -49,6 +49,7 @@ interface ListingRow {
 
 interface ListingPrivacyOptions {
   includePrivateContactInfo?: boolean;
+  lang?: Lang;
 }
 
 function mapListingRow(row: ListingRow): Listing {
@@ -148,6 +149,7 @@ function applyPrivacy(listing: Listing, includePrivateContactInfo: boolean): Lis
 
 export async function getListings(options: ListingPrivacyOptions = {}) {
   const includePrivateContactInfo = options.includePrivateContactInfo ?? true;
+  const lang = options.lang ?? "en";
 
   if (!isDatabaseEnabled()) {
     return dataset.listings.map((listing) => applyPrivacy(listing, includePrivateContactInfo));
@@ -187,7 +189,83 @@ export async function getListings(options: ListingPrivacyOptions = {}) {
     `,
   );
 
-  return result.rows.map((row) => applyPrivacy(mapListingRow(row), includePrivateContactInfo));
+  const listings = result.rows.map((row) => mapListingRow(row));
+  const listingIds = listings.map((listing) => listing.id);
+
+  if (listingIds.length > 0) {
+    const reviewsResult = await dbQuery<(ReviewRow & { listing_id: string })>(
+      `
+        WITH ranked_reviews AS (
+          SELECT
+            listing_id,
+            id,
+            source,
+            year,
+            rating,
+            price_usd,
+            recommended,
+            comment,
+            comment_en,
+            comment_es,
+            comment_fr,
+            comment_de,
+            comment_pt,
+            comment_it,
+            comment_no,
+            allow_contact_sharing,
+            student_contact,
+            student_name,
+            semester,
+            created_at,
+            ROW_NUMBER() OVER (
+              PARTITION BY listing_id
+              ORDER BY created_at DESC, id DESC
+            ) AS review_rank
+          FROM reviews
+          WHERE listing_id = ANY($1::text[])
+            AND status = 'approved'
+            AND comment IS NOT NULL
+            AND btrim(comment) <> ''
+        )
+        SELECT
+          listing_id,
+          id,
+          source,
+          year,
+          rating,
+          price_usd,
+          recommended,
+          comment,
+          comment_en,
+          comment_es,
+          comment_fr,
+          comment_de,
+          comment_pt,
+          comment_it,
+          comment_no,
+          allow_contact_sharing,
+          student_contact,
+          student_name,
+          semester,
+          created_at
+        FROM ranked_reviews
+        WHERE review_rank <= 3
+        ORDER BY listing_id ASC, created_at DESC, id DESC
+      `,
+      [listingIds],
+    );
+
+    const listingsById = new Map(listings.map((listing) => [listing.id, listing]));
+    for (const row of reviewsResult.rows) {
+      const listing = listingsById.get(row.listing_id);
+      if (!listing) {
+        continue;
+      }
+      listing.reviews.push(mapReviewRow(row, lang, includePrivateContactInfo));
+    }
+  }
+
+  return listings.map((listing) => applyPrivacy(listing, includePrivateContactInfo));
 }
 
 export async function getListingById(

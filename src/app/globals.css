@@ -694,6 +694,51 @@ textarea {
   font-size: 1.35rem;
 }
 
+.map-layout__reviews {
+  margin-top: 0.25rem;
+  border-top: 1px solid var(--line);
+  padding-top: 0.65rem;
+  display: grid;
+  gap: 0.42rem;
+}
+
+.map-layout__reviews-title {
+  margin: 0;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
+.map-layout__reviews-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.map-layout__review-item {
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--surface-strong);
+  padding: 0.5rem 0.58rem;
+}
+
+.map-layout__review-item p {
+  margin: 0;
+  color: var(--ink);
+  font-size: 0.83rem;
+  line-height: 1.35;
+}
+
+.map-layout__reviews-empty {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 0.82rem;
+}
+
 .map-canvas {
   border-radius: 14px;
   overflow: hidden;

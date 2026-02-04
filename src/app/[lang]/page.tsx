@@ -25,7 +25,7 @@ export default async function ListingsPage({ params }: PageProps) {
   const canViewPrivateInfo = canViewContactInfo(role);
   const canWriteReviews = canSubmitReviews(role);
   const [listings, neighborhoods, meta] = await Promise.all([
-    getListings({ includePrivateContactInfo: canViewPrivateInfo }),
+    getListings({ includePrivateContactInfo: canViewPrivateInfo, lang }),
     getNeighborhoods(),
     getDatasetMeta(),
   ]);

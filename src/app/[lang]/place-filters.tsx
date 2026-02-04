@@ -272,6 +272,11 @@ export function PlaceFilters({
         `${selectedMapListing.address}, ${selectedMapListing.neighborhood}, Buenos Aires, Argentina`,
       )
     : "";
+  const selectedMapReviews = selectedMapListing
+    ? selectedMapListing.reviews
+        .filter((review) => typeof review.comment === "string" && review.comment.trim().length > 0)
+        .slice(0, 3)
+    : [];
   const isReviewMode = viewMode === "review";
 
   const activeFilters = useMemo(() => {
@@ -686,6 +691,21 @@ export function PlaceFilters({
                 >
                   {messages.openInMaps}
                 </a>
+
+                <section className="map-layout__reviews" aria-live="polite">
+                  <p className="map-layout__reviews-title">{messages.historicalReviews}</p>
+                  {selectedMapReviews.length === 0 ? (
+                    <p className="map-layout__reviews-empty">{messages.noComments}</p>
+                  ) : (
+                    <ul className="map-layout__reviews-list">
+                      {selectedMapReviews.map((review) => (
+                        <li key={review.id} className="map-layout__review-item">
+                          <p>{review.comment}</p>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </section>
               </>
             ) : null}
           </div>
