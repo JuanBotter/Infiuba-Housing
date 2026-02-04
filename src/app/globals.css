@@ -682,7 +682,8 @@ textarea {
 }
 
 .button-link,
-.review-form button {
+.review-form button,
+.property-form button {
   border: 0;
   border-radius: 999px;
   padding: 0.62rem 1.02rem;
@@ -703,12 +704,14 @@ textarea {
 }
 
 .button-link:hover,
-.review-form button:hover {
+.review-form button:hover,
+.property-form button:hover {
   transform: translateY(-1px);
   filter: brightness(1.04);
 }
 
-.review-form button:disabled {
+.review-form button:disabled,
+.property-form button:disabled {
   opacity: 0.74;
   cursor: wait;
   transform: none;
@@ -805,6 +808,17 @@ textarea {
   letter-spacing: 0.02em;
 }
 
+.review-item__contact {
+  margin-top: 0.42rem !important;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+
+.review-item__contact a {
+  color: var(--primary-deep);
+  text-decoration: underline;
+}
+
 .review-comment {
   display: grid;
   gap: 0.35rem;
@@ -826,6 +840,198 @@ textarea {
   margin-top: 0.42rem;
   display: grid;
   gap: 0.68rem;
+}
+
+.property-form-card {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.property-form-card > h2 {
+  margin: 0;
+}
+
+.property-form-card > p {
+  margin: 0;
+  color: var(--ink-soft);
+}
+
+.property-form {
+  margin-top: 0.2rem;
+  display: grid;
+  gap: 0.68rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.property-form__full,
+.property-form__hint,
+.property-form button {
+  grid-column: 1 / -1;
+}
+
+.property-form label {
+  display: grid;
+  gap: 0.42rem;
+}
+
+.property-form span {
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
+.property-form textarea {
+  min-height: 90px;
+}
+
+.property-form__hint {
+  margin: 0;
+  font-size: 0.79rem;
+  color: var(--ink-soft);
+}
+
+.consent-checkbox {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--chip-bg);
+  padding: 0.62rem 0.72rem;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: start;
+  column-gap: 0.52rem;
+  row-gap: 0.25rem;
+}
+
+.consent-checkbox input[type="checkbox"] {
+  width: auto;
+  margin-top: 0.12rem;
+}
+
+.consent-checkbox span {
+  text-transform: none;
+  letter-spacing: normal;
+  font-size: 0.88rem;
+  color: var(--ink);
+}
+
+.consent-checkbox small {
+  grid-column: 2;
+  font-size: 0.76rem;
+  color: var(--ink-soft);
+}
+
+.suggestions-list {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.suggestions-list__item {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--field-bg);
+  padding: 0.52rem 0.64rem;
+  text-align: left;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.suggestions-list__item.is-selected {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(19, 139, 132, 0.14);
+}
+
+.suggestions-list__item strong {
+  display: block;
+  font-size: 0.9rem;
+}
+
+.suggestions-list__item span {
+  display: block;
+  margin-top: 0.15rem;
+  color: var(--ink-soft);
+  font-size: 0.78rem;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.selected-property-note {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--chip-bg);
+  padding: 0.68rem;
+  display: grid;
+  gap: 0.56rem;
+}
+
+.selected-property-note > p {
+  margin: 0;
+  color: var(--ink);
+}
+
+.selected-property-meta {
+  display: grid;
+  gap: 0.42rem;
+  grid-template-columns: 1fr;
+}
+
+.selected-property-meta p {
+  margin: 0;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--field-bg);
+  padding: 0.45rem 0.55rem;
+  display: grid;
+  gap: 0.16rem;
+}
+
+.selected-property-meta span {
+  font-size: 0.66rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
+.selected-property-meta strong {
+  font-size: 0.83rem;
+  overflow-wrap: anywhere;
+}
+
+.selected-property-note fieldset {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.42rem;
+}
+
+.selected-property-note legend {
+  margin: 0 0 0.35rem;
+  font-size: 0.74rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
+.selected-property-note label {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.selected-property-note input[type="radio"] {
+  width: auto;
+  margin: 0;
+}
+
+.selected-property-note label span {
+  font-size: 0.82rem;
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--ink);
 }
 
 .form-status {
@@ -959,6 +1165,11 @@ textarea {
   .moderation-grid {
     grid-template-columns: 1fr;
   }
+
+  .property-form {
+    grid-template-columns: 1fr;
+  }
+
 }
 
 @media (max-width: 720px) {

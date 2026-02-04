@@ -182,6 +182,7 @@ async function run() {
               comment,
               student_contact,
               student_name,
+              allow_contact_sharing,
               semester,
               comment_en,
               comment_es,
@@ -192,7 +193,7 @@ async function run() {
               comment_no,
               created_at,
               approved_at
-            ) VALUES ($1, $2, 'survey', 'approved', $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $17)
+            ) VALUES ($1, $2, 'survey', 'approved', $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $18)
             ON CONFLICT (id) DO NOTHING
           `,
           [
@@ -204,6 +205,7 @@ async function run() {
             review.comment ?? null,
             review.studentContact ?? null,
             review.studentName ?? null,
+            Boolean(review.studentContact),
             review.semester ?? null,
             translations.comment_en,
             translations.comment_es,
@@ -234,8 +236,10 @@ async function run() {
             recommended,
             comment,
             semester,
+            student_contact,
             student_name,
             student_email,
+            allow_contact_sharing,
             comment_en,
             comment_es,
             comment_fr,
@@ -245,7 +249,7 @@ async function run() {
             comment_no,
             created_at,
             approved_at
-          ) VALUES ($1, $2, 'web', 'approved', $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+          ) VALUES ($1, $2, 'web', 'approved', $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
           ON CONFLICT (id) DO NOTHING
         `,
         [
@@ -255,8 +259,10 @@ async function run() {
           typeof review.recommended === "boolean" ? review.recommended : null,
           review.comment ?? null,
           review.semester ?? null,
+          review.studentContact ?? null,
           review.studentName ?? null,
           review.studentEmail ?? null,
+          Boolean(review.shareContactInfo),
           translations.comment_en,
           translations.comment_es,
           translations.comment_fr,
@@ -286,8 +292,10 @@ async function run() {
             recommended,
             comment,
             semester,
+            student_contact,
             student_name,
             student_email,
+            allow_contact_sharing,
             comment_en,
             comment_es,
             comment_fr,
@@ -296,7 +304,7 @@ async function run() {
             comment_it,
             comment_no,
             created_at
-          ) VALUES ($1, $2, 'web', 'pending', $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+          ) VALUES ($1, $2, 'web', 'pending', $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
           ON CONFLICT (id) DO NOTHING
         `,
         [
@@ -306,8 +314,10 @@ async function run() {
           typeof review.recommended === "boolean" ? review.recommended : null,
           review.comment ?? null,
           review.semester ?? null,
+          review.studentContact ?? null,
           review.studentName ?? null,
           review.studentEmail ?? null,
+          Boolean(review.shareContactInfo),
           translations.comment_en,
           translations.comment_es,
           translations.comment_fr,

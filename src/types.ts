@@ -50,7 +50,9 @@ export interface PendingWebReview {
   translatedComment?: string;
   semester?: string;
   studentName?: string;
+  studentContact?: string;
   studentEmail?: string;
+  shareContactInfo?: boolean;
   createdAt: string;
 }
 

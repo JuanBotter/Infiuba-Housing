@@ -44,6 +44,7 @@ export const messages = {
     noComments: "No comments yet.",
     reviewShowOriginal: "Show original",
     reviewShowTranslation: "Show translation",
+    reviewContactLabel: "Contact from reviewer",
     backToListings: "Back to listings",
     leaveReviewTitle: "Share your own review",
     leaveReviewSubtitle:
@@ -53,7 +54,12 @@ export const messages = {
     formComment: "Comment",
     formSemester: "Semester (optional)",
     formName: "Your name (optional)",
+    formPhone: "Your phone (optional)",
     formEmail: "Your email (optional)",
+    formContactConsentLabel:
+      "I'd be happy to let future students contact me about this review.",
+    formContactConsentHint:
+      "If checked, we'll show your contact information only to students (never to owners/lessors) so they can ask follow-up questions.",
     formSubmit: "Send review",
     formSending: "Sending...",
     formSuccess:
@@ -85,6 +91,35 @@ export const messages = {
     themeLight: "Light",
     themeDark: "Dark",
     languageSwitch: "Language",
+    addPropertyTitle: "Add a new property",
+    addPropertySubtitle:
+      "Know a good apartment or house for exchange students? Add it to the list.",
+    addPropertyAddressLabel: "Address",
+    addPropertyNeighborhoodPlaceholder: "e.g. Almagro",
+    addPropertyContactsLabel: "Owner / agency contacts (optional)",
+    addPropertyContactsPlaceholder: "One contact per line, or separate by comma",
+    addPropertyLatitudeLabel: "Latitude (optional)",
+    addPropertyLongitudeLabel: "Longitude (optional)",
+    addPropertyCoordinatesHint:
+      "Tip: if you add coordinates, the map pin will be more accurate.",
+    addPropertySubmit: "Add property",
+    addPropertySending: "Adding...",
+    addPropertySuccess:
+      "Thanks! The property was added and is now visible in the list.",
+    addPropertyError: "Could not add the property. Please try again.",
+    addPropertyDuplicateError: "This property is already in the database.",
+    addPropertyUnavailableError:
+      "Property submissions require a configured database.",
+    addReviewTitle: "Add a review",
+    addReviewSubtitle:
+      "Write a review. If the property already exists, your review is added there. If not, a new property is created.",
+    addReviewSubmit: "Send review",
+    addReviewExistingMatchQuestion:
+      "Do these details match exactly where you stayed?",
+    addReviewExistingMatchYes: "Yes, this is the same property",
+    addReviewExistingMatchNo: "No, this is a different apartment/property",
+    addReviewNeedMatchChoice:
+      "Please tell us whether the suggested property matches where you stayed.",
   },
   es: {
     siteTitle: "Infiuba Housing Hub",
@@ -129,6 +164,7 @@ export const messages = {
     noComments: "Todavía no hay comentarios.",
     reviewShowOriginal: "Ver original",
     reviewShowTranslation: "Ver traducción",
+    reviewContactLabel: "Contacto del/la estudiante",
     backToListings: "Volver al listado",
     leaveReviewTitle: "Compartí tu reseña",
     leaveReviewSubtitle:
@@ -138,7 +174,12 @@ export const messages = {
     formComment: "Comentario",
     formSemester: "Cuatrimestre (opcional)",
     formName: "Tu nombre (opcional)",
+    formPhone: "Tu teléfono (opcional)",
     formEmail: "Tu email (opcional)",
+    formContactConsentLabel:
+      "Me gustaría que futuros estudiantes puedan contactarme por esta reseña.",
+    formContactConsentHint:
+      "Si lo marcás, mostraremos tu información de contacto solo a estudiantes (nunca a dueños/arrendadores) para que puedan hacerte preguntas.",
     formSubmit: "Enviar reseña",
     formSending: "Enviando...",
     formSuccess:
@@ -169,6 +210,35 @@ export const messages = {
     themeLight: "Claro",
     themeDark: "Oscuro",
     languageSwitch: "Idioma",
+    addPropertyTitle: "Agregar un nuevo alojamiento",
+    addPropertySubtitle:
+      "¿Conocés un buen departamento o casa para estudiantes de intercambio? Sumalo al listado.",
+    addPropertyAddressLabel: "Dirección",
+    addPropertyNeighborhoodPlaceholder: "ej. Almagro",
+    addPropertyContactsLabel: "Contactos del dueño / agencia (opcional)",
+    addPropertyContactsPlaceholder: "Un contacto por línea o separado por coma",
+    addPropertyLatitudeLabel: "Latitud (opcional)",
+    addPropertyLongitudeLabel: "Longitud (opcional)",
+    addPropertyCoordinatesHint:
+      "Tip: si agregás coordenadas, el pin del mapa será más preciso.",
+    addPropertySubmit: "Agregar alojamiento",
+    addPropertySending: "Agregando...",
+    addPropertySuccess:
+      "¡Gracias! El alojamiento se agregó y ya aparece en el listado.",
+    addPropertyError: "No pudimos agregar el alojamiento. Intentá de nuevo.",
+    addPropertyDuplicateError: "Ese alojamiento ya existe en la base.",
+    addPropertyUnavailableError:
+      "Para agregar alojamientos se necesita la base de datos configurada.",
+    addReviewTitle: "Agregar una reseña",
+    addReviewSubtitle:
+      "Escribí una reseña. Si el alojamiento ya existe, la reseña se agrega ahí. Si no existe, se crea uno nuevo.",
+    addReviewSubmit: "Enviar reseña",
+    addReviewExistingMatchQuestion:
+      "¿Estos datos coinciden exactamente con donde te quedaste?",
+    addReviewExistingMatchYes: "Sí, es el mismo alojamiento",
+    addReviewExistingMatchNo: "No, es otro departamento/alojamiento",
+    addReviewNeedMatchChoice:
+      "Por favor indicá si el alojamiento sugerido coincide con donde te quedaste.",
   },
   fr: {
     siteTitle: "Infiuba Housing Hub",
@@ -213,6 +283,7 @@ export const messages = {
     noComments: "Pas encore de commentaires.",
     reviewShowOriginal: "Voir l'original",
     reviewShowTranslation: "Voir la traduction",
+    reviewContactLabel: "Contact de l'étudiant",
     backToListings: "Retour à la liste",
     leaveReviewTitle: "Partagez votre avis",
     leaveReviewSubtitle:
@@ -222,7 +293,12 @@ export const messages = {
     formComment: "Commentaire",
     formSemester: "Semestre (optionnel)",
     formName: "Votre nom (optionnel)",
+    formPhone: "Votre téléphone (optionnel)",
     formEmail: "Votre email (optionnel)",
+    formContactConsentLabel:
+      "Je suis d'accord pour que de futurs étudiants puissent me contacter au sujet de cet avis.",
+    formContactConsentHint:
+      "Si coché, vos informations de contact seront visibles uniquement par des étudiants (jamais par des propriétaires/bailleurs) pour répondre à d'éventuelles questions.",
     formSubmit: "Envoyer l'avis",
     formSending: "Envoi...",
     formSuccess:
@@ -254,6 +330,35 @@ export const messages = {
     themeLight: "Clair",
     themeDark: "Sombre",
     languageSwitch: "Langue",
+    addPropertyTitle: "Ajouter un nouveau logement",
+    addPropertySubtitle:
+      "Vous connaissez un bon appartement ou une maison pour des étudiants en échange ? Ajoutez-le à la liste.",
+    addPropertyAddressLabel: "Adresse",
+    addPropertyNeighborhoodPlaceholder: "ex. Almagro",
+    addPropertyContactsLabel: "Contacts propriétaire / agence (optionnel)",
+    addPropertyContactsPlaceholder: "Un contact par ligne ou séparé par des virgules",
+    addPropertyLatitudeLabel: "Latitude (optionnel)",
+    addPropertyLongitudeLabel: "Longitude (optionnel)",
+    addPropertyCoordinatesHint:
+      "Astuce : avec des coordonnées, le point sur la carte sera plus précis.",
+    addPropertySubmit: "Ajouter le logement",
+    addPropertySending: "Ajout...",
+    addPropertySuccess:
+      "Merci ! Le logement a été ajouté et est maintenant visible.",
+    addPropertyError: "Impossible d'ajouter le logement. Réessayez.",
+    addPropertyDuplicateError: "Ce logement existe déjà dans la base.",
+    addPropertyUnavailableError:
+      "L'ajout de logements nécessite une base de données configurée.",
+    addReviewTitle: "Ajouter un avis",
+    addReviewSubtitle:
+      "Rédigez un avis. Si le logement existe déjà, l'avis y sera ajouté. Sinon, un nouveau logement sera créé.",
+    addReviewSubmit: "Envoyer l'avis",
+    addReviewExistingMatchQuestion:
+      "Ces informations correspondent-elles exactement au logement où vous avez séjourné ?",
+    addReviewExistingMatchYes: "Oui, c'est le même logement",
+    addReviewExistingMatchNo: "Non, c'est un autre appartement/logement",
+    addReviewNeedMatchChoice:
+      "Veuillez indiquer si le logement suggéré correspond à votre séjour.",
   },
   de: {
     siteTitle: "Infiuba Housing Hub",
@@ -298,6 +403,7 @@ export const messages = {
     noComments: "Noch keine Kommentare.",
     reviewShowOriginal: "Original anzeigen",
     reviewShowTranslation: "Übersetzung anzeigen",
+    reviewContactLabel: "Kontakt des Studierenden",
     backToListings: "Zurück zur Liste",
     leaveReviewTitle: "Teile deine Bewertung",
     leaveReviewSubtitle:
@@ -307,7 +413,12 @@ export const messages = {
     formComment: "Kommentar",
     formSemester: "Semester (optional)",
     formName: "Dein Name (optional)",
+    formPhone: "Deine Telefonnummer (optional)",
     formEmail: "Deine E-Mail (optional)",
+    formContactConsentLabel:
+      "Ich bin einverstanden, dass zukünftige Studierende mich zu dieser Bewertung kontaktieren können.",
+    formContactConsentHint:
+      "Wenn aktiviert, zeigen wir deine Kontaktinformationen nur Studierenden (niemals Eigentümern/Vermietern), damit sie Rückfragen stellen können.",
     formSubmit: "Bewertung senden",
     formSending: "Senden...",
     formSuccess:
@@ -339,6 +450,36 @@ export const messages = {
     themeLight: "Hell",
     themeDark: "Dunkel",
     languageSwitch: "Sprache",
+    addPropertyTitle: "Neue Unterkunft hinzufügen",
+    addPropertySubtitle:
+      "Kennst du eine gute Wohnung oder ein Haus für Austauschstudierende? Füge sie der Liste hinzu.",
+    addPropertyAddressLabel: "Adresse",
+    addPropertyNeighborhoodPlaceholder: "z. B. Almagro",
+    addPropertyContactsLabel: "Kontakte Eigentümer / Agentur (optional)",
+    addPropertyContactsPlaceholder: "Ein Kontakt pro Zeile oder durch Kommas getrennt",
+    addPropertyLatitudeLabel: "Breitengrad (optional)",
+    addPropertyLongitudeLabel: "Längengrad (optional)",
+    addPropertyCoordinatesHint:
+      "Hinweis: Mit Koordinaten wird der Kartenmarker genauer.",
+    addPropertySubmit: "Unterkunft hinzufügen",
+    addPropertySending: "Wird hinzugefügt...",
+    addPropertySuccess:
+      "Danke! Die Unterkunft wurde hinzugefügt und ist jetzt sichtbar.",
+    addPropertyError:
+      "Unterkunft konnte nicht hinzugefügt werden. Bitte erneut versuchen.",
+    addPropertyDuplicateError: "Diese Unterkunft ist bereits in der Datenbank.",
+    addPropertyUnavailableError:
+      "Zum Hinzufügen von Unterkünften ist eine konfigurierte Datenbank erforderlich.",
+    addReviewTitle: "Bewertung hinzufügen",
+    addReviewSubtitle:
+      "Schreibe eine Bewertung. Gibt es die Unterkunft schon, wird die Bewertung dort hinzugefügt. Sonst wird eine neue Unterkunft erstellt.",
+    addReviewSubmit: "Bewertung senden",
+    addReviewExistingMatchQuestion:
+      "Passen diese Angaben genau zu deiner Unterkunft?",
+    addReviewExistingMatchYes: "Ja, das ist dieselbe Unterkunft",
+    addReviewExistingMatchNo: "Nein, das ist eine andere Wohnung/Unterkunft",
+    addReviewNeedMatchChoice:
+      "Bitte gib an, ob die vorgeschlagene Unterkunft zu deinem Aufenthalt passt.",
   },
   pt: {
     siteTitle: "Infiuba Housing Hub",
@@ -383,6 +524,7 @@ export const messages = {
     noComments: "Ainda não há comentários.",
     reviewShowOriginal: "Mostrar original",
     reviewShowTranslation: "Mostrar tradução",
+    reviewContactLabel: "Contato do estudante",
     backToListings: "Voltar à lista",
     leaveReviewTitle: "Compartilhe sua avaliação",
     leaveReviewSubtitle:
@@ -392,7 +534,12 @@ export const messages = {
     formComment: "Comentário",
     formSemester: "Semestre (opcional)",
     formName: "Seu nome (opcional)",
+    formPhone: "Seu telefone (opcional)",
     formEmail: "Seu e-mail (opcional)",
+    formContactConsentLabel:
+      "Tudo bem para mim se futuros estudantes puderem me contatar sobre esta avaliação.",
+    formContactConsentHint:
+      "Se marcado, mostraremos suas informações de contato apenas para estudantes (nunca para proprietários/locadores) para dúvidas sobre a avaliação.",
     formSubmit: "Enviar avaliação",
     formSending: "Enviando...",
     formSuccess:
@@ -424,6 +571,35 @@ export const messages = {
     themeLight: "Claro",
     themeDark: "Escuro",
     languageSwitch: "Idioma",
+    addPropertyTitle: "Adicionar nova acomodação",
+    addPropertySubtitle:
+      "Conhece um bom apartamento ou casa para intercambistas? Adicione à lista.",
+    addPropertyAddressLabel: "Endereço",
+    addPropertyNeighborhoodPlaceholder: "ex.: Almagro",
+    addPropertyContactsLabel: "Contatos do proprietário / agência (opcional)",
+    addPropertyContactsPlaceholder: "Um contato por linha ou separado por vírgulas",
+    addPropertyLatitudeLabel: "Latitude (opcional)",
+    addPropertyLongitudeLabel: "Longitude (opcional)",
+    addPropertyCoordinatesHint:
+      "Dica: ao informar coordenadas, o marcador no mapa fica mais preciso.",
+    addPropertySubmit: "Adicionar acomodação",
+    addPropertySending: "Adicionando...",
+    addPropertySuccess:
+      "Obrigado! A acomodação foi adicionada e já aparece na lista.",
+    addPropertyError: "Não foi possível adicionar a acomodação. Tente novamente.",
+    addPropertyDuplicateError: "Essa acomodação já existe no banco de dados.",
+    addPropertyUnavailableError:
+      "Para adicionar acomodações, é preciso ter o banco de dados configurado.",
+    addReviewTitle: "Adicionar avaliação",
+    addReviewSubtitle:
+      "Escreva uma avaliação. Se a acomodação já existir, ela será adicionada lá. Caso contrário, uma nova acomodação será criada.",
+    addReviewSubmit: "Enviar avaliação",
+    addReviewExistingMatchQuestion:
+      "Esses dados correspondem exatamente ao lugar onde você ficou?",
+    addReviewExistingMatchYes: "Sim, é a mesma acomodação",
+    addReviewExistingMatchNo: "Não, é outro apartamento/acomodação",
+    addReviewNeedMatchChoice:
+      "Informe se a acomodação sugerida corresponde ao lugar em que você ficou.",
   },
   it: {
     siteTitle: "Infiuba Housing Hub",
@@ -468,6 +644,7 @@ export const messages = {
     noComments: "Ancora nessun commento.",
     reviewShowOriginal: "Mostra originale",
     reviewShowTranslation: "Mostra traduzione",
+    reviewContactLabel: "Contatto dello studente",
     backToListings: "Torna all'elenco",
     leaveReviewTitle: "Condividi la tua recensione",
     leaveReviewSubtitle:
@@ -477,7 +654,12 @@ export const messages = {
     formComment: "Commento",
     formSemester: "Semestre (opzionale)",
     formName: "Il tuo nome (opzionale)",
+    formPhone: "Il tuo telefono (opzionale)",
     formEmail: "La tua email (opzionale)",
+    formContactConsentLabel:
+      "Mi fa piacere essere contattato da futuri studenti su questa recensione.",
+    formContactConsentHint:
+      "Se selezionato, mostreremo le tue informazioni di contatto solo agli studenti (mai a proprietari/locatori) per eventuali domande.",
     formSubmit: "Invia recensione",
     formSending: "Invio in corso...",
     formSuccess:
@@ -509,6 +691,35 @@ export const messages = {
     themeLight: "Chiaro",
     themeDark: "Scuro",
     languageSwitch: "Lingua",
+    addPropertyTitle: "Aggiungi un nuovo alloggio",
+    addPropertySubtitle:
+      "Conosci un buon appartamento o una casa per studenti in scambio? Aggiungilo all'elenco.",
+    addPropertyAddressLabel: "Indirizzo",
+    addPropertyNeighborhoodPlaceholder: "es. Almagro",
+    addPropertyContactsLabel: "Contatti proprietario / agenzia (opzionale)",
+    addPropertyContactsPlaceholder: "Un contatto per riga o separato da virgole",
+    addPropertyLatitudeLabel: "Latitudine (opzionale)",
+    addPropertyLongitudeLabel: "Longitudine (opzionale)",
+    addPropertyCoordinatesHint:
+      "Suggerimento: con le coordinate, il punto sulla mappa sarà più preciso.",
+    addPropertySubmit: "Aggiungi alloggio",
+    addPropertySending: "Aggiunta...",
+    addPropertySuccess:
+      "Grazie! L'alloggio è stato aggiunto ed è ora visibile nell'elenco.",
+    addPropertyError: "Impossibile aggiungere l'alloggio. Riprova.",
+    addPropertyDuplicateError: "Questo alloggio esiste già nel database.",
+    addPropertyUnavailableError:
+      "Per aggiungere alloggi è necessario avere il database configurato.",
+    addReviewTitle: "Aggiungi una recensione",
+    addReviewSubtitle:
+      "Scrivi una recensione. Se l'alloggio esiste già, la recensione verrà aggiunta lì. Altrimenti verrà creato un nuovo alloggio.",
+    addReviewSubmit: "Invia recensione",
+    addReviewExistingMatchQuestion:
+      "Questi dettagli corrispondono esattamente al posto in cui hai soggiornato?",
+    addReviewExistingMatchYes: "Sì, è lo stesso alloggio",
+    addReviewExistingMatchNo: "No, è un altro appartamento/alloggio",
+    addReviewNeedMatchChoice:
+      "Indica se l'alloggio suggerito corrisponde al tuo soggiorno.",
   },
   no: {
     siteTitle: "Infiuba Housing Hub",
@@ -553,6 +764,7 @@ export const messages = {
     noComments: "Ingen kommentarer ennå.",
     reviewShowOriginal: "Vis original",
     reviewShowTranslation: "Vis oversettelse",
+    reviewContactLabel: "Kontakt fra studenten",
     backToListings: "Tilbake til listen",
     leaveReviewTitle: "Del din anmeldelse",
     leaveReviewSubtitle:
@@ -562,7 +774,12 @@ export const messages = {
     formComment: "Kommentar",
     formSemester: "Semester (valgfritt)",
     formName: "Navnet ditt (valgfritt)",
+    formPhone: "Telefonnummer (valgfritt)",
     formEmail: "E-post (valgfritt)",
+    formContactConsentLabel:
+      "Det er helt greit at fremtidige studenter kan kontakte meg om denne anmeldelsen.",
+    formContactConsentHint:
+      "Hvis avkrysset, viser vi kontaktinformasjonen din kun til studenter (aldri til eiere/utleiere), slik at de kan stille oppfølgingsspørsmål.",
     formSubmit: "Send anmeldelse",
     formSending: "Sender...",
     formSuccess:
@@ -594,6 +811,35 @@ export const messages = {
     themeLight: "Lys",
     themeDark: "Mørk",
     languageSwitch: "Språk",
+    addPropertyTitle: "Legg til nytt bosted",
+    addPropertySubtitle:
+      "Kjenner du til en god leilighet eller et hus for utvekslingsstudenter? Legg det til i listen.",
+    addPropertyAddressLabel: "Adresse",
+    addPropertyNeighborhoodPlaceholder: "f.eks. Almagro",
+    addPropertyContactsLabel: "Kontakter eier / byrå (valgfritt)",
+    addPropertyContactsPlaceholder: "En kontakt per linje eller skilt med komma",
+    addPropertyLatitudeLabel: "Breddegrad (valgfritt)",
+    addPropertyLongitudeLabel: "Lengdegrad (valgfritt)",
+    addPropertyCoordinatesHint:
+      "Tips: hvis du legger til koordinater, blir kartmarkøren mer presis.",
+    addPropertySubmit: "Legg til bosted",
+    addPropertySending: "Legger til...",
+    addPropertySuccess:
+      "Takk! Bostedet er lagt til og vises nå i listen.",
+    addPropertyError: "Kunne ikke legge til bostedet. Prøv igjen.",
+    addPropertyDuplicateError: "Dette bostedet finnes allerede i databasen.",
+    addPropertyUnavailableError:
+      "For å legge til bosteder må databasen være konfigurert.",
+    addReviewTitle: "Legg til anmeldelse",
+    addReviewSubtitle:
+      "Skriv en anmeldelse. Hvis bostedet finnes fra før, legges anmeldelsen der. Hvis ikke, opprettes et nytt bosted.",
+    addReviewSubmit: "Send anmeldelse",
+    addReviewExistingMatchQuestion:
+      "Stemmer disse detaljene nøyaktig med stedet du bodde på?",
+    addReviewExistingMatchYes: "Ja, dette er samme bosted",
+    addReviewExistingMatchNo: "Nei, dette er en annen leilighet/et annet bosted",
+    addReviewNeedMatchChoice:
+      "Fortell oss om det foreslåtte bostedet matcher der du bodde.",
   },
 } as const;
 

@@ -11,6 +11,7 @@ Multilingual MVP (English, Spanish, French, German, Portuguese, Italian, Norwegi
 - Historical reviews imported from your survey CSV.
 - PostgreSQL-backed listings and reviews (with file fallback if `DATABASE_URL` is not set).
 - Original review comments + translated versions saved in PostgreSQL (`comment` + `comment_<lang>` columns).
+- Public review submission flow with address suggestions; existing properties get a new review, new ones are created automatically.
 - Admin moderation UI at `/{lang}/admin/moderation`.
 
 ## Run locally

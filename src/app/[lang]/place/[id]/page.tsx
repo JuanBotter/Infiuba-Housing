@@ -43,7 +43,7 @@ export default async function PlaceDetailPage({ params }: PlaceDetailPageProps) 
       translatedComment: review.translatedComment,
       semester: review.semester,
       studentName: review.studentName,
-      studentContact: review.studentEmail,
+      studentContact: review.studentContact,
       createdAt: review.createdAt,
     })),
   ].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
@@ -141,6 +141,16 @@ export default async function PlaceDetailPage({ params }: PlaceDetailPageProps) 
                     showOriginalLabel={messages.reviewShowOriginal}
                     showTranslationLabel={messages.reviewShowTranslation}
                   />
+                  {review.studentContact ? (
+                    <p className="review-item__contact">
+                      {messages.reviewContactLabel}:{" "}
+                      {review.studentContact.includes("@") ? (
+                        <a href={`mailto:${review.studentContact}`}>{review.studentContact}</a>
+                      ) : (
+                        review.studentContact
+                      )}
+                    </p>
+                  ) : null}
                 </li>
               ))}
           </ul>

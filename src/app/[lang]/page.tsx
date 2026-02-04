@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 
+import { AddStayReviewForm } from "@/app/[lang]/add-stay-review-form";
 import { PlaceFilters } from "@/app/[lang]/place-filters";
 import { getDatasetMeta, getListings, getNeighborhoods } from "@/lib/data";
 import { getLocaleForLang } from "@/lib/format";
@@ -60,6 +61,8 @@ export default async function ListingsPage({ params }: PageProps) {
         listings={listings}
         neighborhoods={neighborhoods}
       />
+
+      <AddStayReviewForm lang={lang} listings={listings} />
 
       <p className="data-footnote">
         {meta.totalListings} {messages.footnotePlacesLabel} · {messages.footnoteUpdatedLabel}{" "}

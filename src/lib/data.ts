@@ -1,5 +1,7 @@
+import { createHash, randomUUID } from "node:crypto";
+
 import datasetJson from "@/data/accommodations.json";
-import { dbQuery, isDatabaseEnabled } from "@/lib/db";
+import { dbQuery, isDatabaseEnabled, withTransaction } from "@/lib/db";
 import { getTranslatedCommentForLanguage } from "@/lib/review-translations";
 import type { Dataset, Lang, Listing, Review } from "@/types";
 
@@ -11,6 +13,21 @@ function toOptionalNumber(value: unknown) {
   }
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function normalizeText(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "");
+}
+
+function slugify(value: string) {
+  return normalizeText(value)
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 70);
 }
 
 interface ListingRow {
@@ -60,6 +77,7 @@ interface ReviewRow {
   comment_pt: string | null;
   comment_it: string | null;
   comment_no: string | null;
+  allow_contact_sharing: boolean | null;
   student_contact: string | null;
   student_name: string | null;
   semester: string | null;
@@ -82,7 +100,7 @@ function mapReviewRow(row: ReviewRow, lang: Lang): Review {
       translatedComment && translatedComment !== originalComment
         ? translatedComment
         : undefined,
-    studentContact: row.student_contact || undefined,
+    studentContact: row.allow_contact_sharing ? row.student_contact || undefined : undefined,
     studentName: row.student_name || undefined,
     semester: row.semester || undefined,
     createdAt:
@@ -173,6 +191,7 @@ export async function getListingById(
         comment_pt,
         comment_it,
         comment_no,
+        allow_contact_sharing,
         student_contact,
         student_name,
         semester,
@@ -189,6 +208,84 @@ export async function getListingById(
   const listing = mapListingRow(listingResult.rows[0]);
   listing.reviews = reviewsResult.rows.map((row) => mapReviewRow(row, lang));
   return listing;
+}
+
+export interface NewListingInput {
+  address: string;
+  neighborhood: string;
+  contacts: string[];
+  priceUsd?: number;
+  capacity?: number;
+  latitude?: number;
+  longitude?: number;
+}
+
+export async function createListing(input: NewListingInput) {
+  if (!isDatabaseEnabled()) {
+    return { ok: false as const, reason: "db_disabled" as const };
+  }
+
+  return withTransaction(async (client) => {
+    const slugBase = slugify(`${input.neighborhood}-${input.address}`);
+    const hash = createHash("sha1")
+      .update(`${input.neighborhood}|${input.address}|${randomUUID()}`)
+      .digest("hex")
+      .slice(0, 8);
+    const listingId = `${slugBase || "listing"}-${hash}`;
+
+    await client.query(
+      `
+        INSERT INTO listings (
+          id,
+          address,
+          neighborhood,
+          latitude,
+          longitude,
+          price_usd,
+          capacity,
+          average_rating,
+          recommendation_rate,
+          total_reviews,
+          recent_year
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, NULL, NULL, 0, NULL)
+      `,
+      [
+        listingId,
+        input.address,
+        input.neighborhood,
+        input.latitude ?? null,
+        input.longitude ?? null,
+        input.priceUsd ?? null,
+        input.capacity ?? null,
+      ],
+    );
+
+    const uniqueContacts = [...new Set(input.contacts.map((contact) => contact.trim()))]
+      .filter(Boolean)
+      .slice(0, 20);
+
+    for (const contact of uniqueContacts) {
+      await client.query(
+        `
+          INSERT INTO listing_contacts (listing_id, contact)
+          VALUES ($1, $2)
+          ON CONFLICT (listing_id, contact) DO NOTHING
+        `,
+        [listingId, contact],
+      );
+    }
+
+    await client.query(
+      `
+        UPDATE dataset_meta
+        SET total_listings = (SELECT COUNT(*)::int FROM listings),
+            updated_at = NOW()
+        WHERE id = 1
+      `,
+    );
+
+    return { ok: true as const, listingId };
+  });
 }
 
 export async function getNeighborhoods() {
@@ -218,14 +315,27 @@ export async function getDatasetMeta() {
     source_file: string | null;
     total_listings: number | null;
   }>(
-    `SELECT generated_at, source_file, total_listings FROM dataset_meta WHERE id = 1`,
+    `
+      SELECT
+        d.generated_at,
+        d.source_file,
+        (
+          SELECT COUNT(*)::int
+          FROM listings
+        ) AS total_listings
+      FROM dataset_meta d
+      WHERE d.id = 1
+    `,
   );
 
   if (result.rowCount === 0) {
+    const listingCount = await dbQuery<{ total: number }>(
+      `SELECT COUNT(*)::int AS total FROM listings`,
+    );
     return {
       generatedAt: new Date().toISOString(),
       sourceFile: "postgres",
-      totalListings: 0,
+      totalListings: Number(listingCount.rows[0]?.total || 0),
     };
   }
 

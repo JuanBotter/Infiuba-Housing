@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { getListingById } from "@/lib/data";
+import { createListing, getListingById } from "@/lib/data";
 import { appendPendingReview } from "@/lib/reviews-store";
 
 function truncate(value: unknown, maxLength: number) {
@@ -10,6 +10,24 @@ function truncate(value: unknown, maxLength: number) {
   return value.trim().slice(0, maxLength);
 }
 
+function parseOptionalNumber(value: unknown) {
+  if (value === null || value === undefined || value === "") {
+    return undefined;
+  }
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function parseContacts(value: unknown) {
+  if (typeof value !== "string") {
+    return [];
+  }
+
+  return [...new Set(value.split(/\r?\n|,|;/g).map((item) => item.trim()))]
+    .filter(Boolean)
+    .slice(0, 20);
+}
+
 export async function POST(request: Request) {
   try {
     const payload = await request.json();
@@ -17,15 +35,14 @@ export async function POST(request: Request) {
     const comment = truncate(payload?.comment, 1000);
     const semester = truncate(payload?.semester, 60);
     const studentName = truncate(payload?.studentName, 80);
+    const studentContact = truncate(payload?.studentContact, 120);
     const studentEmail = truncate(payload?.studentEmail, 120);
+    const shareContactInfo = payload?.shareContactInfo === true;
 
     const rating = Number(payload?.rating);
     const recommended = payload?.recommended;
+    const confirmExistingDetails = payload?.confirmExistingDetails;
 
-    const listing = listingId ? await getListingById(listingId) : undefined;
-    if (!listingId || !listing) {
-      return NextResponse.json({ error: "Invalid listingId" }, { status: 400 });
-    }
     if (!Number.isFinite(rating) || rating < 1 || rating > 5) {
       return NextResponse.json({ error: "Invalid rating" }, { status: 400 });
     }
@@ -35,18 +52,101 @@ export async function POST(request: Request) {
     if (comment.length < 12) {
       return NextResponse.json({ error: "Comment is too short" }, { status: 400 });
     }
+    if (shareContactInfo && !studentEmail && !studentContact) {
+      return NextResponse.json(
+        { error: "Add an email or phone number to share contact info" },
+        { status: 400 },
+      );
+    }
+
+    let resolvedListingId = listingId;
+    if (listingId) {
+      const listing = await getListingById(listingId);
+      if (!listing) {
+        return NextResponse.json({ error: "Invalid listingId" }, { status: 400 });
+      }
+
+      // Backwards compatibility for detail page review form.
+      const isLegacyPayload =
+        payload?.confirmExistingDetails === undefined &&
+        payload?.address === undefined &&
+        payload?.neighborhood === undefined;
+
+      if (!isLegacyPayload && confirmExistingDetails !== true) {
+        return NextResponse.json(
+          { error: "Please confirm property details for existing listings" },
+          { status: 400 },
+        );
+      }
+    } else {
+      const address = truncate(payload?.address, 180);
+      const neighborhood = truncate(payload?.neighborhood, 80);
+      const contacts = parseContacts(payload?.contacts);
+      const priceUsd = parseOptionalNumber(payload?.priceUsd);
+      const capacity = parseOptionalNumber(payload?.capacity);
+      const latitude = parseOptionalNumber(payload?.latitude);
+      const longitude = parseOptionalNumber(payload?.longitude);
+
+      if (address.length < 6) {
+        return NextResponse.json({ error: "Invalid address" }, { status: 400 });
+      }
+      if (neighborhood.length < 2) {
+        return NextResponse.json({ error: "Invalid neighborhood" }, { status: 400 });
+      }
+      if (priceUsd !== undefined && (priceUsd <= 0 || priceUsd > 20000)) {
+        return NextResponse.json({ error: "Invalid rent value" }, { status: 400 });
+      }
+      if (capacity !== undefined && (capacity <= 0 || capacity > 50)) {
+        return NextResponse.json({ error: "Invalid capacity value" }, { status: 400 });
+      }
+
+      const latitudeProvided = latitude !== undefined;
+      const longitudeProvided = longitude !== undefined;
+      if (latitudeProvided !== longitudeProvided) {
+        return NextResponse.json(
+          { error: "Latitude and longitude must be provided together" },
+          { status: 400 },
+        );
+      }
+      if (latitudeProvided && (latitude < -90 || latitude > 90)) {
+        return NextResponse.json({ error: "Invalid latitude" }, { status: 400 });
+      }
+      if (longitudeProvided && (longitude < -180 || longitude > 180)) {
+        return NextResponse.json({ error: "Invalid longitude" }, { status: 400 });
+      }
+
+      const created = await createListing({
+        address,
+        neighborhood,
+        contacts,
+        priceUsd,
+        capacity,
+        latitude,
+        longitude,
+      });
+
+      if (!created.ok) {
+        return NextResponse.json(
+          { error: "Database is not configured for new property submissions" },
+          { status: 503 },
+        );
+      }
+      resolvedListingId = created.listingId;
+    }
 
     await appendPendingReview({
-      listingId,
+      listingId: resolvedListingId,
       rating,
       recommended,
       comment,
       semester: semester || undefined,
       studentName: studentName || undefined,
+      studentContact: studentContact || undefined,
       studentEmail: studentEmail || undefined,
+      shareContactInfo,
     });
 
-    return NextResponse.json({ ok: true }, { status: 201 });
+    return NextResponse.json({ ok: true, listingId: resolvedListingId }, { status: 201 });
   } catch {
     return NextResponse.json({ error: "Could not create review" }, { status: 500 });
   }

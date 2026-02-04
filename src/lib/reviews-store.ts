@@ -53,8 +53,10 @@ interface ReviewRow {
   comment_it: string | null;
   comment_no: string | null;
   semester: string | null;
+  student_contact: string | null;
   student_name: string | null;
   student_email: string | null;
+  allow_contact_sharing: boolean | null;
   created_at: string | Date;
   approved_at: string | Date | null;
 }
@@ -68,7 +70,9 @@ function mapPendingReviewRow(row: ReviewRow): PendingWebReview {
     comment: row.comment || "",
     semester: toOptionalText(row.semester),
     studentName: toOptionalText(row.student_name),
+    studentContact: toOptionalText(row.student_contact),
     studentEmail: toOptionalText(row.student_email),
+    shareContactInfo: Boolean(row.allow_contact_sharing),
     createdAt: toIsoString(row.created_at),
   };
 }
@@ -88,6 +92,9 @@ function mapApprovedReviewRowForLanguage(row: ReviewRow, lang: Lang): ApprovedWe
     ...mapApprovedReviewRow(row),
     comment: translatedComment || row.comment || "",
     originalComment,
+    studentContact: row.allow_contact_sharing
+      ? toOptionalText(row.student_contact) || toOptionalText(row.student_email)
+      : undefined,
     translatedComment:
       translatedComment && translatedComment !== originalComment
         ? translatedComment
@@ -116,8 +123,10 @@ export async function getApprovedReviewsForListing(
           comment_it,
           comment_no,
           semester,
+          student_contact,
           student_name,
           student_email,
+          allow_contact_sharing,
           created_at,
           approved_at
         FROM reviews
@@ -153,8 +162,10 @@ export async function getPendingReviews() {
           comment_it,
           comment_no,
           semester,
+          student_contact,
           student_name,
           student_email,
+          allow_contact_sharing,
           created_at,
           approved_at
         FROM reviews
@@ -187,8 +198,10 @@ export async function getApprovedReviews() {
           comment_it,
           comment_no,
           semester,
+          student_contact,
           student_name,
           student_email,
+          allow_contact_sharing,
           created_at,
           approved_at
         FROM reviews
@@ -210,7 +223,9 @@ export interface NewReviewInput {
   comment: string;
   semester?: string;
   studentName?: string;
+  studentContact?: string;
   studentEmail?: string;
+  shareContactInfo?: boolean;
 }
 
 export async function appendPendingReview(input: NewReviewInput) {
@@ -223,7 +238,9 @@ export async function appendPendingReview(input: NewReviewInput) {
       comment: input.comment,
       semester: input.semester || undefined,
       studentName: input.studentName || undefined,
+      studentContact: input.studentContact || undefined,
       studentEmail: input.studentEmail || undefined,
+      shareContactInfo: input.shareContactInfo || false,
       createdAt: new Date().toISOString(),
     };
 
@@ -238,10 +255,12 @@ export async function appendPendingReview(input: NewReviewInput) {
           recommended,
           comment,
           semester,
+          student_contact,
           student_name,
           student_email,
+          allow_contact_sharing,
           created_at
-        ) VALUES ($1, $2, 'web', 'pending', $3, $4, $5, $6, $7, $8, $9)
+        ) VALUES ($1, $2, 'web', 'pending', $3, $4, $5, $6, $7, $8, $9, $10, $11)
       `,
       [
         review.id,
@@ -250,8 +269,10 @@ export async function appendPendingReview(input: NewReviewInput) {
         review.recommended,
         review.comment,
         review.semester || null,
+        review.studentContact || null,
         review.studentName || null,
         review.studentEmail || null,
+        review.shareContactInfo || false,
         review.createdAt,
       ],
     );
@@ -268,7 +289,9 @@ export async function appendPendingReview(input: NewReviewInput) {
     comment: input.comment,
     semester: input.semester || undefined,
     studentName: input.studentName || undefined,
+    studentContact: input.studentContact || undefined,
     studentEmail: input.studentEmail || undefined,
+    shareContactInfo: input.shareContactInfo || false,
     createdAt: new Date().toISOString(),
   };
 
@@ -299,8 +322,10 @@ export async function moderatePendingReview(
             comment_it,
             comment_no,
             semester,
+            student_contact,
             student_name,
             student_email,
+            allow_contact_sharing,
             created_at,
             approved_at
           FROM reviews
@@ -345,8 +370,10 @@ export async function moderatePendingReview(
               comment_it,
               comment_no,
               semester,
+              student_contact,
               student_name,
               student_email,
+              allow_contact_sharing,
               created_at,
               approved_at
             FROM reviews

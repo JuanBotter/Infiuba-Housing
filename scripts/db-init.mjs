@@ -61,6 +61,7 @@ CREATE TABLE IF NOT EXISTS reviews (
   student_contact TEXT,
   student_name TEXT,
   student_email TEXT,
+  allow_contact_sharing BOOLEAN NOT NULL DEFAULT FALSE,
   semester TEXT,
   created_at TIMESTAMPTZ NOT NULL,
   approved_at TIMESTAMPTZ
@@ -80,6 +81,8 @@ ALTER TABLE reviews
   ADD COLUMN IF NOT EXISTS comment_it TEXT;
 ALTER TABLE reviews
   ADD COLUMN IF NOT EXISTS comment_no TEXT;
+ALTER TABLE reviews
+  ADD COLUMN IF NOT EXISTS allow_contact_sharing BOOLEAN NOT NULL DEFAULT FALSE;
 
 DO $$
 BEGIN

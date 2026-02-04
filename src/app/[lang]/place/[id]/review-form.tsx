@@ -17,7 +17,9 @@ export function ReviewForm({ lang, listingId }: ReviewFormProps) {
   const [comment, setComment] = useState("");
   const [semester, setSemester] = useState("");
   const [studentName, setStudentName] = useState("");
+  const [studentContact, setStudentContact] = useState("");
   const [studentEmail, setStudentEmail] = useState("");
+  const [shareContactInfo, setShareContactInfo] = useState(false);
   const [status, setStatus] = useState<"idle" | "sending" | "success" | "error">("idle");
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
@@ -37,7 +39,9 @@ export function ReviewForm({ lang, listingId }: ReviewFormProps) {
           comment,
           semester,
           studentName,
+          studentContact,
           studentEmail,
+          shareContactInfo,
         }),
       });
 
@@ -49,7 +53,9 @@ export function ReviewForm({ lang, listingId }: ReviewFormProps) {
       setComment("");
       setSemester("");
       setStudentName("");
+      setStudentContact("");
       setStudentEmail("");
+      setShareContactInfo(false);
       setRating("4");
       setRecommended("yes");
     } catch {
@@ -112,6 +118,16 @@ export function ReviewForm({ lang, listingId }: ReviewFormProps) {
       </label>
 
       <label>
+        <span>{t.formPhone}</span>
+        <input
+          type="text"
+          value={studentContact}
+          onChange={(event) => setStudentContact(event.target.value)}
+          maxLength={120}
+        />
+      </label>
+
+      <label>
         <span>{t.formEmail}</span>
         <input
           type="email"
@@ -119,6 +135,16 @@ export function ReviewForm({ lang, listingId }: ReviewFormProps) {
           onChange={(event) => setStudentEmail(event.target.value)}
           maxLength={120}
         />
+      </label>
+
+      <label className="consent-checkbox">
+        <input
+          type="checkbox"
+          checked={shareContactInfo}
+          onChange={(event) => setShareContactInfo(event.target.checked)}
+        />
+        <span>{t.formContactConsentLabel}</span>
+        <small>{t.formContactConsentHint}</small>
       </label>
 
       <button type="submit" disabled={status === "sending"}>
