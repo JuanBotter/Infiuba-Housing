@@ -1,5 +1,5 @@
 :root {
-  --font-heading: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Palatino, serif;
+  --font-heading: "Avenir Next", "Trebuchet MS", "Segoe UI", "Noto Sans", sans-serif;
   --font-body: "Avenir Next", "Trebuchet MS", "Segoe UI", "Noto Sans", sans-serif;
   --ink: #102336;
   --ink-soft: #4d5f70;
@@ -283,6 +283,16 @@ a {
   color: var(--ink-soft);
 }
 
+.role-menu__divider {
+  margin: 0;
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--ink-soft);
+  text-align: center;
+}
+
 .role-menu__form {
   display: grid;
   gap: 0.55rem;
@@ -502,6 +512,16 @@ textarea {
   font-size: 0.8rem;
   font-weight: 700;
   cursor: pointer;
+}
+
+.admin-nav {
+  margin-top: 0.78rem;
+}
+
+.admin-nav__link {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
 }
 
 .view-toggle__button.is-active {
@@ -883,6 +903,10 @@ textarea {
   margin: 0;
 }
 
+.review-item a {
+  overflow-wrap: anywhere;
+}
+
 .review-item__meta {
   margin-bottom: 0.3rem !important;
   font-size: 0.76rem;
@@ -922,6 +946,35 @@ textarea {
   margin-top: 0.42rem;
   display: grid;
   gap: 0.68rem;
+}
+
+.activate-invite-error-view {
+  margin-top: 0.45rem;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.activate-invite-error-title {
+  font-family: var(--font-body);
+}
+
+.activate-invite-error-view p {
+  margin: 0;
+}
+
+.activate-invite-error-view a {
+  color: var(--primary-deep);
+  text-decoration: underline;
+}
+
+.activate-invite-target {
+  margin: 0;
+  color: var(--ink-soft);
+  overflow-wrap: anywhere;
+}
+
+.activate-invite-target strong {
+  color: var(--ink);
 }
 
 .property-form-card {
@@ -1160,6 +1213,30 @@ textarea {
   margin-top: 0.28rem;
   display: flex;
   gap: 0.45rem;
+}
+
+.admin-users-toolbar {
+  margin: 0.65rem 0 0.9rem;
+  display: grid;
+  gap: 0.65rem;
+}
+
+.admin-users-toolbar .button-link {
+  justify-self: start;
+}
+
+.admin-users-search {
+  display: grid;
+  gap: 0.34rem;
+  max-width: 360px;
+}
+
+.admin-users-search span {
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--ink-soft);
 }
 
 :root[data-theme="dark"] .page-shell::before {

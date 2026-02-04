@@ -6,7 +6,7 @@ import { getLocaleForLang } from "@/lib/format";
 import { getMessages } from "@/lib/i18n";
 import type { ApprovedWebReview, Lang, PendingWebReview } from "@/types";
 
-interface ModerationPanelProps {
+interface ReviewsPanelProps {
   lang: Lang;
   listingMap: Record<string, string>;
 }
@@ -23,7 +23,7 @@ function formatDate(value: string, lang: Lang) {
   }).format(new Date(value));
 }
 
-export function ModerationPanel({ lang, listingMap }: ModerationPanelProps) {
+export function ReviewsPanel({ lang, listingMap }: ReviewsPanelProps) {
   const messages = useMemo(() => getMessages(lang), [lang]);
   const [pendingReviews, setPendingReviews] = useState<PendingWebReview[]>([]);
   const [approvedReviews, setApprovedReviews] = useState<ApprovedWebReview[]>([]);
@@ -56,11 +56,6 @@ export function ModerationPanel({ lang, listingMap }: ModerationPanelProps) {
     }
   }
 
-  useEffect(() => {
-    void loadModerationData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   async function moderateReview(action: "approve" | "reject", reviewId: string) {
     setBusyReviewId(reviewId);
     setError("");
@@ -89,6 +84,11 @@ export function ModerationPanel({ lang, listingMap }: ModerationPanelProps) {
       setBusyReviewId("");
     }
   }
+
+  useEffect(() => {
+    void loadModerationData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <>

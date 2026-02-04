@@ -1,12 +1,10 @@
 import { redirect } from "next/navigation";
 
-export const dynamic = "force-dynamic";
-
-interface ModerationPageProps {
+interface AdminIndexPageProps {
   params: Promise<{ lang: string }>;
 }
 
-export default async function ModerationPage({ params }: ModerationPageProps) {
+export default async function AdminIndexPage({ params }: AdminIndexPageProps) {
   const resolvedParams = await params;
   redirect(`/${resolvedParams.lang}/admin/reviews`);
 }

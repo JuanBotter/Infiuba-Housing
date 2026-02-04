@@ -10,7 +10,8 @@
     "geocode:data": "node scripts/geocode-listings.mjs",
     "db:init": "node scripts/db-init.mjs",
     "db:seed": "node scripts/db-seed.mjs",
-    "db:setup": "npm run db:init && npm run db:seed"
+    "db:setup": "npm run db:init && npm run db:seed",
+    "user:upsert": "node scripts/user-upsert.mjs"
   },
   "dependencies": {
     "leaflet": "^1.9.4",

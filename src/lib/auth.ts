@@ -1,17 +1,35 @@
-import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import {
+  createHash,
+  createHmac,
+  randomBytes,
+  scryptSync,
+  timingSafeEqual,
+} from "node:crypto";
 
 import { cookies } from "next/headers";
 
-import type { UserRole } from "@/types";
+import { dbQuery, isDatabaseEnabled, withTransaction } from "@/lib/db";
+import type { AuthMethod, UserRole } from "@/types";
 
 export const ROLE_COOKIE_NAME = "infiuba_role";
 
 const ROLE_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 120;
+const PASSWORD_HASH_PREFIX = "scrypt";
+const PASSWORD_MIN_LENGTH = 10;
+const PASSWORD_MAX_LENGTH = 200;
+const SCRYPT_N = 16384;
+const SCRYPT_R = 8;
+const SCRYPT_P = 1;
+const SCRYPT_KEYLEN = 64;
 
 let runtimeSecret: string | null = null;
 
 function isUserRole(value: string): value is UserRole {
   return value === "visitor" || value === "whitelisted" || value === "admin";
+}
+
+function isAuthMethod(value: string): value is AuthMethod {
+  return value === "code" || value === "password" || value === "invite";
 }
 
 function parseCodes(raw: string | undefined) {
@@ -23,6 +41,174 @@ function parseCodes(raw: string | undefined) {
     .split(/[\n,;]/g)
     .map((entry) => entry.trim())
     .filter(Boolean);
+}
+
+function isMissingConsumedReasonError(error: unknown) {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+
+  const code = "code" in error ? (error as { code?: unknown }).code : undefined;
+  const column = "column" in error ? (error as { column?: unknown }).column : undefined;
+  const message = "message" in error ? (error as { message?: unknown }).message : undefined;
+
+  if (code !== "42703") {
+    return false;
+  }
+
+  if (typeof column === "string" && column === "consumed_reason") {
+    return true;
+  }
+
+  return typeof message === "string" && message.includes("consumed_reason");
+}
+
+interface UserCredentialRow {
+  role: string;
+  password_hash: string;
+  is_active: boolean;
+}
+
+interface UserSessionRow {
+  role: string;
+  is_active: boolean;
+}
+
+interface ManagedUserRow {
+  email: string;
+  role: "whitelisted" | "admin";
+  is_active: boolean;
+  created_at: string | Date;
+  updated_at: string | Date;
+}
+
+interface InviteRow {
+  id: number;
+  email: string;
+  role: "whitelisted" | "admin";
+}
+
+interface InviteHistoryRow {
+  id: number;
+  email: string;
+  role: "whitelisted" | "admin";
+  created_at: string | Date;
+  expires_at: string | Date;
+  consumed_at: string | Date | null;
+  consumed_reason: string | null;
+  created_by_email: string | null;
+}
+
+export interface AuthSession {
+  role: UserRole;
+  authMethod?: AuthMethod;
+  email?: string;
+}
+
+export interface ManagedUserItem {
+  email: string;
+  role: "whitelisted" | "admin";
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+function normalizeEmail(value: string) {
+  return value.trim().toLowerCase();
+}
+
+function isLikelyEmail(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
+function derivePasswordHash(password: string, salt: Buffer) {
+  return scryptSync(password, salt, SCRYPT_KEYLEN, {
+    N: SCRYPT_N,
+    r: SCRYPT_R,
+    p: SCRYPT_P,
+  });
+}
+
+function encodeEmailForSession(email: string) {
+  return Buffer.from(normalizeEmail(email), "utf8").toString("base64url");
+}
+
+function decodeEmailFromSession(encoded: string) {
+  try {
+    return Buffer.from(encoded, "base64url").toString("utf8");
+  } catch {
+    return "";
+  }
+}
+
+function hashInviteToken(token: string) {
+  return createHash("sha256").update(token).digest("hex");
+}
+
+function createInviteToken() {
+  return randomBytes(24).toString("base64url");
+}
+
+export function hashPasswordForStorage(password: string) {
+  const normalizedPassword = password.trim();
+  if (
+    normalizedPassword.length < PASSWORD_MIN_LENGTH ||
+    normalizedPassword.length > PASSWORD_MAX_LENGTH
+  ) {
+    throw new Error(
+      `Password must contain between ${PASSWORD_MIN_LENGTH} and ${PASSWORD_MAX_LENGTH} characters.`,
+    );
+  }
+
+  const salt = randomBytes(16);
+  const hash = derivePasswordHash(normalizedPassword, salt);
+  return `${PASSWORD_HASH_PREFIX}:${SCRYPT_N}:${SCRYPT_R}:${SCRYPT_P}:${salt.toString(
+    "hex",
+  )}:${hash.toString("hex")}`;
+}
+
+export function verifyPasswordAgainstHash(password: string, storedHash: string) {
+  const normalizedPassword = password.trim();
+  if (
+    normalizedPassword.length < PASSWORD_MIN_LENGTH ||
+    normalizedPassword.length > PASSWORD_MAX_LENGTH
+  ) {
+    return false;
+  }
+
+  const parts = storedHash.split(":");
+  if (parts.length !== 6) {
+    return false;
+  }
+
+  const [algorithm, nString, rString, pString, saltHex, hashHex] = parts;
+  if (algorithm !== PASSWORD_HASH_PREFIX) {
+    return false;
+  }
+
+  const n = Number(nString);
+  const r = Number(rString);
+  const p = Number(pString);
+  if (n !== SCRYPT_N || r !== SCRYPT_R || p !== SCRYPT_P) {
+    return false;
+  }
+
+  if (!saltHex || !hashHex) {
+    return false;
+  }
+
+  const salt = Buffer.from(saltHex, "hex");
+  const expectedHash = Buffer.from(hashHex, "hex");
+  if (expectedHash.length === 0 || salt.length === 0) {
+    return false;
+  }
+
+  const derived = derivePasswordHash(normalizedPassword, salt);
+  if (derived.length !== expectedHash.length) {
+    return false;
+  }
+
+  return timingSafeEqual(derived, expectedHash);
 }
 
 function getSigningSecret() {
@@ -73,56 +259,87 @@ function parseCookieHeader(cookieHeader: string) {
   return parsed;
 }
 
-export function createRoleSession(role: Exclude<UserRole, "visitor">) {
-  const payload = `v1:${role}`;
+export function createRoleSession(
+  role: Exclude<UserRole, "visitor">,
+  options?: { authMethod?: AuthMethod; email?: string },
+) {
+  const authMethod = options?.authMethod || "code";
+  const encodedEmail = options?.email ? encodeEmailForSession(options.email) : "";
+  const payload = `v2|${role}|${authMethod}|${encodedEmail}`;
   return `${payload}.${sign(payload)}`;
 }
 
-export function resolveRoleFromSession(token: string | undefined | null): UserRole {
+export function resolveSessionFromToken(token: string | undefined | null): AuthSession {
   if (!token) {
-    return "visitor";
+    return { role: "visitor" };
   }
 
   const dotIndex = token.lastIndexOf(".");
   if (dotIndex < 0) {
-    return "visitor";
+    return { role: "visitor" };
   }
 
   const payload = token.slice(0, dotIndex);
   const providedSignature = token.slice(dotIndex + 1);
   if (!payload || !providedSignature) {
-    return "visitor";
+    return { role: "visitor" };
   }
 
   const expectedSignature = sign(payload);
   if (!safeEqual(expectedSignature, providedSignature)) {
-    return "visitor";
+    return { role: "visitor" };
   }
 
-  const [version, role] = payload.split(":");
-  if (version !== "v1" || !role || !isUserRole(role)) {
-    return "visitor";
+  if (payload.startsWith("v1:")) {
+    const [version, role] = payload.split(":");
+    if (version !== "v1" || !role || !isUserRole(role)) {
+      return { role: "visitor" };
+    }
+    return { role };
   }
 
-  return role;
+  const [version, roleRaw, methodRaw, encodedEmail = ""] = payload.split("|");
+  if (version !== "v2" || !roleRaw || !isUserRole(roleRaw)) {
+    return { role: "visitor" };
+  }
+  if (!methodRaw || !isAuthMethod(methodRaw)) {
+    return { role: roleRaw };
+  }
+
+  const decodedEmail = encodedEmail ? decodeEmailFromSession(encodedEmail) : "";
+  const email = decodedEmail && isLikelyEmail(decodedEmail) ? normalizeEmail(decodedEmail) : undefined;
+
+  return {
+    role: roleRaw,
+    authMethod: methodRaw,
+    email,
+  };
 }
 
-export function getRoleFromCookieHeader(cookieHeader: string | null | undefined): UserRole {
+export function resolveRoleFromSession(token: string | undefined | null): UserRole {
+  return resolveSessionFromToken(token).role;
+}
+
+export function getSessionFromCookieHeader(cookieHeader: string | null | undefined): AuthSession {
   if (!cookieHeader) {
-    return "visitor";
+    return { role: "visitor" };
   }
 
   const cookieMap = parseCookieHeader(cookieHeader);
   const rawValue = cookieMap[ROLE_COOKIE_NAME];
   if (!rawValue) {
-    return "visitor";
+    return { role: "visitor" };
   }
 
   try {
-    return resolveRoleFromSession(decodeURIComponent(rawValue));
+    return resolveSessionFromToken(decodeURIComponent(rawValue));
   } catch {
-    return resolveRoleFromSession(rawValue);
+    return resolveSessionFromToken(rawValue);
   }
+}
+
+export function getRoleFromCookieHeader(cookieHeader: string | null | undefined): UserRole {
+  return getSessionFromCookieHeader(cookieHeader).role;
 }
 
 export function getRoleFromRequest(request: Request): UserRole {
@@ -130,8 +347,71 @@ export function getRoleFromRequest(request: Request): UserRole {
 }
 
 export async function getCurrentUserRole() {
+  const session = await getCurrentAuthSession();
+  return session.role;
+}
+
+async function resolveValidatedSession(session: AuthSession): Promise<AuthSession> {
+  if (session.role === "visitor") {
+    return session;
+  }
+
+  // Access-code sessions are independent from DB users by design.
+  if (session.authMethod === "code") {
+    return session;
+  }
+
+  if ((session.authMethod === "password" || session.authMethod === "invite") && session.email) {
+    if (!isDatabaseEnabled()) {
+      return { role: "visitor" };
+    }
+
+    const result = await dbQuery<UserSessionRow>(
+      `
+        SELECT role, is_active
+        FROM users
+        WHERE email = $1
+        LIMIT 1
+      `,
+      [session.email],
+    );
+
+    if (result.rowCount === 0) {
+      return { role: "visitor" };
+    }
+
+    const user = result.rows[0];
+    if (!user.is_active) {
+      return { role: "visitor" };
+    }
+    if (user.role !== "admin" && user.role !== "whitelisted") {
+      return { role: "visitor" };
+    }
+
+    return {
+      ...session,
+      role: user.role,
+      email: session.email,
+    };
+  }
+
+  return session;
+}
+
+export async function getCurrentAuthSession() {
   const cookieStore = await cookies();
-  return resolveRoleFromSession(cookieStore.get(ROLE_COOKIE_NAME)?.value);
+  const session = resolveSessionFromToken(cookieStore.get(ROLE_COOKIE_NAME)?.value);
+  return resolveValidatedSession(session);
+}
+
+export async function getAuthSessionFromRequest(request: Request) {
+  const session = getSessionFromCookieHeader(request.headers.get("cookie"));
+  return resolveValidatedSession(session);
+}
+
+export async function getRoleFromRequestAsync(request: Request) {
+  const session = await getAuthSessionFromRequest(request);
+  return session.role;
 }
 
 export function resolveRoleForAccessCode(code: string): UserRole | null {
@@ -159,6 +439,449 @@ export function resolveRoleForAccessCode(code: string): UserRole | null {
   return null;
 }
 
+export async function resolveRoleForCredentials(
+  email: string,
+  password: string,
+): Promise<Exclude<UserRole, "visitor"> | null | "db_unavailable"> {
+  if (!isDatabaseEnabled()) {
+    return "db_unavailable";
+  }
+
+  const normalizedEmail = normalizeEmail(email);
+  if (!isLikelyEmail(normalizedEmail)) {
+    return null;
+  }
+
+  const result = await dbQuery<UserCredentialRow>(
+    `
+      SELECT role, password_hash, is_active
+      FROM users
+      WHERE email = $1
+      LIMIT 1
+    `,
+    [normalizedEmail],
+  );
+
+  if (result.rowCount === 0) {
+    return null;
+  }
+
+  const user = result.rows[0];
+  if (!user.is_active) {
+    return null;
+  }
+  if (!verifyPasswordAgainstHash(password, user.password_hash)) {
+    return null;
+  }
+  if (user.role === "admin" || user.role === "whitelisted") {
+    return user.role;
+  }
+
+  return null;
+}
+
+export async function getManagedUsers(
+  limit = 500,
+): Promise<{ ok: true; users: ManagedUserItem[] } | { ok: false; reason: "db_unavailable" }> {
+  if (!isDatabaseEnabled()) {
+    return { ok: false, reason: "db_unavailable" };
+  }
+
+  const boundedLimit = Math.max(1, Math.min(2000, Math.floor(limit)));
+  const result = await dbQuery<ManagedUserRow>(
+    `
+      SELECT email, role, is_active, created_at, updated_at
+      FROM users
+      ORDER BY is_active DESC, role ASC, updated_at DESC, email ASC
+      LIMIT $1
+    `,
+    [boundedLimit],
+  );
+
+  const users = result.rows.map((row) => ({
+    email: row.email,
+    role: row.role,
+    isActive: row.is_active,
+    createdAt: typeof row.created_at === "string" ? row.created_at : row.created_at.toISOString(),
+    updatedAt: typeof row.updated_at === "string" ? row.updated_at : row.updated_at.toISOString(),
+  }));
+
+  return { ok: true, users };
+}
+
+export async function revokeUserAccess(
+  email: string,
+): Promise<
+  | { ok: true; user: ManagedUserItem }
+  | { ok: false; reason: "db_unavailable" | "invalid_email" | "not_found" }
+> {
+  if (!isDatabaseEnabled()) {
+    return { ok: false, reason: "db_unavailable" };
+  }
+
+  const normalizedEmail = normalizeEmail(email);
+  if (!isLikelyEmail(normalizedEmail)) {
+    return { ok: false, reason: "invalid_email" };
+  }
+
+  const result = await dbQuery<ManagedUserRow>(
+    `
+      UPDATE users
+      SET is_active = FALSE,
+          updated_at = NOW()
+      WHERE email = $1
+      RETURNING email, role, is_active, created_at, updated_at
+    `,
+    [normalizedEmail],
+  );
+
+  if (result.rows.length === 0) {
+    return { ok: false, reason: "not_found" };
+  }
+
+  const user = result.rows[0];
+  return {
+    ok: true,
+    user: {
+      email: user.email,
+      role: user.role,
+      isActive: user.is_active,
+      createdAt: typeof user.created_at === "string" ? user.created_at : user.created_at.toISOString(),
+      updatedAt: typeof user.updated_at === "string" ? user.updated_at : user.updated_at.toISOString(),
+    },
+  };
+}
+
+export interface CreateInviteInput {
+  email: string;
+  role: "whitelisted" | "admin";
+  expiresHours?: number;
+  createdByEmail?: string;
+}
+
+export interface InviteHistoryItem {
+  id: number;
+  email: string;
+  role: "whitelisted" | "admin";
+  status: "open" | "activated" | "replaced" | "expired";
+  createdAt: string;
+  expiresAt: string;
+  consumedAt?: string;
+  consumedReason?: "activated" | "replaced";
+  createdByEmail?: string;
+}
+
+export async function createInviteLink(
+  input: CreateInviteInput,
+): Promise<
+  | { ok: true; token: string; email: string; role: "whitelisted" | "admin"; expiresAt: string }
+  | { ok: false; reason: "db_unavailable" | "invalid_email" }
+> {
+  if (!isDatabaseEnabled()) {
+    return { ok: false, reason: "db_unavailable" };
+  }
+
+  const normalizedEmail = normalizeEmail(input.email);
+  if (!isLikelyEmail(normalizedEmail)) {
+    return { ok: false, reason: "invalid_email" };
+  }
+
+  const token = createInviteToken();
+  const tokenHash = hashInviteToken(token);
+  const boundedHours = Number.isFinite(input.expiresHours)
+    ? Math.min(24 * 30, Math.max(1, Math.floor(input.expiresHours || 0)))
+    : 24 * 7;
+
+  const result = await withTransaction(async (client) => {
+    // Only keep one open invite per email: creating a new one invalidates older open invites.
+    try {
+      await client.query(
+        `
+          UPDATE auth_invites
+          SET consumed_at = NOW(),
+              consumed_reason = 'superseded'
+          WHERE email = $1
+            AND consumed_at IS NULL
+            AND expires_at > NOW()
+        `,
+        [normalizedEmail],
+      );
+    } catch (error) {
+      if (!isMissingConsumedReasonError(error)) {
+        throw error;
+      }
+
+      // Backward compatibility for DBs that have not run the latest migration yet.
+      await client.query(
+        `
+          UPDATE auth_invites
+          SET consumed_at = NOW()
+          WHERE email = $1
+            AND consumed_at IS NULL
+            AND expires_at > NOW()
+        `,
+        [normalizedEmail],
+      );
+    }
+
+    return client.query<{ expires_at: string | Date }>(
+      `
+        INSERT INTO auth_invites (
+          email,
+          role,
+          token_hash,
+          expires_at,
+          created_by_email
+        )
+        VALUES (
+          $1,
+          $2,
+          $3,
+          NOW() + make_interval(hours => $4),
+          $5
+        )
+        RETURNING expires_at
+      `,
+      [
+        normalizedEmail,
+        input.role,
+        tokenHash,
+        boundedHours,
+        input.createdByEmail ? normalizeEmail(input.createdByEmail) : null,
+      ],
+    );
+  });
+
+  return {
+    ok: true,
+    token,
+    email: normalizedEmail,
+    role: input.role,
+    expiresAt:
+      typeof result.rows[0].expires_at === "string"
+        ? result.rows[0].expires_at
+        : result.rows[0].expires_at.toISOString(),
+  };
+}
+
+export async function getInviteHistory(
+  limit = 250,
+): Promise<{ ok: true; invites: InviteHistoryItem[] } | { ok: false; reason: "db_unavailable" }> {
+  if (!isDatabaseEnabled()) {
+    return { ok: false, reason: "db_unavailable" };
+  }
+
+  const boundedLimit = Math.max(1, Math.min(1000, Math.floor(limit)));
+  let result;
+  try {
+    result = await dbQuery<InviteHistoryRow>(
+      `
+        SELECT
+          id,
+          email,
+          role,
+          created_at,
+          expires_at,
+          consumed_at,
+          consumed_reason,
+          created_by_email
+        FROM auth_invites
+        ORDER BY created_at DESC
+        LIMIT $1
+      `,
+      [boundedLimit],
+    );
+  } catch (error) {
+    if (!isMissingConsumedReasonError(error)) {
+      throw error;
+    }
+
+    // Backward compatibility for DBs that have not run the latest migration yet.
+    result = await dbQuery<InviteHistoryRow>(
+      `
+        SELECT
+          id,
+          email,
+          role,
+          created_at,
+          expires_at,
+          consumed_at,
+          NULL::text AS consumed_reason,
+          created_by_email
+        FROM auth_invites
+        ORDER BY created_at DESC
+        LIMIT $1
+      `,
+      [boundedLimit],
+    );
+  }
+
+  const now = Date.now();
+  const invites = result.rows.map((row) => {
+    const createdAt =
+      typeof row.created_at === "string" ? row.created_at : row.created_at.toISOString();
+    const expiresAt =
+      typeof row.expires_at === "string" ? row.expires_at : row.expires_at.toISOString();
+    const consumedAt = row.consumed_at
+      ? typeof row.consumed_at === "string"
+        ? row.consumed_at
+        : row.consumed_at.toISOString()
+      : undefined;
+    const consumedReason =
+      row.consumed_reason === "activated"
+        ? "activated"
+        : row.consumed_reason === "superseded" || row.consumed_reason === "replaced"
+          ? "replaced"
+          : undefined;
+    const isExpired = !consumedAt && new Date(expiresAt).getTime() <= now;
+    const status: InviteHistoryItem["status"] = consumedAt
+      ? consumedReason === "replaced"
+        ? "replaced"
+        : "activated"
+      : isExpired
+        ? "expired"
+        : "open";
+
+    return {
+      id: row.id,
+      email: row.email,
+      role: row.role,
+      status,
+      createdAt,
+      expiresAt,
+      consumedAt,
+      consumedReason,
+      createdByEmail: row.created_by_email || undefined,
+    } satisfies InviteHistoryItem;
+  });
+
+  return { ok: true, invites };
+}
+
+export async function activateInviteWithPassword(
+  token: string,
+  password: string,
+): Promise<
+  | { ok: true; role: "whitelisted" | "admin"; email: string }
+  | { ok: false; reason: "db_unavailable" | "invalid_or_expired" | "invalid_password" }
+> {
+  if (!isDatabaseEnabled()) {
+    return { ok: false, reason: "db_unavailable" };
+  }
+
+  let passwordHash = "";
+  try {
+    passwordHash = hashPasswordForStorage(password);
+  } catch {
+    return { ok: false, reason: "invalid_password" };
+  }
+
+  const normalizedToken = token.trim();
+  if (!normalizedToken) {
+    return { ok: false, reason: "invalid_or_expired" };
+  }
+
+  const tokenHash = hashInviteToken(normalizedToken);
+
+  return withTransaction(async (client) => {
+    const inviteResult = await client.query<InviteRow>(
+      `
+        SELECT id, email, role
+        FROM auth_invites
+        WHERE token_hash = $1
+          AND consumed_at IS NULL
+          AND expires_at > NOW()
+        LIMIT 1
+        FOR UPDATE
+      `,
+      [tokenHash],
+    );
+
+    if (inviteResult.rowCount === 0) {
+      return { ok: false as const, reason: "invalid_or_expired" as const };
+    }
+
+    const invite = inviteResult.rows[0];
+
+    await client.query(
+      `
+        INSERT INTO users (email, role, password_hash, is_active, created_at, updated_at)
+        VALUES ($1, $2, $3, TRUE, NOW(), NOW())
+        ON CONFLICT (email) DO UPDATE
+        SET role = EXCLUDED.role,
+            password_hash = EXCLUDED.password_hash,
+            is_active = TRUE,
+            updated_at = NOW()
+      `,
+      [invite.email, invite.role, passwordHash],
+    );
+
+    try {
+      await client.query(
+        `
+          UPDATE auth_invites
+          SET consumed_at = NOW(),
+              consumed_reason = 'activated'
+          WHERE id = $1
+        `,
+        [invite.id],
+      );
+    } catch (error) {
+      if (!isMissingConsumedReasonError(error)) {
+        throw error;
+      }
+
+      // Backward compatibility for DBs that have not run the latest migration yet.
+      await client.query(
+        `
+          UPDATE auth_invites
+          SET consumed_at = NOW()
+          WHERE id = $1
+        `,
+        [invite.id],
+      );
+    }
+
+    return { ok: true as const, role: invite.role, email: invite.email };
+  });
+}
+
+export async function isInviteTokenActive(
+  token: string,
+): Promise<
+  { ok: true; active: boolean; email?: string; role?: "whitelisted" | "admin" }
+  | { ok: false; reason: "db_unavailable" }
+> {
+  if (!isDatabaseEnabled()) {
+    return { ok: false, reason: "db_unavailable" };
+  }
+
+  const normalizedToken = token.trim();
+  if (!normalizedToken) {
+    return { ok: true, active: false };
+  }
+
+  const tokenHash = hashInviteToken(normalizedToken);
+  const result = await dbQuery<{ id: number; email: string; role: "whitelisted" | "admin" }>(
+    `
+      SELECT id, email, role
+      FROM auth_invites
+      WHERE token_hash = $1
+        AND consumed_at IS NULL
+        AND expires_at > NOW()
+      LIMIT 1
+    `,
+    [tokenHash],
+  );
+
+  if (result.rows.length === 0) {
+    return { ok: true, active: false };
+  }
+
+  const invite = result.rows[0];
+  return { ok: true, active: true, email: invite.email, role: invite.role };
+}
+
 export function canViewContactInfo(role: UserRole) {
   return role === "whitelisted" || role === "admin";
 }
@@ -171,10 +894,13 @@ export function canAccessAdmin(role: UserRole) {
   return role === "admin";
 }
 
-export function buildRoleCookie(role: Exclude<UserRole, "visitor">) {
+export function buildRoleCookie(
+  role: Exclude<UserRole, "visitor">,
+  options?: { authMethod?: AuthMethod; email?: string },
+) {
   return {
     name: ROLE_COOKIE_NAME,
-    value: createRoleSession(role),
+    value: createRoleSession(role, options),
     path: "/",
     maxAge: ROLE_COOKIE_MAX_AGE_SECONDS,
     httpOnly: true,

@@ -1,0 +1,20 @@
+import { notFound } from "next/navigation";
+
+import { AccessPanel } from "@/app/[lang]/admin/access/access-panel";
+import { isSupportedLanguage } from "@/lib/i18n";
+import type { Lang } from "@/types";
+
+export const dynamic = "force-dynamic";
+
+interface AccessPageProps {
+  params: Promise<{ lang: string }>;
+}
+
+export default async function AccessPage({ params }: AccessPageProps) {
+  const resolvedParams = await params;
+  if (!isSupportedLanguage(resolvedParams.lang)) {
+    notFound();
+  }
+
+  return <AccessPanel lang={resolvedParams.lang as Lang} />;
+}

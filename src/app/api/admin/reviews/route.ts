@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { canAccessAdmin, getRoleFromRequest } from "@/lib/auth";
+import { canAccessAdmin, getRoleFromRequestAsync } from "@/lib/auth";
 import {
   getApprovedReviews,
   getPendingReviews,
@@ -8,7 +8,7 @@ import {
 } from "@/lib/reviews-store";
 
 export async function GET(request: Request) {
-  if (!canAccessAdmin(getRoleFromRequest(request))) {
+  if (!canAccessAdmin(await getRoleFromRequestAsync(request))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -20,7 +20,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  if (!canAccessAdmin(getRoleFromRequest(request))) {
+  if (!canAccessAdmin(await getRoleFromRequestAsync(request))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
