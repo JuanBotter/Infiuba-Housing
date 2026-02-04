@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
+import { AddStayReviewForm } from "@/app/[lang]/add-stay-review-form";
 import { formatDecimal, formatPercent, formatUsd } from "@/lib/format";
 import type { Messages } from "@/i18n/messages";
 import type { Lang, Listing } from "@/types";
@@ -18,13 +19,20 @@ interface PlaceFiltersProps {
   messages: Messages;
   listings: Listing[];
   neighborhoods: string[];
+  canWriteReviews: boolean;
 }
 
-export function PlaceFilters({ lang, messages, listings, neighborhoods }: PlaceFiltersProps) {
+export function PlaceFilters({
+  lang,
+  messages,
+  listings,
+  neighborhoods,
+  canWriteReviews,
+}: PlaceFiltersProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedNeighborhood, setSelectedNeighborhood] = useState("all");
   const [recommendedFilter, setRecommendedFilter] = useState("any");
-  const [viewMode, setViewMode] = useState<"cards" | "map">("cards");
+  const [viewMode, setViewMode] = useState<"cards" | "map" | "review">("cards");
   const [selectedMapListingId, setSelectedMapListingId] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
@@ -65,52 +73,10 @@ export function PlaceFilters({ lang, messages, listings, neighborhoods }: PlaceF
         `${selectedMapListing.address}, ${selectedMapListing.neighborhood}, Buenos Aires, Argentina`,
       )
     : "";
+  const isReviewMode = viewMode === "review";
 
   return (
     <>
-      <section className="filters-panel">
-        <label>
-          <span>{messages.searchLabel}</span>
-          <input
-            type="search"
-            value={searchTerm}
-            onChange={(event) => setSearchTerm(event.target.value)}
-            placeholder={messages.searchPlaceholder}
-          />
-        </label>
-
-        <label>
-          <span>{messages.neighborhoodLabel}</span>
-          <select
-            value={selectedNeighborhood}
-            onChange={(event) => setSelectedNeighborhood(event.target.value)}
-          >
-            <option value="all">{messages.neighborhoodAll}</option>
-            {neighborhoods.map((neighborhood) => (
-              <option key={neighborhood} value={neighborhood}>
-                {neighborhood}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label>
-          <span>{messages.recommendationLabel}</span>
-          <select
-            value={recommendedFilter}
-            onChange={(event) => setRecommendedFilter(event.target.value)}
-          >
-            <option value="any">{messages.recommendationAll}</option>
-            <option value="yes">{messages.recommendationYes}</option>
-            <option value="no">{messages.recommendationNo}</option>
-          </select>
-        </label>
-      </section>
-
-      <p className="result-count">
-        {filtered.length} {messages.resultsLabel}
-      </p>
-
       <section className="view-toggle" aria-label={messages.viewModeLabel}>
         <button
           type="button"
@@ -126,9 +92,67 @@ export function PlaceFilters({ lang, messages, listings, neighborhoods }: PlaceF
         >
           {messages.viewMap}
         </button>
+        {canWriteReviews ? (
+          <button
+            type="button"
+            className={`view-toggle__button ${viewMode === "review" ? "is-active" : ""}`}
+            onClick={() => setViewMode("review")}
+          >
+            {messages.viewAddReview}
+          </button>
+        ) : null}
       </section>
 
-      {filtered.length === 0 ? (
+      {!isReviewMode ? (
+        <>
+          <section className="filters-panel">
+            <label>
+              <span>{messages.searchLabel}</span>
+              <input
+                type="search"
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                placeholder={messages.searchPlaceholder}
+              />
+            </label>
+
+            <label>
+              <span>{messages.neighborhoodLabel}</span>
+              <select
+                value={selectedNeighborhood}
+                onChange={(event) => setSelectedNeighborhood(event.target.value)}
+              >
+                <option value="all">{messages.neighborhoodAll}</option>
+                {neighborhoods.map((neighborhood) => (
+                  <option key={neighborhood} value={neighborhood}>
+                    {neighborhood}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              <span>{messages.recommendationLabel}</span>
+              <select
+                value={recommendedFilter}
+                onChange={(event) => setRecommendedFilter(event.target.value)}
+              >
+                <option value="any">{messages.recommendationAll}</option>
+                <option value="yes">{messages.recommendationYes}</option>
+                <option value="no">{messages.recommendationNo}</option>
+              </select>
+            </label>
+          </section>
+
+          <p className="result-count">
+            {filtered.length} {messages.resultsLabel}
+          </p>
+        </>
+      ) : null}
+
+      {isReviewMode ? (
+        <AddStayReviewForm lang={lang} listings={listings} />
+      ) : filtered.length === 0 ? (
         <p className="empty-state">{messages.noResults}</p>
       ) : viewMode === "cards" ? (
         <section className="cards-grid">

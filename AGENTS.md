@@ -21,6 +21,7 @@ Do not defer AGENTS updates.
 - Typography: unified sans-serif stack for headings and body (`Avenir Next` fallback stack).
 - Core domain: listings, owner contacts, survey reviews, web reviews with moderation, multilingual review text.
 - Admin UX: split views for reviews, invites, and access management under `/{lang}/admin/*`; access view supports client-side search by email/role.
+- Main listings UI uses a view toggle: `Cards`, `Map`, and (for whitelisted/admin) `Add review`.
 
 ## Runtime and Commands
 

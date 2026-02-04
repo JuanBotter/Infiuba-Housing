@@ -1,6 +1,5 @@
 import { notFound } from "next/navigation";
 
-import { AddStayReviewForm } from "@/app/[lang]/add-stay-review-form";
 import { PlaceFilters } from "@/app/[lang]/place-filters";
 import { canSubmitReviews, canViewContactInfo, getCurrentUserRole } from "@/lib/auth";
 import { getDatasetMeta, getListings, getNeighborhoods } from "@/lib/data";
@@ -64,9 +63,8 @@ export default async function ListingsPage({ params }: PageProps) {
         messages={messages}
         listings={listings}
         neighborhoods={neighborhoods}
+        canWriteReviews={canWriteReviews}
       />
-
-      {canWriteReviews ? <AddStayReviewForm lang={lang} listings={listings} /> : null}
 
       <p className="data-footnote">
         {meta.totalListings} {messages.footnotePlacesLabel} · {messages.footnoteUpdatedLabel}{" "}
