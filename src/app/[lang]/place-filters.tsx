@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { AddStayReviewForm } from "@/app/[lang]/add-stay-review-form";
 import { ReviewComment } from "@/app/[lang]/place/[id]/review-comment";
@@ -78,7 +78,7 @@ export function PlaceFilters({
   neighborhoods,
   canWriteReviews,
 }: PlaceFiltersProps) {
-  const didLoadPersistedFilters = useRef(false);
+  const [hasLoadedPersistedFilters, setHasLoadedPersistedFilters] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedNeighborhood, setSelectedNeighborhood] = useState("all");
   const [recommendedFilter, setRecommendedFilter] = useState("any");
@@ -105,7 +105,6 @@ export function PlaceFilters({
       }
 
       if (!raw) {
-        didLoadPersistedFilters.current = true;
         return;
       }
 
@@ -139,12 +138,12 @@ export function PlaceFilters({
     } catch {
       // Ignore invalid persisted values.
     } finally {
-      didLoadPersistedFilters.current = true;
+      setHasLoadedPersistedFilters(true);
     }
   }, [canWriteReviews]);
 
   useEffect(() => {
-    if (!didLoadPersistedFilters.current) {
+    if (!hasLoadedPersistedFilters) {
       return;
     }
 
@@ -168,6 +167,7 @@ export function PlaceFilters({
     selectedNeighborhood,
     sortBy,
     viewMode,
+    hasLoadedPersistedFilters,
   ]);
 
   const filtered = useMemo(() => {
