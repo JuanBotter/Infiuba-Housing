@@ -22,7 +22,8 @@ export async function POST(request: Request) {
     const rating = Number(payload?.rating);
     const recommended = payload?.recommended;
 
-    if (!listingId || !getListingById(listingId)) {
+    const listing = listingId ? await getListingById(listingId) : undefined;
+    if (!listingId || !listing) {
       return NextResponse.json({ error: "Invalid listingId" }, { status: 400 });
     }
     if (!Number.isFinite(rating) || rating < 1 || rating > 5) {

@@ -1,4 +1,4 @@
-export type Lang = "en" | "es";
+export type Lang = "en" | "es" | "fr" | "de" | "pt" | "it" | "no";
 
 export type ReviewSource = "survey" | "web";
 
@@ -9,6 +9,8 @@ export interface Review {
   rating?: number;
   recommended?: boolean;
   comment?: string;
+  originalComment?: string;
+  translatedComment?: string;
   studentContact?: string;
   studentName?: string;
   semester?: string;
@@ -19,6 +21,8 @@ export interface Listing {
   id: string;
   address: string;
   neighborhood: string;
+  latitude?: number;
+  longitude?: number;
   contacts: string[];
   priceUsd?: number;
   capacity?: number;
@@ -42,6 +46,8 @@ export interface PendingWebReview {
   rating: number;
   recommended: boolean;
   comment: string;
+  originalComment?: string;
+  translatedComment?: string;
   semester?: string;
   studentName?: string;
   studentEmail?: string;

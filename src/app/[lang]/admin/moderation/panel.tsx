@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
+import { getLocaleForLang } from "@/lib/format";
 import { getMessages } from "@/lib/i18n";
 import type { ApprovedWebReview, Lang, PendingWebReview } from "@/types";
 
@@ -16,7 +17,7 @@ interface ModerationPayload {
 }
 
 function formatDate(value: string, lang: Lang) {
-  return new Intl.DateTimeFormat(lang === "es" ? "es-AR" : "en-US", {
+  return new Intl.DateTimeFormat(getLocaleForLang(lang), {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(new Date(value));

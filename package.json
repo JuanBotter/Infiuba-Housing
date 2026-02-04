@@ -6,17 +6,23 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "import:data": "node scripts/build-dataset.mjs"
+    "import:data": "node scripts/build-dataset.mjs",
+    "geocode:data": "node scripts/geocode-listings.mjs",
+    "db:init": "node scripts/db-init.mjs",
+    "db:seed": "node scripts/db-seed.mjs",
+    "db:setup": "npm run db:init && npm run db:seed"
   },
   "dependencies": {
     "leaflet": "^1.9.4",
     "next": "^16.1.6",
+    "pg": "^8.16.3",
     "react": "18.3.1",
     "react-dom": "18.3.1"
   },
   "devDependencies": {
     "@types/leaflet": "^1.9.21",
     "@types/node": "20.14.15",
+    "@types/pg": "^8.15.6",
     "@types/react": "18.3.3",
     "@types/react-dom": "18.3.0",
     "typescript": "5.5.4"

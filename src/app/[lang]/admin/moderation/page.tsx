@@ -5,6 +5,8 @@ import { getListings } from "@/lib/data";
 import { getMessages, isSupportedLanguage } from "@/lib/i18n";
 import type { Lang } from "@/types";
 
+export const dynamic = "force-dynamic";
+
 interface ModerationPageProps {
   params: Promise<{ lang: string }>;
 }
@@ -17,8 +19,9 @@ export default async function ModerationPage({ params }: ModerationPageProps) {
 
   const lang = resolvedParams.lang as Lang;
   const messages = getMessages(lang);
+  const listings = await getListings();
   const listingMap = Object.fromEntries(
-    getListings().map((listing) => [listing.id, `${listing.address} · ${listing.neighborhood}`]),
+    listings.map((listing) => [listing.id, `${listing.address} · ${listing.neighborhood}`]),
   );
 
   return (

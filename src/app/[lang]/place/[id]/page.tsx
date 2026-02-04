@@ -1,12 +1,15 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { ReviewComment } from "@/app/[lang]/place/[id]/review-comment";
 import { ReviewForm } from "@/app/[lang]/place/[id]/review-form";
 import { getListingById } from "@/lib/data";
 import { formatDecimal, formatPercent, formatUsd } from "@/lib/format";
 import { getMessages, isSupportedLanguage } from "@/lib/i18n";
 import { getApprovedReviewsForListing } from "@/lib/reviews-store";
 import type { Lang, Review } from "@/types";
+
+export const dynamic = "force-dynamic";
 
 interface PlaceDetailPageProps {
   params: Promise<{ lang: string; id: string }>;
@@ -21,12 +24,12 @@ export default async function PlaceDetailPage({ params }: PlaceDetailPageProps) 
 
   const lang = resolvedParams.lang as Lang;
   const messages = getMessages(lang);
-  const listing = getListingById(resolvedParams.id);
+  const listing = await getListingById(resolvedParams.id, lang);
   if (!listing) {
     notFound();
   }
 
-  const approvedWebReviews = await getApprovedReviewsForListing(listing.id);
+  const approvedWebReviews = await getApprovedReviewsForListing(listing.id, lang);
   const mergedReviews: Review[] = [
     ...listing.reviews,
     ...approvedWebReviews.map((review) => ({
@@ -36,6 +39,8 @@ export default async function PlaceDetailPage({ params }: PlaceDetailPageProps) 
       rating: review.rating,
       recommended: review.recommended,
       comment: review.comment,
+      originalComment: review.originalComment,
+      translatedComment: review.translatedComment,
       semester: review.semester,
       studentName: review.studentName,
       studentContact: review.studentEmail,
@@ -129,7 +134,13 @@ export default async function PlaceDetailPage({ params }: PlaceDetailPageProps) 
                       ? ` · ${review.recommended ? messages.yes : messages.no}`
                       : ""}
                   </p>
-                  <p>{review.comment}</p>
+                  <ReviewComment
+                    comment={review.comment || ""}
+                    translatedComment={review.translatedComment}
+                    originalComment={review.originalComment}
+                    showOriginalLabel={messages.reviewShowOriginal}
+                    showTranslationLabel={messages.reviewShowTranslation}
+                  />
                 </li>
               ))}
           </ul>

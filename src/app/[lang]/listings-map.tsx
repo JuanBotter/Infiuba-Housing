@@ -3,6 +3,7 @@
 import L from "leaflet";
 import { useEffect, useMemo, useRef } from "react";
 
+import { getMessages } from "@/lib/i18n";
 import { getListingPoints } from "@/lib/map-points";
 import type { Lang, Listing } from "@/types";
 
@@ -45,6 +46,7 @@ export function ListingsMap({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
   const markersRef = useRef(new Map<string, L.CircleMarker>());
+  const messages = useMemo(() => getMessages(lang), [lang]);
   const points = useMemo(() => getListingPoints(listings), [listings]);
 
   useEffect(() => {
@@ -102,9 +104,7 @@ export function ListingsMap({
       const marker = L.circleMarker([point.lat, point.lng], markerOptions(false));
       marker
         .bindTooltip(
-          `${listing.address} · ${listing.neighborhood}\n${listing.totalReviews} ${
-            lang === "es" ? "reseñas" : "reviews"
-          }`,
+          `${listing.address} · ${listing.neighborhood}\n${listing.totalReviews} ${messages.reviewsLabel}`,
           {
             direction: "top",
             offset: [0, -8],
@@ -136,7 +136,7 @@ export function ListingsMap({
       }),
     );
     map.fitBounds(bounds.pad(0.18), { animate: false });
-  }, [lang, listings, onSelectListing, points]);
+  }, [listings, messages.reviewsLabel, onSelectListing, points]);
 
   useEffect(() => {
     const map = mapRef.current;

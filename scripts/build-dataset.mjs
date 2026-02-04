@@ -223,6 +223,28 @@ async function run() {
 
   const grouped = new Map();
   const dataRows = rows.slice(headerIndex + 1);
+  let existingCoordinatesById = new Map();
+
+  try {
+    const previousDataset = JSON.parse(await readFile(OUTPUT_FILE, "utf8"));
+    if (Array.isArray(previousDataset?.listings)) {
+      existingCoordinatesById = new Map(
+        previousDataset.listings
+          .filter(
+            (listing) =>
+              typeof listing?.id === "string" &&
+              typeof listing?.latitude === "number" &&
+              typeof listing?.longitude === "number",
+          )
+          .map((listing) => [
+            listing.id,
+            { latitude: listing.latitude, longitude: listing.longitude },
+          ]),
+      );
+    }
+  } catch {
+    // Ignore when no previous dataset exists.
+  }
 
   dataRows.forEach((row, index) => {
     const address = (row[columns.address] || "").trim();
@@ -292,11 +314,15 @@ async function run() {
 
       const slugBase = slugify(`${value.neighborhood}-${value.address}`);
       const hash = createHash("sha1").update(key).digest("hex").slice(0, 6);
+      const listingId = `${slugBase || "listing"}-${hash}`;
+      const existingCoordinates = existingCoordinatesById.get(listingId);
 
       return {
-        id: `${slugBase || "listing"}-${hash}`,
+        id: listingId,
         address: value.address,
         neighborhood: value.neighborhood,
+        latitude: existingCoordinates?.latitude,
+        longitude: existingCoordinates?.longitude,
         contacts: [...value.contacts],
         priceUsd: median(value.priceValues),
         capacity: median(value.capacityValues),

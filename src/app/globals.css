@@ -120,10 +120,16 @@ a {
 }
 
 .top-bar__brand {
-  font-family: var(--font-heading);
-  font-size: 1.08rem;
+  display: inline-flex;
+  align-items: center;
   text-decoration: none;
-  letter-spacing: 0.01em;
+}
+
+.top-bar__logo {
+  width: auto;
+  height: 2rem;
+  display: block;
+  image-rendering: auto;
 }
 
 .top-bar__actions {
@@ -166,6 +172,14 @@ a {
   background: linear-gradient(120deg, var(--primary-deep), var(--primary));
 }
 
+.top-bar__language::-webkit-details-marker {
+  display: none;
+}
+
+.top-bar__language::marker {
+  content: "";
+}
+
 .theme-toggle {
   background: var(--subtle-bg);
   color: var(--ink);
@@ -181,6 +195,54 @@ a {
 .theme-toggle:hover {
   transform: translateY(-1px);
   filter: brightness(1.04);
+}
+
+.language-menu {
+  position: relative;
+}
+
+.language-menu__popover {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.38rem);
+  min-width: 170px;
+  padding: 0.3rem;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--surface-strong);
+  box-shadow: var(--shadow-soft);
+  display: none;
+  z-index: 50;
+}
+
+.language-menu[open] .language-menu__popover {
+  display: grid;
+}
+
+.language-menu__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.42rem 0.5rem;
+  border-radius: 8px;
+  text-decoration: none;
+  color: var(--ink);
+  font-size: 0.82rem;
+}
+
+.language-menu__item strong {
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  color: var(--ink-soft);
+}
+
+.language-menu__item:hover {
+  background: var(--subtle-bg);
+}
+
+.language-menu__item.is-active {
+  background: rgba(19, 139, 132, 0.14);
 }
 
 .content-wrapper {
@@ -743,6 +805,23 @@ textarea {
   letter-spacing: 0.02em;
 }
 
+.review-comment {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.review-comment__toggle {
+  justify-self: start;
+  border: 1px solid var(--line);
+  background: var(--subtle-bg);
+  color: var(--ink-soft);
+  border-radius: 999px;
+  padding: 0.24rem 0.52rem;
+  font-size: 0.74rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
 .review-form {
   margin-top: 0.42rem;
   display: grid;
@@ -888,8 +967,8 @@ textarea {
     padding: 0.7rem 0.85rem;
   }
 
-  .top-bar__brand {
-    font-size: 1rem;
+  .top-bar__logo {
+    height: 1.7rem;
   }
 
   .top-bar__actions {

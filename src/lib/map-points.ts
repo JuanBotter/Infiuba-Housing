@@ -38,6 +38,10 @@ function neighborhoodCenter(neighborhood: string): MapPoint {
 }
 
 export function getListingPoint(listing: Listing): MapPoint {
+  if (typeof listing.latitude === "number" && typeof listing.longitude === "number") {
+    return { lat: listing.latitude, lng: listing.longitude };
+  }
+
   const base = neighborhoodCenter(listing.neighborhood);
   const addressHash = hash(`${listing.neighborhood}|${listing.address}|${listing.id}`);
   const latOffset = ((addressHash % 1000) / 1000 - 0.5) * 0.012;

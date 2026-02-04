@@ -2,8 +2,11 @@ import { notFound } from "next/navigation";
 
 import { PlaceFilters } from "@/app/[lang]/place-filters";
 import { getDatasetMeta, getListings, getNeighborhoods } from "@/lib/data";
+import { getLocaleForLang } from "@/lib/format";
 import { getMessages, isSupportedLanguage } from "@/lib/i18n";
 import type { Lang } from "@/types";
+
+export const dynamic = "force-dynamic";
 
 interface PageProps {
   params: Promise<{ lang: string }>;
@@ -17,11 +20,13 @@ export default async function ListingsPage({ params }: PageProps) {
 
   const lang = resolvedParams.lang as Lang;
   const messages = getMessages(lang);
-  const listings = getListings();
-  const neighborhoods = getNeighborhoods();
-  const meta = getDatasetMeta();
+  const [listings, neighborhoods, meta] = await Promise.all([
+    getListings(),
+    getNeighborhoods(),
+    getDatasetMeta(),
+  ]);
 
-  const generatedDate = new Intl.DateTimeFormat(lang === "es" ? "es-AR" : "en-US", {
+  const generatedDate = new Intl.DateTimeFormat(getLocaleForLang(lang), {
     dateStyle: "medium",
   }).format(new Date(meta.generatedAt));
 
@@ -57,9 +62,9 @@ export default async function ListingsPage({ params }: PageProps) {
       />
 
       <p className="data-footnote">
-        {lang === "es"
-          ? `${meta.totalListings} alojamientos · Fuente: ${meta.sourceFile} · Actualizado ${generatedDate}`
-          : `${meta.totalListings} places · Source: ${meta.sourceFile} · Updated ${generatedDate}`}
+        {meta.totalListings} {messages.footnotePlacesLabel} · {messages.footnoteUpdatedLabel}{" "}
+        {generatedDate} · {messages.footnoteContactLabel}:{" "}
+        <a href="mailto:jbotter@fi.uba.ar">jbotter@fi.uba.ar</a>
       </p>
     </section>
   );
