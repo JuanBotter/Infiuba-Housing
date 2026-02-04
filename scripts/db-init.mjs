@@ -129,6 +129,7 @@ CREATE TABLE IF NOT EXISTS reviews (
   status review_status_enum NOT NULL,
   year INTEGER,
   rating NUMERIC,
+  price_usd NUMERIC,
   recommended BOOLEAN,
   comment TEXT,
   comment_en TEXT,
@@ -151,6 +152,8 @@ ALTER TABLE reviews
   ADD COLUMN IF NOT EXISTS source review_source_enum;
 ALTER TABLE reviews
   ADD COLUMN IF NOT EXISTS status review_status_enum;
+ALTER TABLE reviews
+  ADD COLUMN IF NOT EXISTS price_usd NUMERIC;
 ALTER TABLE reviews
   ADD COLUMN IF NOT EXISTS comment_en TEXT;
 ALTER TABLE reviews
@@ -462,6 +465,11 @@ UPDATE reviews
 SET rating = NULL
 WHERE rating IS NOT NULL
   AND (rating < 1 OR rating > 5);
+
+UPDATE reviews
+SET price_usd = NULL
+WHERE price_usd IS NOT NULL
+  AND price_usd <= 0;
 
 UPDATE reviews
 SET year = NULL
@@ -776,6 +784,20 @@ BEGIN
     ALTER TABLE reviews
       ADD CONSTRAINT reviews_rating_range_check
       CHECK (rating IS NULL OR (rating >= 1 AND rating <= 5));
+  END IF;
+END
+$$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'reviews_price_positive_check'
+  ) THEN
+    ALTER TABLE reviews
+      ADD CONSTRAINT reviews_price_positive_check
+      CHECK (price_usd IS NULL OR price_usd > 0);
   END IF;
 END
 $$;

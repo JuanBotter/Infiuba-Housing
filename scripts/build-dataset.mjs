@@ -291,6 +291,7 @@ async function run() {
       source: "survey",
       year,
       rating,
+      priceUsd: typeof price === "number" ? price : undefined,
       recommended,
       comment: comment || undefined,
       studentContact: studentContact || undefined,

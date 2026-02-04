@@ -178,6 +178,7 @@ async function run() {
               status,
               year,
               rating,
+              price_usd,
               recommended,
               comment,
               student_contact,
@@ -193,7 +194,7 @@ async function run() {
               comment_no,
               created_at,
               approved_at
-            ) VALUES ($1, $2, 'survey', 'approved', $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $18)
+            ) VALUES ($1, $2, 'survey', 'approved', $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $19)
             ON CONFLICT (id) DO NOTHING
           `,
           [
@@ -201,6 +202,7 @@ async function run() {
             listing.id,
             review.year ?? null,
             review.rating ?? null,
+            review.priceUsd ?? null,
             typeof review.recommended === "boolean" ? review.recommended : null,
             review.comment ?? null,
             review.studentContact ?? null,
@@ -233,6 +235,7 @@ async function run() {
             source,
             status,
             rating,
+            price_usd,
             recommended,
             comment,
             semester,
@@ -249,13 +252,14 @@ async function run() {
             comment_no,
             created_at,
             approved_at
-          ) VALUES ($1, $2, 'web', 'approved', $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+          ) VALUES ($1, $2, 'web', 'approved', $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
           ON CONFLICT (id) DO NOTHING
         `,
         [
           review.id,
           review.listingId,
           review.rating ?? null,
+          review.priceUsd ?? null,
           typeof review.recommended === "boolean" ? review.recommended : null,
           review.comment ?? null,
           review.semester ?? null,
@@ -289,6 +293,7 @@ async function run() {
             source,
             status,
             rating,
+            price_usd,
             recommended,
             comment,
             semester,
@@ -304,13 +309,14 @@ async function run() {
             comment_it,
             comment_no,
             created_at
-          ) VALUES ($1, $2, 'web', 'pending', $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+          ) VALUES ($1, $2, 'web', 'pending', $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
           ON CONFLICT (id) DO NOTHING
         `,
         [
           review.id,
           review.listingId,
           review.rating ?? null,
+          review.priceUsd ?? null,
           typeof review.recommended === "boolean" ? review.recommended : null,
           review.comment ?? null,
           review.semester ?? null,

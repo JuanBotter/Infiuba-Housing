@@ -22,6 +22,32 @@ export function formatUsd(value: number, lang: Lang) {
   }).format(value);
 }
 
+export function formatUsdRange(
+  values: { min?: number; max?: number; fallback?: number },
+  lang: Lang,
+) {
+  const { min, max, fallback } = values;
+
+  if (typeof min === "number" && typeof max === "number") {
+    if (Math.abs(min - max) < 0.000001) {
+      return formatUsd(min, lang);
+    }
+    return `${formatUsd(min, lang)} - ${formatUsd(max, lang)}`;
+  }
+
+  if (typeof min === "number") {
+    return formatUsd(min, lang);
+  }
+  if (typeof max === "number") {
+    return formatUsd(max, lang);
+  }
+  if (typeof fallback === "number") {
+    return formatUsd(fallback, lang);
+  }
+
+  return undefined;
+}
+
 export function formatPercent(value: number, lang: Lang) {
   return new Intl.NumberFormat(getLocaleForLang(lang), {
     style: "percent",

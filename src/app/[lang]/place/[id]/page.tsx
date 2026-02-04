@@ -5,7 +5,7 @@ import { ReviewComment } from "@/app/[lang]/place/[id]/review-comment";
 import { ReviewForm } from "@/app/[lang]/place/[id]/review-form";
 import { canSubmitReviews, canViewContactInfo, getCurrentUserRole } from "@/lib/auth";
 import { getListingById } from "@/lib/data";
-import { formatDecimal, formatPercent, formatUsd } from "@/lib/format";
+import { formatDecimal, formatPercent, formatUsd, formatUsdRange } from "@/lib/format";
 import { getMessages, isSupportedLanguage } from "@/lib/i18n";
 import { getApprovedReviewsForListing } from "@/lib/reviews-store";
 import type { Lang, Review } from "@/types";
@@ -45,6 +45,7 @@ export default async function PlaceDetailPage({ params }: PlaceDetailPageProps) 
       source: "web" as const,
       year: undefined,
       rating: review.rating,
+      priceUsd: review.priceUsd,
       recommended: review.recommended,
       comment: review.comment,
       originalComment: review.originalComment,
@@ -55,6 +56,14 @@ export default async function PlaceDetailPage({ params }: PlaceDetailPageProps) 
       createdAt: review.createdAt,
     })),
   ].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const listingPriceRange = formatUsdRange(
+    {
+      min: listing.minPriceUsd,
+      max: listing.maxPriceUsd,
+      fallback: listing.priceUsd,
+    },
+    lang,
+  );
 
   return (
     <section className="content-wrapper">
@@ -86,9 +95,7 @@ export default async function PlaceDetailPage({ params }: PlaceDetailPageProps) 
           <p>
             <span>{messages.priceLabel}</span>
             <strong>
-              {typeof listing.priceUsd === "number"
-                ? `${formatUsd(listing.priceUsd, lang)} ${messages.monthSuffix}`
-                : "-"}
+              {listingPriceRange ? `${listingPriceRange} ${messages.monthSuffix}` : "-"}
             </strong>
           </p>
           <p>
@@ -142,6 +149,9 @@ export default async function PlaceDetailPage({ params }: PlaceDetailPageProps) 
                     {review.year ? ` · ${review.year}` : ""}
                     {review.semester ? ` · ${review.semester}` : ""}
                     {typeof review.rating === "number" ? ` · ${review.rating}/5` : ""}
+                    {typeof review.priceUsd === "number"
+                      ? ` · ${formatUsd(review.priceUsd, lang)} ${messages.monthSuffix}`
+                      : ""}
                     {typeof review.recommended === "boolean"
                       ? ` · ${review.recommended ? messages.yes : messages.no}`
                       : ""}

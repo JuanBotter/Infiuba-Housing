@@ -43,6 +43,7 @@ interface ReviewRow {
   id: string;
   listing_id: string;
   rating: string | number | null;
+  price_usd: string | number | null;
   recommended: boolean | null;
   comment: string | null;
   comment_en: string | null;
@@ -66,6 +67,7 @@ function mapPendingReviewRow(row: ReviewRow): PendingWebReview {
     id: row.id,
     listingId: row.listing_id,
     rating: toOptionalNumber(row.rating) || 0,
+    priceUsd: toOptionalNumber(row.price_usd),
     recommended: Boolean(row.recommended),
     comment: row.comment || "",
     semester: toOptionalText(row.semester),
@@ -125,6 +127,7 @@ export async function getApprovedReviewsForListing(
           id,
           listing_id,
           rating,
+          price_usd,
           recommended,
           comment,
           comment_en,
@@ -172,6 +175,7 @@ export async function getPendingReviews() {
           id,
           listing_id,
           rating,
+          price_usd,
           recommended,
           comment,
           comment_en,
@@ -208,6 +212,7 @@ export async function getApprovedReviews() {
           id,
           listing_id,
           rating,
+          price_usd,
           recommended,
           comment,
           comment_en,
@@ -239,6 +244,7 @@ export async function getApprovedReviews() {
 export interface NewReviewInput {
   listingId: string;
   rating: number;
+  priceUsd?: number;
   recommended: boolean;
   comment: string;
   semester?: string;
@@ -254,6 +260,7 @@ export async function appendPendingReview(input: NewReviewInput) {
       id: `web-${randomUUID()}`,
       listingId: input.listingId,
       rating: input.rating,
+      priceUsd: input.priceUsd,
       recommended: input.recommended,
       comment: input.comment,
       semester: input.semester || undefined,
@@ -272,6 +279,7 @@ export async function appendPendingReview(input: NewReviewInput) {
           source,
           status,
           rating,
+          price_usd,
           recommended,
           comment,
           semester,
@@ -280,12 +288,13 @@ export async function appendPendingReview(input: NewReviewInput) {
           student_email,
           allow_contact_sharing,
           created_at
-        ) VALUES ($1, $2, 'web', 'pending', $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        ) VALUES ($1, $2, 'web', 'pending', $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
       `,
       [
         review.id,
         review.listingId,
         review.rating,
+        review.priceUsd ?? null,
         review.recommended,
         review.comment,
         review.semester || null,
@@ -305,6 +314,7 @@ export async function appendPendingReview(input: NewReviewInput) {
     id: `web-${randomUUID()}`,
     listingId: input.listingId,
     rating: input.rating,
+    priceUsd: input.priceUsd,
     recommended: input.recommended,
     comment: input.comment,
     semester: input.semester || undefined,
@@ -332,6 +342,7 @@ export async function moderatePendingReview(
             id,
             listing_id,
             rating,
+            price_usd,
             recommended,
             comment,
             comment_en,
@@ -380,6 +391,7 @@ export async function moderatePendingReview(
               id,
               listing_id,
               rating,
+              price_usd,
               recommended,
               comment,
               comment_en,

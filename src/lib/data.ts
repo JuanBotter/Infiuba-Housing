@@ -43,6 +43,8 @@ interface ListingRow {
   recommendation_rate: string | number | null;
   total_reviews: number;
   recent_year: number | null;
+  min_price_usd: string | number | null;
+  max_price_usd: string | number | null;
 }
 
 interface ListingPrivacyOptions {
@@ -58,6 +60,8 @@ function mapListingRow(row: ListingRow): Listing {
     longitude: toOptionalNumber(row.longitude),
     contacts: row.contacts || [],
     priceUsd: toOptionalNumber(row.price_usd),
+    minPriceUsd: toOptionalNumber(row.min_price_usd),
+    maxPriceUsd: toOptionalNumber(row.max_price_usd),
     capacity: toOptionalNumber(row.capacity),
     averageRating: toOptionalNumber(row.average_rating),
     recommendationRate: toOptionalNumber(row.recommendation_rate),
@@ -72,6 +76,7 @@ interface ReviewRow {
   source: "survey" | "web";
   year: number | null;
   rating: string | number | null;
+  price_usd: string | number | null;
   recommended: boolean | null;
   comment: string | null;
   comment_en: string | null;
@@ -101,6 +106,7 @@ function mapReviewRow(
     source: row.source,
     year: row.year || undefined,
     rating: toOptionalNumber(row.rating),
+    priceUsd: toOptionalNumber(row.price_usd),
     recommended: typeof row.recommended === "boolean" ? row.recommended : undefined,
     comment: translatedComment || originalComment,
     originalComment,
@@ -122,8 +128,16 @@ function mapReviewRow(
 }
 
 function applyPrivacy(listing: Listing, includePrivateContactInfo: boolean): Listing {
+  const reviewPrices = listing.reviews
+    .map((review) => review.priceUsd)
+    .filter((price): price is number => typeof price === "number");
+  const minPriceFromReviews = reviewPrices.length ? Math.min(...reviewPrices) : undefined;
+  const maxPriceFromReviews = reviewPrices.length ? Math.max(...reviewPrices) : undefined;
+
   return {
     ...listing,
+    minPriceUsd: listing.minPriceUsd ?? minPriceFromReviews,
+    maxPriceUsd: listing.maxPriceUsd ?? maxPriceFromReviews,
     contacts: includePrivateContactInfo ? [...listing.contacts] : [],
     reviews: listing.reviews.map((review) => ({
       ...review,
@@ -153,10 +167,22 @@ export async function getListings(options: ListingPrivacyOptions = {}) {
         l.average_rating,
         l.recommendation_rate,
         l.total_reviews,
-        l.recent_year
+        l.recent_year,
+        rp.min_price_usd,
+        rp.max_price_usd
       FROM listings l
       LEFT JOIN listing_contacts c ON c.listing_id = l.id
-      GROUP BY l.id
+      LEFT JOIN (
+        SELECT
+          listing_id,
+          MIN(price_usd) AS min_price_usd,
+          MAX(price_usd) AS max_price_usd
+        FROM reviews
+        WHERE status = 'approved'
+          AND price_usd IS NOT NULL
+        GROUP BY listing_id
+      ) rp ON rp.listing_id = l.id
+      GROUP BY l.id, rp.min_price_usd, rp.max_price_usd
       ORDER BY l.neighborhood ASC, l.address ASC
     `,
   );
@@ -190,11 +216,23 @@ export async function getListingById(
         l.average_rating,
         l.recommendation_rate,
         l.total_reviews,
-        l.recent_year
+        l.recent_year,
+        rp.min_price_usd,
+        rp.max_price_usd
       FROM listings l
       LEFT JOIN listing_contacts c ON c.listing_id = l.id
+      LEFT JOIN (
+        SELECT
+          listing_id,
+          MIN(price_usd) AS min_price_usd,
+          MAX(price_usd) AS max_price_usd
+        FROM reviews
+        WHERE status = 'approved'
+          AND price_usd IS NOT NULL
+        GROUP BY listing_id
+      ) rp ON rp.listing_id = l.id
       WHERE l.id = $1
-      GROUP BY l.id
+      GROUP BY l.id, rp.min_price_usd, rp.max_price_usd
     `,
     [id],
   );
@@ -210,6 +248,7 @@ export async function getListingById(
         source,
         year,
         rating,
+        price_usd,
         recommended,
         comment,
         comment_en,

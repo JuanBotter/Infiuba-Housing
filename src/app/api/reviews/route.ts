@@ -47,6 +47,7 @@ export async function POST(request: Request) {
     const studentContact = truncate(payload?.studentContact, 120);
     const studentEmail = truncate(payload?.studentEmail, 120);
     const shareContactInfo = payload?.shareContactInfo === true;
+    const submittedPriceUsd = parseOptionalNumber(payload?.priceUsd);
 
     const rating = Number(payload?.rating);
     const recommended = payload?.recommended;
@@ -60,6 +61,9 @@ export async function POST(request: Request) {
     }
     if (comment.length < 12) {
       return NextResponse.json({ error: "Comment is too short" }, { status: 400 });
+    }
+    if (submittedPriceUsd !== undefined && (submittedPriceUsd <= 0 || submittedPriceUsd > 20000)) {
+      return NextResponse.json({ error: "Invalid rent value" }, { status: 400 });
     }
     if (shareContactInfo && !studentEmail && !studentContact) {
       return NextResponse.json(
@@ -91,7 +95,7 @@ export async function POST(request: Request) {
       const address = truncate(payload?.address, 180);
       const neighborhood = truncate(payload?.neighborhood, 80);
       const contacts = parseContacts(payload?.contacts);
-      const priceUsd = parseOptionalNumber(payload?.priceUsd);
+      const priceUsd = submittedPriceUsd;
       const capacity = parseOptionalNumber(payload?.capacity);
       const latitude = parseOptionalNumber(payload?.latitude);
       const longitude = parseOptionalNumber(payload?.longitude);
@@ -101,9 +105,6 @@ export async function POST(request: Request) {
       }
       if (neighborhood.length < 2) {
         return NextResponse.json({ error: "Invalid neighborhood" }, { status: 400 });
-      }
-      if (priceUsd !== undefined && (priceUsd <= 0 || priceUsd > 20000)) {
-        return NextResponse.json({ error: "Invalid rent value" }, { status: 400 });
       }
       if (capacity !== undefined && (capacity <= 0 || capacity > 50)) {
         return NextResponse.json({ error: "Invalid capacity value" }, { status: 400 });
@@ -148,6 +149,7 @@ export async function POST(request: Request) {
       rating,
       recommended,
       comment,
+      priceUsd: submittedPriceUsd,
       semester: semester || undefined,
       studentName: studentName || undefined,
       studentContact: studentContact || undefined,

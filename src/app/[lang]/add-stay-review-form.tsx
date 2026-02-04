@@ -100,6 +100,7 @@ export function AddStayReviewForm({ lang, listings }: AddStayReviewFormProps) {
       rating: Number(rating),
       recommended: recommended === "yes",
       comment,
+      priceUsd: priceUsd ? Number(priceUsd) : undefined,
       semester,
       studentName,
       studentContact,
@@ -114,7 +115,6 @@ export function AddStayReviewForm({ lang, listings }: AddStayReviewFormProps) {
       payload.address = address;
       payload.neighborhood = neighborhood;
       payload.contacts = contacts;
-      payload.priceUsd = priceUsd ? Number(priceUsd) : undefined;
       payload.capacity = capacity ? Number(capacity) : undefined;
       payload.latitude = latitude ? Number(latitude) : undefined;
       payload.longitude = longitude ? Number(longitude) : undefined;
@@ -271,18 +271,6 @@ export function AddStayReviewForm({ lang, listings }: AddStayReviewFormProps) {
             </label>
 
             <label>
-              <span>{t.priceLabel}</span>
-              <input
-                type="number"
-                min={1}
-                max={20000}
-                step="0.01"
-                value={priceUsd}
-                onChange={(event) => setPriceUsd(event.target.value)}
-              />
-            </label>
-
-            <label>
               <span>{t.capacityLabel}</span>
               <input
                 type="number"
@@ -321,6 +309,18 @@ export function AddStayReviewForm({ lang, listings }: AddStayReviewFormProps) {
             <p className="property-form__hint">{t.addPropertyCoordinatesHint}</p>
           </>
         ) : null}
+
+        <label>
+          <span>{t.priceLabel}</span>
+          <input
+            type="number"
+            min={1}
+            max={20000}
+            step="0.01"
+            value={priceUsd}
+            onChange={(event) => setPriceUsd(event.target.value)}
+          />
+        </label>
 
         <label>
           <span>{t.formRating}</span>

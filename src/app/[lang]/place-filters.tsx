@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 import { AddStayReviewForm } from "@/app/[lang]/add-stay-review-form";
-import { formatDecimal, formatPercent, formatUsd } from "@/lib/format";
+import { formatDecimal, formatPercent, formatUsd, formatUsdRange } from "@/lib/format";
 import type { Messages } from "@/i18n/messages";
 import type { Lang, Listing } from "@/types";
 
@@ -421,9 +421,17 @@ export function PlaceFilters({
                   <p className="stat-chip">
                     <span>{messages.priceLabel}</span>
                     <strong>
-                      {typeof listing.priceUsd === "number"
-                        ? `${formatUsd(listing.priceUsd, lang)} ${messages.monthSuffix}`
-                        : "-"}
+                      {(() => {
+                        const priceText = formatUsdRange(
+                          {
+                            min: listing.minPriceUsd,
+                            max: listing.maxPriceUsd,
+                            fallback: listing.priceUsd,
+                          },
+                          lang,
+                        );
+                        return priceText ? `${priceText} ${messages.monthSuffix}` : "-";
+                      })()}
                     </strong>
                   </p>
                   <p className="stat-chip">
@@ -474,9 +482,17 @@ export function PlaceFilters({
                     </p>
                     <p>
                       {messages.priceLabel}:{" "}
-                      {typeof listing.priceUsd === "number"
-                        ? `${formatUsd(listing.priceUsd, lang)} ${messages.monthSuffix}`
-                        : "-"}
+                      {(() => {
+                        const priceText = formatUsdRange(
+                          {
+                            min: listing.minPriceUsd,
+                            max: listing.maxPriceUsd,
+                            fallback: listing.priceUsd,
+                          },
+                          lang,
+                        );
+                        return priceText ? `${priceText} ${messages.monthSuffix}` : "-";
+                      })()}
                     </p>
                   </div>
                   <Link href={`/${lang}/place/${listing.id}`} className="inline-link">

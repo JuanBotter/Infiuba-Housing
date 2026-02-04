@@ -9,6 +9,7 @@ export interface Review {
   source: ReviewSource;
   year?: number;
   rating?: number;
+  priceUsd?: number;
   recommended?: boolean;
   comment?: string;
   originalComment?: string;
@@ -27,6 +28,8 @@ export interface Listing {
   longitude?: number;
   contacts: string[];
   priceUsd?: number;
+  minPriceUsd?: number;
+  maxPriceUsd?: number;
   capacity?: number;
   averageRating?: number;
   recommendationRate?: number;
@@ -46,6 +49,7 @@ export interface PendingWebReview {
   id: string;
   listingId: string;
   rating: number;
+  priceUsd?: number;
   recommended: boolean;
   comment: string;
   originalComment?: string;

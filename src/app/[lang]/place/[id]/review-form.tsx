@@ -13,6 +13,7 @@ interface ReviewFormProps {
 export function ReviewForm({ lang, listingId }: ReviewFormProps) {
   const t = useMemo(() => getMessages(lang), [lang]);
   const [rating, setRating] = useState("4");
+  const [priceUsd, setPriceUsd] = useState("");
   const [recommended, setRecommended] = useState("yes");
   const [comment, setComment] = useState("");
   const [semester, setSemester] = useState("");
@@ -35,6 +36,7 @@ export function ReviewForm({ lang, listingId }: ReviewFormProps) {
         body: JSON.stringify({
           listingId,
           rating: Number(rating),
+          priceUsd: priceUsd ? Number(priceUsd) : undefined,
           recommended: recommended === "yes",
           comment,
           semester,
@@ -57,6 +59,7 @@ export function ReviewForm({ lang, listingId }: ReviewFormProps) {
       setStudentEmail("");
       setShareContactInfo(false);
       setRating("4");
+      setPriceUsd("");
       setRecommended("yes");
     } catch {
       setStatus("error");
@@ -84,6 +87,18 @@ export function ReviewForm({ lang, listingId }: ReviewFormProps) {
           <option value="yes">{t.yes}</option>
           <option value="no">{t.no}</option>
         </select>
+      </label>
+
+      <label>
+        <span>{t.priceLabel}</span>
+        <input
+          type="number"
+          min={1}
+          max={20000}
+          step="0.01"
+          value={priceUsd}
+          onChange={(event) => setPriceUsd(event.target.value)}
+        />
       </label>
 
       <label>

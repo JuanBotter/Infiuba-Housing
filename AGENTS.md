@@ -19,7 +19,7 @@ Do not defer AGENTS updates.
 - Languages: `en`, `es`, `fr`, `de`, `pt`, `it`, `no`.
 - Theme: light/dark with persisted browser preference.
 - Typography: unified sans-serif stack for headings and body (`Avenir Next` fallback stack).
-- Core domain: listings, owner contacts, survey reviews, web reviews with moderation, multilingual review text.
+- Core domain: listings, owner contacts, survey reviews, web reviews with moderation, multilingual review text, and review-level rent history.
 - Admin UX: split views for reviews, invites, and access management under `/{lang}/admin/*`; access view supports client-side search by email/role.
 - Main listings UI uses a view toggle: `Cards`, `Map`, and (for whitelisted/admin) `Add review`.
 - Cards/Map filters include search, neighborhood, recommendation, min/max price, minimum rating, sorting, and active filter chips with clear-all.
@@ -165,6 +165,7 @@ Finite-state fields use PostgreSQL enums:
 - `status review_status_enum NOT NULL`
 - `year INTEGER`
 - `rating NUMERIC`
+- `price_usd NUMERIC` (rent reported in that specific review, optional)
 - `recommended BOOLEAN`
 - `comment TEXT` (original comment)
 - `comment_en TEXT`
@@ -225,6 +226,7 @@ Integrity hardening (enforced in `scripts/db-init.mjs`):
 - Non-empty checks for core text identifiers (`users.email`, `auth_invites.email`, listing address/neighborhood, listing contact).
 - Numeric range checks for ratings, recommendation rates, coordinates, and year fields.
 - Review approval consistency (`approved_at` must be present only when `status='approved'`).
+- Review rent consistency (`reviews.price_usd` must be null or > 0).
 - Invite consumption consistency (`consumed_at`/`consumed_reason` must be set together; consumed timestamp cannot be before creation).
 - Legacy-row normalization before constraints are applied (trim/canonicalize emails, null-out invalid ranges, dedupe users by case-insensitive email).
 - `db:init` is idempotent across both pre-enum and post-enum states for `reviews.source`/`reviews.status`.
@@ -235,6 +237,13 @@ Integrity hardening (enforced in `scripts/db-init.mjs`):
 - Translated variants are stored in fixed columns `comment_<lang>`.
 - UI language selection uses the corresponding translation when available.
 - Users can toggle between translated/original review text in listing detail views.
+
+## Rent Data Model
+
+- Listing row keeps a representative `listings.price_usd` (legacy/compat and fallback value).
+- Canonical rent history lives in `reviews.price_usd` (one value per review when provided).
+- Cards/map preview uses approved-review min/max rent range when available; falls back to `listings.price_usd`.
+- Detail page shows the same range in stats and includes per-review rent in review metadata when present.
 
 ## Review and Moderation Flow
 
