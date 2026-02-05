@@ -27,6 +27,15 @@ function normalizeEmail(value: string) {
   return value.trim().toLowerCase();
 }
 
+function redactEmail(value: string) {
+  const [local, domain] = value.split("@");
+  if (!domain) {
+    return value;
+  }
+  const visible = local ? local[0] : "";
+  return `${visible}***@${domain}`;
+}
+
 function resolveConsoleOnlyOtpEmail() {
   const configured = process.env.OTP_CONSOLE_ONLY_EMAIL?.trim();
   if (configured) {
@@ -104,6 +113,10 @@ async function sendViaResend(input: SendLoginOtpInput): Promise<SendLoginOtpResu
     process.env.RESEND_FROM_EMAIL?.trim() || process.env.OTP_FROM_EMAIL?.trim(),
   );
   if (!apiKey || !fromIdentity) {
+    console.warn("[OTP] Resend provider unavailable", {
+      hasApiKey: Boolean(apiKey),
+      hasFrom: Boolean(fromIdentity),
+    });
     return { ok: false, reason: "provider_unavailable" };
   }
 
@@ -125,6 +138,13 @@ async function sendViaResend(input: SendLoginOtpInput): Promise<SendLoginOtpResu
   }).catch(() => null);
 
   if (!response || !response.ok) {
+    const errorBody = await response?.text().catch(() => "");
+    console.warn("[OTP] Resend send failed", {
+      to: redactEmail(input.email),
+      status: response?.status,
+      statusText: response?.statusText,
+      response: errorBody?.slice(0, 500),
+    });
     return { ok: false, reason: "send_failed" };
   }
 
@@ -137,6 +157,10 @@ async function sendViaBrevo(input: SendLoginOtpInput): Promise<SendLoginOtpResul
     process.env.BREVO_FROM_EMAIL?.trim() || process.env.OTP_FROM_EMAIL?.trim(),
   );
   if (!apiKey || !fromIdentity) {
+    console.warn("[OTP] Brevo provider unavailable", {
+      hasApiKey: Boolean(apiKey),
+      hasFrom: Boolean(fromIdentity),
+    });
     return { ok: false, reason: "provider_unavailable" };
   }
 
@@ -160,6 +184,13 @@ async function sendViaBrevo(input: SendLoginOtpInput): Promise<SendLoginOtpResul
   }).catch(() => null);
 
   if (!response || !response.ok) {
+    const errorBody = await response?.text().catch(() => "");
+    console.warn("[OTP] Brevo send failed", {
+      to: redactEmail(input.email),
+      status: response?.status,
+      statusText: response?.statusText,
+      response: errorBody?.slice(0, 500),
+    });
     return { ok: false, reason: "send_failed" };
   }
 
@@ -189,5 +220,8 @@ export async function sendLoginOtp(input: SendLoginOtpInput): Promise<SendLoginO
     return sendToConsole(input);
   }
 
+  console.warn("[OTP] No OTP email provider configured", {
+    provider: provider || "unset",
+  });
   return { ok: false, reason: "provider_unavailable" };
 }
