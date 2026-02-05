@@ -1,7 +1,12 @@
 import { notFound } from "next/navigation";
 
 import { PlaceFilters } from "@/app/[lang]/place-filters";
-import { canSubmitReviews, canViewContactInfo, getCurrentUserRole } from "@/lib/auth";
+import {
+  canSubmitReviews,
+  canViewContactInfo,
+  canViewOwnerContactInfo,
+  getCurrentUserRole,
+} from "@/lib/auth";
 import { getDatasetMeta, getListings, getNeighborhoods } from "@/lib/data";
 import { getLocaleForLang } from "@/lib/format";
 import { getMessages, isSupportedLanguage } from "@/lib/i18n";
@@ -22,10 +27,15 @@ export default async function ListingsPage({ params }: PageProps) {
   const lang = resolvedParams.lang as Lang;
   const messages = getMessages(lang);
   const role = await getCurrentUserRole();
-  const canViewPrivateInfo = canViewContactInfo(role);
+  const canViewOwnerInfo = canViewOwnerContactInfo(role);
+  const canViewReviewerInfo = canViewContactInfo(role);
   const canWriteReviews = canSubmitReviews(role);
   const [listings, neighborhoods, meta] = await Promise.all([
-    getListings({ includePrivateContactInfo: canViewPrivateInfo, lang }),
+    getListings({
+      includeOwnerContactInfo: canViewOwnerInfo,
+      includeReviewerContactInfo: canViewReviewerInfo,
+      lang,
+    }),
     getNeighborhoods(),
     getDatasetMeta(),
   ]);
@@ -63,6 +73,7 @@ export default async function ListingsPage({ params }: PageProps) {
         messages={messages}
         listings={listings}
         neighborhoods={neighborhoods}
+        canViewOwnerInfo={canViewOwnerInfo}
         canWriteReviews={canWriteReviews}
       />
 

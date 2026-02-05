@@ -13,7 +13,7 @@ Multilingual MVP (English, Spanish, French, German, Portuguese, Italian, Norwegi
 - Original review comments + translated versions saved in PostgreSQL (`comment` + `comment_<lang>` columns).
 - Public review submission flow with address suggestions; existing properties get a new review, new ones are created automatically.
 - Role-based access: `visitor` (default), `whitelisted` (student full access), `admin`.
-- Invite-link onboarding: admins generate expiring one-time links to activate email/password access.
+- Email OTP login for approved users stored in PostgreSQL (`users` table).
 - Admin moderation UI at `/{lang}/admin/moderation`.
 
 ## Run locally
@@ -79,6 +79,7 @@ When `DATABASE_URL` is set, the app uses PostgreSQL for:
 - dataset metadata
 - auth users
 - auth invites
+- auth email OTP codes
 
 Useful commands:
 
@@ -86,7 +87,7 @@ Useful commands:
 npm run db:init
 npm run db:seed
 npm run db:setup
-npm run user:upsert -- --email student@example.com --role whitelisted --password "StrongPass123!"
+npm run user:upsert -- --email student@example.com --role whitelisted
 ```
 
 `npm run db:init` is idempotent and also applies schema hardening (enum-backed finite states, integrity checks, legacy data normalization, and case-insensitive user email uniqueness).
@@ -107,22 +108,34 @@ New student reviews are written to PostgreSQL (`reviews` table, `status='pending
 ## Access roles
 
 ```bash
-WHITELIST_TOKEN=student-access-code
-ADMIN_TOKEN=admin-access-code
-# Optional (recommended):
 AUTH_SECRET=replace-with-a-long-random-secret
+OTP_EMAIL_PROVIDER=brevo
+BREVO_API_KEY=xkeysib-xxxxxxxxxxxxxxxxxxxx
+BREVO_FROM_EMAIL="Infiuba Housing <your@email.com>"
+# Optional: force one email to always print OTP in server logs (no provider send).
+# Defaults to mock@email.com in non-production when unset:
+# OTP_CONSOLE_ONLY_EMAIL=mock@email.com
+# Emergency read-only fallback if login is down:
+# VISITOR_CAN_VIEW_OWNER_CONTACTS=true
+# Optional fallback sender key used by all providers:
+# OTP_FROM_EMAIL="Infiuba Housing <your@email.com>"
+# Optional alternative provider:
+# OTP_EMAIL_PROVIDER=resend
+# RESEND_API_KEY=re_xxxxxxxxxxxxxxxxxxxxx
+# RESEND_FROM_EMAIL="Infiuba Housing <no-reply@your-domain.com>"
 ```
 
-Optional database users (email + password):
+Approved database users (email + role):
 
 ```bash
-npm run user:upsert -- --email student@example.com --role whitelisted --password "StrongPass123!"
-npm run user:upsert -- --email admin@example.com --role admin --password "StrongPass123!"
+npm run user:upsert -- --email student@example.com --role whitelisted
+npm run user:upsert -- --email admin@example.com --role admin
 ```
 
 - Default role is `visitor`:
   - can browse listings/reviews
-  - cannot see owner/reviewer contact info
+  - cannot see reviewer contact info
+  - owner contacts stay hidden unless `VISITOR_CAN_VIEW_OWNER_CONTACTS=true` is enabled
   - cannot submit reviews
 - `whitelisted` role:
   - full listing/review/contact visibility
@@ -133,15 +146,17 @@ npm run user:upsert -- --email admin@example.com --role admin --password "Strong
 
 Use the access icon in the top bar to:
 
-- sign in with approved email + password (requires database)
-- or use access codes as fallback
+- request a one-time password code to the approved email
+- verify the OTP code and start a signed session
+- optionally check "Remember me" to keep that session for 30 days (otherwise it ends when the browser session ends)
+- in local dev, `mock@email.com` always delivers OTP to server console logs instead of email provider
 
-## Invite links
+## Invite links (optional onboarding)
 
 - Admins can generate invite links from the moderation page.
 - Bulk creation is supported (comma/newline/semicolon-separated emails).
 - Invite links open `/{lang}/activate?token=...`.
-- Students set a password once, account is created/updated in `users`, and they are logged in.
+- Students can still set a password once to activate an invite; regular day-to-day sign-in uses email OTP from the access menu.
 - Invite tokens are one-time and expire based on the selected duration.
 - Creating a new invite for the same email automatically invalidates previous open invites for that email.
 - Admin moderation now includes invite history with open/activated/replaced/expired status and timestamps.

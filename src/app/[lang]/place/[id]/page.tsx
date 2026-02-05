@@ -3,7 +3,12 @@ import { notFound } from "next/navigation";
 
 import { ReviewComment } from "@/app/[lang]/place/[id]/review-comment";
 import { ReviewForm } from "@/app/[lang]/place/[id]/review-form";
-import { canSubmitReviews, canViewContactInfo, getCurrentUserRole } from "@/lib/auth";
+import {
+  canSubmitReviews,
+  canViewContactInfo,
+  canViewOwnerContactInfo,
+  getCurrentUserRole,
+} from "@/lib/auth";
 import { getListingById } from "@/lib/data";
 import { formatDecimal, formatPercent, formatUsd, formatUsdRange } from "@/lib/format";
 import { getMessages, isSupportedLanguage } from "@/lib/i18n";
@@ -26,17 +31,19 @@ export default async function PlaceDetailPage({ params }: PlaceDetailPageProps) 
   const lang = resolvedParams.lang as Lang;
   const messages = getMessages(lang);
   const role = await getCurrentUserRole();
-  const canViewPrivateInfo = canViewContactInfo(role);
+  const canViewOwnerInfo = canViewOwnerContactInfo(role);
+  const canViewReviewerInfo = canViewContactInfo(role);
   const canWriteReviews = canSubmitReviews(role);
   const listing = await getListingById(resolvedParams.id, lang, {
-    includePrivateContactInfo: canViewPrivateInfo,
+    includeOwnerContactInfo: canViewOwnerInfo,
+    includeReviewerContactInfo: canViewReviewerInfo,
   });
   if (!listing) {
     notFound();
   }
 
   const approvedWebReviews = await getApprovedReviewsForListing(listing.id, lang, {
-    includePrivateContactInfo: canViewPrivateInfo,
+    includePrivateContactInfo: canViewReviewerInfo,
   });
   const mergedReviews: Review[] = [
     ...listing.reviews,
@@ -108,20 +115,20 @@ export default async function PlaceDetailPage({ params }: PlaceDetailPageProps) 
           </p>
         </div>
 
-        {canViewPrivateInfo ? (
-          <>
-            <h2>{messages.ownerContacts}</h2>
-            {listing.contacts.length > 0 ? (
-              <ul className="contact-list">
-                {listing.contacts.map((contact) => (
-                  <li key={contact}>{contact}</li>
-                ))}
-              </ul>
-            ) : (
-              <p>-</p>
-            )}
-          </>
-        ) : null}
+        <h2>{messages.ownerContacts}</h2>
+        {canViewOwnerInfo ? (
+          listing.contacts.length > 0 ? (
+            <ul className="contact-list">
+              {listing.contacts.map((contact) => (
+                <li key={contact}>{contact}</li>
+              ))}
+            </ul>
+          ) : (
+            <p>-</p>
+          )
+        ) : (
+          <p className="contact-lock-hint">{messages.ownerContactsLoginHint}</p>
+        )}
       </article>
 
       <article className="detail-card detail-card--reviews">
@@ -163,7 +170,7 @@ export default async function PlaceDetailPage({ params }: PlaceDetailPageProps) 
                     showOriginalLabel={messages.reviewShowOriginal}
                     showTranslationLabel={messages.reviewShowTranslation}
                   />
-                  {review.studentContact ? (
+                  {canViewReviewerInfo && review.studentContact ? (
                     <p className="review-item__contact">
                       {messages.reviewContactLabel}:{" "}
                       {review.studentContact.includes("@") ? (

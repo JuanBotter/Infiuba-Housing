@@ -4,17 +4,9 @@ import {
   buildRoleCookie,
   buildRoleCookieClear,
   getAuthSessionFromRequest,
-  resolveRoleForCredentials,
-  resolveRoleForAccessCode,
+  requestLoginOtp,
+  verifyLoginOtp,
 } from "@/lib/auth";
-
-function parseAccessCode(value: unknown) {
-  if (typeof value !== "string") {
-    return "";
-  }
-
-  return value.trim().slice(0, 200);
-}
 
 function parseEmail(value: unknown) {
   if (typeof value !== "string") {
@@ -24,12 +16,24 @@ function parseEmail(value: unknown) {
   return value.trim().toLowerCase().slice(0, 180);
 }
 
-function parsePassword(value: unknown) {
+function parseOtpCode(value: unknown) {
   if (typeof value !== "string") {
     return "";
   }
 
-  return value.trim().slice(0, 200);
+  return value.replace(/\s+/g, "").trim().slice(0, 24);
+}
+
+function parseAction(value: unknown) {
+  if (value !== "requestOtp" && value !== "verifyOtp") {
+    return "";
+  }
+
+  return value;
+}
+
+function parseTrustDevice(value: unknown) {
+  return value === true;
 }
 
 export async function GET(request: Request) {
@@ -39,43 +43,85 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   const payload = await request.json().catch(() => null);
-  const accessCode = parseAccessCode(payload?.accessCode);
+  const action = parseAction(payload?.action);
   const email = parseEmail(payload?.email);
-  const password = parsePassword(payload?.password);
+  const otpCode = parseOtpCode(payload?.otpCode);
+  const trustDevice = parseTrustDevice(payload?.trustDevice);
 
-  if (accessCode) {
-    const role = resolveRoleForAccessCode(accessCode);
-    if (!role || role === "visitor") {
-      return NextResponse.json({ error: "Invalid access code" }, { status: 401 });
-    }
-
-    const response = NextResponse.json({ ok: true, role, authMethod: "code" });
-    response.cookies.set(buildRoleCookie(role, { authMethod: "code" }));
-    return response;
-  }
-
-  if (!email || !password) {
-    return NextResponse.json({ error: "Missing credentials" }, { status: 400 });
-  }
-
-  const role = await resolveRoleForCredentials(email, password);
-  if (role === "db_unavailable") {
+  if (!action) {
     return NextResponse.json(
-      { error: "Database is required for email/password login" },
-      { status: 503 },
+      { error: "Unsupported action. Use requestOtp or verifyOtp." },
+      { status: 400 },
     );
   }
-  if (!role) {
-    return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
+
+  if (action === "requestOtp") {
+    if (!email) {
+      return NextResponse.json({ error: "Missing email" }, { status: 400 });
+    }
+
+    const requested = await requestLoginOtp(email);
+    if (!requested.ok) {
+      if (requested.reason === "db_unavailable") {
+        return NextResponse.json({ error: "Database is required for OTP login" }, { status: 503 });
+      }
+      if (requested.reason === "invalid_email") {
+        return NextResponse.json({ error: "Invalid email" }, { status: 400 });
+      }
+      if (requested.reason === "not_allowed") {
+        return NextResponse.json({ error: "Email not allowed" }, { status: 403 });
+      }
+      if (requested.reason === "rate_limited") {
+        return NextResponse.json(
+          {
+            error: "Please wait before requesting another code",
+            retryAfterSeconds: requested.retryAfterSeconds ?? 30,
+          },
+          { status: 429 },
+        );
+      }
+      return NextResponse.json({ error: "Could not send OTP email" }, { status: 503 });
+    }
+
+    return NextResponse.json({
+      ok: true,
+      email: requested.email,
+      expiresAt: requested.expiresAt,
+    });
+  }
+
+  if (!email || !otpCode) {
+    return NextResponse.json({ error: "Missing email or OTP code" }, { status: 400 });
+  }
+
+  const verified = await verifyLoginOtp(email, otpCode);
+  if (!verified.ok) {
+    if (verified.reason === "db_unavailable") {
+      return NextResponse.json({ error: "Database is required for OTP login" }, { status: 503 });
+    }
+    if (verified.reason === "invalid_email") {
+      return NextResponse.json({ error: "Invalid email" }, { status: 400 });
+    }
+    if (verified.reason === "not_allowed") {
+      return NextResponse.json({ error: "Email not allowed" }, { status: 403 });
+    }
+    return NextResponse.json({ error: "Invalid or expired OTP code" }, { status: 401 });
   }
 
   const response = NextResponse.json({
     ok: true,
-    role,
-    authMethod: "password",
-    email,
+    role: verified.role,
+    authMethod: "otp",
+    email: verified.email,
+    trustDevice,
   });
-  response.cookies.set(buildRoleCookie(role, { authMethod: "password", email }));
+  response.cookies.set(
+    buildRoleCookie(verified.role, {
+      authMethod: "otp",
+      email: verified.email,
+      trustDevice,
+    }),
+  );
   return response;
 }
 

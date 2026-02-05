@@ -43,6 +43,14 @@ BEGIN
 END
 $$;
 
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'otp_consumed_reason_enum') THEN
+    CREATE TYPE otp_consumed_reason_enum AS ENUM ('verified', 'replaced', 'too_many_attempts');
+  END IF;
+END
+$$;
+
 CREATE TABLE IF NOT EXISTS dataset_meta (
   id INTEGER PRIMARY KEY CHECK (id = 1),
   generated_at TIMESTAMPTZ,
@@ -120,6 +128,32 @@ ALTER TABLE auth_invites
 ALTER TABLE auth_invites
   ADD COLUMN IF NOT EXISTS created_by_email TEXT;
 ALTER TABLE auth_invites
+  ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+
+CREATE TABLE IF NOT EXISTS auth_email_otps (
+  id BIGSERIAL PRIMARY KEY,
+  email TEXT NOT NULL,
+  code_hash TEXT NOT NULL,
+  expires_at TIMESTAMPTZ NOT NULL,
+  consumed_at TIMESTAMPTZ,
+  consumed_reason otp_consumed_reason_enum,
+  attempts INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE auth_email_otps
+  ADD COLUMN IF NOT EXISTS email TEXT;
+ALTER TABLE auth_email_otps
+  ADD COLUMN IF NOT EXISTS code_hash TEXT;
+ALTER TABLE auth_email_otps
+  ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ;
+ALTER TABLE auth_email_otps
+  ADD COLUMN IF NOT EXISTS consumed_at TIMESTAMPTZ;
+ALTER TABLE auth_email_otps
+  ADD COLUMN IF NOT EXISTS consumed_reason otp_consumed_reason_enum;
+ALTER TABLE auth_email_otps
+  ADD COLUMN IF NOT EXISTS attempts INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE auth_email_otps
   ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
 
 CREATE TABLE IF NOT EXISTS reviews (
@@ -222,6 +256,21 @@ BEGIN
       AND pg_get_constraintdef(c.oid) ILIKE '%role%'
   LOOP
     EXECUTE format('ALTER TABLE auth_invites DROP CONSTRAINT %I', constraint_name);
+  END LOOP;
+END
+$$;
+
+DO $$
+DECLARE constraint_name TEXT;
+BEGIN
+  FOR constraint_name IN
+    SELECT c.conname
+    FROM pg_constraint c
+    WHERE c.conrelid = 'auth_email_otps'::regclass
+      AND c.contype = 'c'
+      AND pg_get_constraintdef(c.oid) ILIKE '%consumed_reason%'
+  LOOP
+    EXECUTE format('ALTER TABLE auth_email_otps DROP CONSTRAINT %I', constraint_name);
   END LOOP;
 END
 $$;
@@ -391,6 +440,32 @@ UPDATE auth_invites
 SET consumed_reason = NULL
 WHERE consumed_at IS NULL;
 
+UPDATE auth_email_otps
+SET email = LOWER(BTRIM(email))
+WHERE email IS NOT NULL;
+
+UPDATE auth_email_otps
+SET email = CONCAT('unknown-otp-', id::text, '@invalid.local')
+WHERE email IS NULL OR email = '';
+
+UPDATE auth_email_otps
+SET code_hash = CONCAT('invalid-otp-', id::text, '-', md5(random()::text || clock_timestamp()::text))
+WHERE code_hash IS NULL OR BTRIM(code_hash) = '';
+
+UPDATE auth_email_otps
+SET attempts = GREATEST(COALESCE(attempts, 0), 0),
+    expires_at = COALESCE(expires_at, NOW()),
+    created_at = COALESCE(created_at, NOW());
+
+UPDATE auth_email_otps
+SET consumed_reason = 'verified'
+WHERE consumed_at IS NOT NULL
+  AND consumed_reason IS NULL;
+
+UPDATE auth_email_otps
+SET consumed_reason = NULL
+WHERE consumed_at IS NULL;
+
 DO $$
 DECLARE source_udt TEXT;
 BEGIN
@@ -504,6 +579,16 @@ ALTER TABLE auth_invites
     ELSE consumed_reason::text::invite_consumed_reason_enum
   END;
 
+ALTER TABLE auth_email_otps
+  ALTER COLUMN consumed_reason TYPE otp_consumed_reason_enum
+  USING CASE
+    WHEN consumed_reason IS NULL THEN NULL
+    WHEN consumed_reason::text = 'verified' THEN 'verified'::otp_consumed_reason_enum
+    WHEN consumed_reason::text = 'replaced' THEN 'replaced'::otp_consumed_reason_enum
+    WHEN consumed_reason::text IN ('too_many_attempts', 'max_attempts') THEN 'too_many_attempts'::otp_consumed_reason_enum
+    ELSE NULL
+  END;
+
 ALTER TABLE reviews
   ALTER COLUMN source TYPE review_source_enum
   USING source::text::review_source_enum;
@@ -527,6 +612,13 @@ ALTER TABLE auth_invites
   ALTER COLUMN expires_at SET NOT NULL,
   ALTER COLUMN created_at SET NOT NULL;
 
+ALTER TABLE auth_email_otps
+  ALTER COLUMN email SET NOT NULL,
+  ALTER COLUMN code_hash SET NOT NULL,
+  ALTER COLUMN expires_at SET NOT NULL,
+  ALTER COLUMN attempts SET NOT NULL,
+  ALTER COLUMN created_at SET NOT NULL;
+
 ALTER TABLE reviews
   ALTER COLUMN source SET NOT NULL,
   ALTER COLUMN status SET NOT NULL,
@@ -543,6 +635,79 @@ BEGIN
     ALTER TABLE dataset_meta
       ADD CONSTRAINT dataset_meta_total_listings_non_negative
       CHECK (total_listings >= 0);
+  END IF;
+END
+$$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'auth_email_otps_email_not_blank'
+  ) THEN
+    ALTER TABLE auth_email_otps
+      ADD CONSTRAINT auth_email_otps_email_not_blank
+      CHECK (BTRIM(email) <> '');
+  END IF;
+END
+$$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'auth_email_otps_attempts_non_negative_check'
+  ) THEN
+    ALTER TABLE auth_email_otps
+      ADD CONSTRAINT auth_email_otps_attempts_non_negative_check
+      CHECK (attempts >= 0);
+  END IF;
+END
+$$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'auth_email_otps_consumed_consistency_check'
+  ) THEN
+    ALTER TABLE auth_email_otps
+      ADD CONSTRAINT auth_email_otps_consumed_consistency_check
+      CHECK (
+        (consumed_at IS NULL AND consumed_reason IS NULL)
+        OR (consumed_at IS NOT NULL AND consumed_reason IS NOT NULL)
+      );
+  END IF;
+END
+$$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'auth_email_otps_consumed_after_created_check'
+  ) THEN
+    ALTER TABLE auth_email_otps
+      ADD CONSTRAINT auth_email_otps_consumed_after_created_check
+      CHECK (consumed_at IS NULL OR consumed_at >= created_at);
+  END IF;
+END
+$$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'auth_email_otps_expires_after_created_check'
+  ) THEN
+    ALTER TABLE auth_email_otps
+      ADD CONSTRAINT auth_email_otps_expires_after_created_check
+      CHECK (expires_at >= created_at);
   END IF;
 END
 $$;
@@ -840,6 +1005,8 @@ CREATE INDEX IF NOT EXISTS idx_users_role_active ON users(role, is_active);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_auth_invites_token_hash_unique ON auth_invites(token_hash);
 CREATE INDEX IF NOT EXISTS idx_auth_invites_email_pending ON auth_invites(email, consumed_at, expires_at);
 CREATE INDEX IF NOT EXISTS idx_auth_invites_email_lower ON auth_invites((LOWER(email)));
+CREATE INDEX IF NOT EXISTS idx_auth_email_otps_email_open ON auth_email_otps(email, consumed_at, expires_at DESC);
+CREATE INDEX IF NOT EXISTS idx_auth_email_otps_email_lower ON auth_email_otps((LOWER(email)));
 CREATE INDEX IF NOT EXISTS idx_reviews_listing_status ON reviews(listing_id, status, source);
 CREATE INDEX IF NOT EXISTS idx_reviews_status_created ON reviews(status, created_at DESC);
 `;
