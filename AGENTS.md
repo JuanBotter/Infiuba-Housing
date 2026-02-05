@@ -34,6 +34,7 @@ Do not defer AGENTS updates.
 - Selecting a listing from map markers keeps list/rail selection in sync and auto-scrolls the corresponding item into view when visible; when sort order changes in map mode, selection resets to the first result in the new order.
 - On desktop map layout, the left listing column uses viewport-capped internal scrolling (`max-height`), while the right panel keeps a matching viewport-based minimum height.
 - Header menus (language/access) are layered above map controls/popups to avoid overlap while using map view.
+- Top-bar menus (`language-menu`, `role-menu`) close when users click outside the open menu.
 
 ## Runtime and Commands
 

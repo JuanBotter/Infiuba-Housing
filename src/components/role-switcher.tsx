@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useMemo, useRef, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { getMessages } from "@/lib/i18n";
@@ -41,6 +41,28 @@ export function RoleSwitcher({ lang, role, authMethod, email }: RoleSwitcherProp
   const [accessCode, setAccessCode] = useState("");
   const [status, setStatus] = useState<AccessStatus>("idle");
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!(event.target instanceof Node)) {
+        return;
+      }
+
+      const details = detailsRef.current;
+      if (!details || !details.hasAttribute("open")) {
+        return;
+      }
+
+      if (!details.contains(event.target)) {
+        details.removeAttribute("open");
+      }
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+    };
+  }, []);
 
   const roleLabel =
     role === "admin" ? t.roleAdmin : role === "whitelisted" ? t.roleWhitelisted : t.roleVisitor;
