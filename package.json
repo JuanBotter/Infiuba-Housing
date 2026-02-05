@@ -8,10 +8,11 @@
     "start": "next start",
     "import:data": "node scripts/build-dataset.mjs",
     "geocode:data": "node scripts/geocode-listings.mjs",
-    "db:init": "node scripts/db-init.mjs",
+    "db:init": "npm run db:migrate",
     "db:seed": "node scripts/db-seed.mjs",
-    "db:setup": "npm run db:init && npm run db:seed",
-    "user:upsert": "node scripts/user-upsert.mjs"
+    "db:setup": "npm run db:migrate && npm run db:seed",
+    "user:upsert": "node scripts/user-upsert.mjs",
+    "db:migrate": "node-pg-migrate up -m migrations -d \"$DATABASE_URL\""
   },
   "dependencies": {
     "leaflet": "^1.9.4",
@@ -26,6 +27,7 @@
     "@types/pg": "^8.15.6",
     "@types/react": "18.3.3",
     "@types/react-dom": "18.3.0",
+    "node-pg-migrate": "^8.0.4",
     "typescript": "5.5.4"
   }
 }

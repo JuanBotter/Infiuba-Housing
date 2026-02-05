@@ -25,6 +25,7 @@ Do not defer AGENTS updates.
 - OTP login includes an optional "Remember me" checkbox; trusted sessions persist for 30 days, otherwise cookie lifetime is browser-session only.
 - OTP delivery supports a console-only email override for local testing (`mock@email.com` by default outside production).
 - OTP mailer logs provider availability and send failures (redacted recipient) to server logs for troubleshooting.
+- DB migrations are managed with node-pg-migrate (`migrations/` directory).
 - Admin UX: split views for reviews and access management under `/{lang}/admin/*`; access view supports search, role changes, deletion, and bulk user creation.
 - Main listings UI uses a view toggle: `Map` (default), `List`, and (for whitelisted/admin) `Add review`.
 - Cards/Map filters include search, neighborhood, recommendation, min/max price, minimum rating, sorting (default: newest), and active filter chips that support one-click removal plus clear-all.
@@ -49,9 +50,10 @@ Do not defer AGENTS updates.
 - Production build: `npm run build`
 - Import dataset from CSV: `npm run import:data`
 - Geocode listings: `npm run geocode:data`
-- Init DB schema: `npm run db:init`
+- Init/migrate DB schema: `npm run db:migrate`
+- Legacy alias: `npm run db:init`
 - Seed DB: `npm run db:seed`
-- Init + seed: `npm run db:setup`
+- Init/migrate + seed: `npm run db:setup`
 - Upsert auth user: `npm run user:upsert -- --email user@example.com --role whitelisted`
 
 ## Environment Variables
@@ -130,7 +132,7 @@ Fallback mode (when `DATABASE_URL` is missing):
 
 ## Database Schema (Current)
 
-Defined in `scripts/db-init.mjs`.
+Defined in `migrations/001_initial_schema.sql` (applied via node-pg-migrate).
 
 Finite-state fields use PostgreSQL enums:
 
@@ -239,7 +241,7 @@ Indexes:
 - `idx_reviews_listing_status ON reviews(listing_id, status, source)`
 - `idx_reviews_status_created ON reviews(status, created_at DESC)`
 
-Integrity hardening (enforced in `scripts/db-init.mjs`):
+Integrity hardening (enforced in `migrations/001_initial_schema.sql`):
 
 - Non-empty checks for core text identifiers (`users.email`, `deleted_users.email`, `auth_email_otps.email`, listing address/neighborhood, listing contact).
 - Numeric range checks for ratings, recommendation rates, coordinates, and year fields.
@@ -247,7 +249,7 @@ Integrity hardening (enforced in `scripts/db-init.mjs`):
 - Review rent consistency (`reviews.price_usd` must be null or > 0).
 - OTP consistency (`consumed_at`/`consumed_reason` coupled, attempts non-negative, expires/consumed not before creation).
 - Legacy-row normalization before constraints are applied (trim/canonicalize emails, null-out invalid ranges, dedupe users by case-insensitive email).
-- `db:init` is idempotent across both pre-enum and post-enum states for `reviews.source`/`reviews.status`.
+- Initial migration handles both pre-enum and post-enum states for `reviews.source`/`reviews.status`.
 
 ## Review Translation Model
 
@@ -321,7 +323,7 @@ Must remain true:
    - `npx tsc --noEmit`
    - `npm run build`
 5. Prefer DB-backed behavior; keep fallback mode working.
-6. Avoid schema drift: update `scripts/db-init.mjs`, `scripts/db-seed.mjs`, and this file together.
+6. Avoid schema drift: update `migrations/` (and any future migrations), `scripts/db-seed.mjs`, and this file together.
 7. Never expose secrets/tokens in client code or logs.
 8. Keep login OTP-only for top-bar auth; only active users already present in `users` should be able to complete sign-in.
 9. Keep OTP login as the only sign-in method unless explicitly changed.

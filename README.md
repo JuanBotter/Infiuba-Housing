@@ -84,13 +84,15 @@ When `DATABASE_URL` is set, the app uses PostgreSQL for:
 Useful commands:
 
 ```bash
-npm run db:init
+npm run db:migrate
 npm run db:seed
 npm run db:setup
 npm run user:upsert -- --email student@example.com --role whitelisted
 ```
 
-`npm run db:init` is idempotent and also applies schema hardening (enum-backed finite states, integrity checks, legacy data normalization, and case-insensitive user email uniqueness).
+`npm run db:init` is an alias for `db:migrate`. Migrations are managed with node-pg-migrate in the `migrations/` directory.
+
+`npm run db:migrate` is idempotent and also applies schema hardening (enum-backed finite states, integrity checks, legacy data normalization, and case-insensitive user email uniqueness).
 
 ## Review translations
 

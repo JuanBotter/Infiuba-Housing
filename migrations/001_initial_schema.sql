@@ -1,16 +1,4 @@
-import { Pool } from "pg";
-import "./load-env.mjs";
 
-if (!process.env.DATABASE_URL) {
-  throw new Error("DATABASE_URL is required to initialize Postgres schema.");
-}
-
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.PGSSL === "true" ? { rejectUnauthorized: false } : undefined,
-});
-
-const schemaSql = `
 DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'user_role_enum') THEN
@@ -1050,18 +1038,3 @@ CREATE INDEX IF NOT EXISTS idx_auth_email_otps_email_open ON auth_email_otps(ema
 CREATE INDEX IF NOT EXISTS idx_auth_email_otps_email_lower ON auth_email_otps((LOWER(email)));
 CREATE INDEX IF NOT EXISTS idx_reviews_listing_status ON reviews(listing_id, status, source);
 CREATE INDEX IF NOT EXISTS idx_reviews_status_created ON reviews(status, created_at DESC);
-`;
-
-async function run() {
-  await pool.query(schemaSql);
-  console.log("Postgres schema initialized.");
-}
-
-run()
-  .catch((error) => {
-    console.error(error);
-    process.exitCode = 1;
-  })
-  .finally(async () => {
-    await pool.end();
-  });
