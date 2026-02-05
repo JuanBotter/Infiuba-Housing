@@ -385,6 +385,47 @@ export async function moderatePendingReview(
           [reviewId],
         );
 
+        await client.query(
+          `
+            UPDATE listings
+            SET
+              average_rating = (
+                SELECT AVG(rating)
+                FROM reviews
+                WHERE listing_id = $1
+                  AND status = 'approved'
+                  AND rating IS NOT NULL
+              ),
+              recommendation_rate = (
+                SELECT CASE
+                  WHEN COUNT(*) FILTER (WHERE recommended IS NOT NULL) = 0 THEN NULL
+                  ELSE
+                    COUNT(*) FILTER (WHERE recommended = TRUE)::numeric
+                    / COUNT(*) FILTER (WHERE recommended IS NOT NULL)::numeric
+                END
+                FROM reviews
+                WHERE listing_id = $1
+                  AND status = 'approved'
+              ),
+              total_reviews = (
+                SELECT COUNT(*)::integer
+                FROM reviews
+                WHERE listing_id = $1
+                  AND status = 'approved'
+              ),
+              recent_year = (
+                SELECT MAX(year)
+                FROM reviews
+                WHERE listing_id = $1
+                  AND status = 'approved'
+                  AND year IS NOT NULL
+              ),
+              updated_at = NOW()
+            WHERE id = $1
+          `,
+          [reviewRow.listing_id],
+        );
+
         const approved = await client.query<ReviewRow>(
           `
             SELECT
