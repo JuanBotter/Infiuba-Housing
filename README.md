@@ -91,6 +91,7 @@ npm run user:upsert -- --email student@example.com --role whitelisted
 ```
 
 `npm run db:init` is an alias for `db:migrate`. Migrations are managed with node-pg-migrate in the `migrations/` directory.
+`db:migrate` reads the `DATABASE_URL` environment variable (node-pg-migrate's `-d` flag expects the env var name, not the URL).
 
 `npm run db:migrate` is idempotent and also applies schema hardening (enum-backed finite states, integrity checks, legacy data normalization, and case-insensitive user email uniqueness).
 

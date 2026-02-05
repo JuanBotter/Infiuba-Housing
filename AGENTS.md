@@ -51,6 +51,7 @@ Do not defer AGENTS updates.
 - Import dataset from CSV: `npm run import:data`
 - Geocode listings: `npm run geocode:data`
 - Init/migrate DB schema: `npm run db:migrate`
+- `db:migrate` reads `DATABASE_URL` (node-pg-migrate `-d` expects the env var name).
 - Legacy alias: `npm run db:init`
 - Seed DB: `npm run db:seed`
 - Init/migrate + seed: `npm run db:setup`
