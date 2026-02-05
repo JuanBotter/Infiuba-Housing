@@ -48,8 +48,24 @@ interface ListingRow {
 }
 
 interface ListingPrivacyOptions {
+  // Legacy option: when provided, applies to both owner and reviewer contacts.
   includePrivateContactInfo?: boolean;
+  includeOwnerContactInfo?: boolean;
+  includeReviewerContactInfo?: boolean;
   lang?: Lang;
+}
+
+function resolvePrivacyOptions(options: ListingPrivacyOptions) {
+  const includePrivateContactInfo = options.includePrivateContactInfo;
+  const includeOwnerContactInfo =
+    options.includeOwnerContactInfo ?? includePrivateContactInfo ?? true;
+  const includeReviewerContactInfo =
+    options.includeReviewerContactInfo ?? includePrivateContactInfo ?? true;
+
+  return {
+    includeOwnerContactInfo,
+    includeReviewerContactInfo,
+  };
 }
 
 function mapListingRow(row: ListingRow): Listing {
@@ -97,7 +113,7 @@ interface ReviewRow {
 function mapReviewRow(
   row: ReviewRow,
   lang: Lang,
-  includePrivateContactInfo: boolean,
+  includeReviewerContactInfo: boolean,
 ): Review {
   const originalComment = row.comment || undefined;
   const translatedComment = getTranslatedCommentForLanguage(row, lang);
@@ -116,7 +132,7 @@ function mapReviewRow(
         ? translatedComment
         : undefined,
     studentContact:
-      includePrivateContactInfo && row.allow_contact_sharing
+      includeReviewerContactInfo && row.allow_contact_sharing
         ? row.student_contact || undefined
         : undefined,
     studentName: row.student_name || undefined,
@@ -128,7 +144,11 @@ function mapReviewRow(
   };
 }
 
-function applyPrivacy(listing: Listing, includePrivateContactInfo: boolean): Listing {
+function applyPrivacy(
+  listing: Listing,
+  includeOwnerContactInfo: boolean,
+  includeReviewerContactInfo: boolean,
+): Listing {
   const reviewPrices = listing.reviews
     .map((review) => review.priceUsd)
     .filter((price): price is number => typeof price === "number");
@@ -139,20 +159,22 @@ function applyPrivacy(listing: Listing, includePrivateContactInfo: boolean): Lis
     ...listing,
     minPriceUsd: listing.minPriceUsd ?? minPriceFromReviews,
     maxPriceUsd: listing.maxPriceUsd ?? maxPriceFromReviews,
-    contacts: includePrivateContactInfo ? [...listing.contacts] : [],
+    contacts: includeOwnerContactInfo ? [...listing.contacts] : [],
     reviews: listing.reviews.map((review) => ({
       ...review,
-      studentContact: includePrivateContactInfo ? review.studentContact : undefined,
+      studentContact: includeReviewerContactInfo ? review.studentContact : undefined,
     })),
   };
 }
 
 export async function getListings(options: ListingPrivacyOptions = {}) {
-  const includePrivateContactInfo = options.includePrivateContactInfo ?? true;
+  const { includeOwnerContactInfo, includeReviewerContactInfo } = resolvePrivacyOptions(options);
   const lang = options.lang ?? "en";
 
   if (!isDatabaseEnabled()) {
-    return dataset.listings.map((listing) => applyPrivacy(listing, includePrivateContactInfo));
+    return dataset.listings.map((listing) =>
+      applyPrivacy(listing, includeOwnerContactInfo, includeReviewerContactInfo),
+    );
   }
 
   const result = await dbQuery<ListingRow>(
@@ -261,11 +283,13 @@ export async function getListings(options: ListingPrivacyOptions = {}) {
       if (!listing) {
         continue;
       }
-      listing.reviews.push(mapReviewRow(row, lang, includePrivateContactInfo));
+      listing.reviews.push(mapReviewRow(row, lang, includeReviewerContactInfo));
     }
   }
 
-  return listings.map((listing) => applyPrivacy(listing, includePrivateContactInfo));
+  return listings.map((listing) =>
+    applyPrivacy(listing, includeOwnerContactInfo, includeReviewerContactInfo),
+  );
 }
 
 export async function getListingById(
@@ -273,11 +297,13 @@ export async function getListingById(
   lang: Lang = "en",
   options: ListingPrivacyOptions = {},
 ): Promise<Listing | undefined> {
-  const includePrivateContactInfo = options.includePrivateContactInfo ?? true;
+  const { includeOwnerContactInfo, includeReviewerContactInfo } = resolvePrivacyOptions(options);
 
   if (!isDatabaseEnabled()) {
     const listing = dataset.listings.find((candidate) => candidate.id === id);
-    return listing ? applyPrivacy(listing, includePrivateContactInfo) : undefined;
+    return listing
+      ? applyPrivacy(listing, includeOwnerContactInfo, includeReviewerContactInfo)
+      : undefined;
   }
 
   const listingResult = await dbQuery<ListingRow>(
@@ -352,9 +378,9 @@ export async function getListingById(
 
   const listing = mapListingRow(listingResult.rows[0]);
   listing.reviews = reviewsResult.rows.map((row) =>
-    mapReviewRow(row, lang, includePrivateContactInfo),
+    mapReviewRow(row, lang, includeReviewerContactInfo),
   );
-  return applyPrivacy(listing, includePrivateContactInfo);
+  return applyPrivacy(listing, includeOwnerContactInfo, includeReviewerContactInfo);
 }
 
 export interface NewListingInput {

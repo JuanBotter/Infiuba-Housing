@@ -2,6 +2,7 @@ import {
   createHash,
   createHmac,
   randomBytes,
+  randomInt,
   scryptSync,
   timingSafeEqual,
 } from "node:crypto";
@@ -9,11 +10,13 @@ import {
 import { cookies } from "next/headers";
 
 import { dbQuery, isDatabaseEnabled, withTransaction } from "@/lib/db";
+import { sendLoginOtp } from "@/lib/otp-mailer";
 import type { AuthMethod, UserRole } from "@/types";
 
 export const ROLE_COOKIE_NAME = "infiuba_role";
 
-const ROLE_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 120;
+const ROLE_COOKIE_DEFAULT_MAX_AGE_SECONDS = 60 * 60 * 24 * 120;
+const ROLE_COOKIE_TRUSTED_DEVICE_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
 const PASSWORD_HASH_PREFIX = "scrypt";
 const PASSWORD_MIN_LENGTH = 10;
 const PASSWORD_MAX_LENGTH = 200;
@@ -21,6 +24,10 @@ const SCRYPT_N = 16384;
 const SCRYPT_R = 8;
 const SCRYPT_P = 1;
 const SCRYPT_KEYLEN = 64;
+const OTP_CODE_LENGTH = 6;
+const OTP_EXPIRY_MINUTES = 15;
+const OTP_MIN_RESEND_INTERVAL_SECONDS = 45;
+const OTP_MAX_ATTEMPTS = 5;
 
 let runtimeSecret: string | null = null;
 
@@ -29,7 +36,7 @@ function isUserRole(value: string): value is UserRole {
 }
 
 function isAuthMethod(value: string): value is AuthMethod {
-  return value === "code" || value === "password" || value === "invite";
+  return value === "code" || value === "password" || value === "invite" || value === "otp";
 }
 
 function parseCodes(raw: string | undefined) {
@@ -41,6 +48,14 @@ function parseCodes(raw: string | undefined) {
     .split(/[\n,;]/g)
     .map((entry) => entry.trim())
     .filter(Boolean);
+}
+
+function parseBooleanEnvFlag(raw: string | undefined) {
+  if (!raw) {
+    return false;
+  }
+  const normalized = raw.trim().toLowerCase();
+  return normalized === "1" || normalized === "true" || normalized === "yes" || normalized === "on";
 }
 
 function isMissingConsumedReasonError(error: unknown) {
@@ -63,14 +78,23 @@ function isMissingConsumedReasonError(error: unknown) {
   return typeof message === "string" && message.includes("consumed_reason");
 }
 
+function isMissingOtpStorageError(error: unknown) {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+
+  const code = "code" in error ? (error as { code?: unknown }).code : undefined;
+  if (code === "42P01") {
+    return true;
+  }
+
+  const message = "message" in error ? (error as { message?: unknown }).message : undefined;
+  return typeof message === "string" && message.includes("auth_email_otps");
+}
+
 interface UserCredentialRow {
   role: string;
   password_hash: string;
-  is_active: boolean;
-}
-
-interface UserSessionRow {
-  role: string;
   is_active: boolean;
 }
 
@@ -97,6 +121,26 @@ interface InviteHistoryRow {
   consumed_at: string | Date | null;
   consumed_reason: string | null;
   created_by_email: string | null;
+}
+
+interface ActiveUserRow {
+  role: string;
+  is_active: boolean;
+}
+
+interface OtpRequestThrottleRow {
+  created_at: string | Date;
+}
+
+interface CreatedOtpRow {
+  id: number;
+  expires_at: string | Date;
+}
+
+interface OtpValidationRow {
+  id: number;
+  code_hash: string;
+  attempts: number;
 }
 
 export interface AuthSession {
@@ -147,6 +191,30 @@ function hashInviteToken(token: string) {
 
 function createInviteToken() {
   return randomBytes(24).toString("base64url");
+}
+
+function createOtpCode() {
+  const max = 10 ** OTP_CODE_LENGTH;
+  return randomInt(0, max).toString().padStart(OTP_CODE_LENGTH, "0");
+}
+
+function hashOtpCode(email: string, code: string) {
+  const normalizedCode = code.trim();
+  return createHmac("sha256", getSigningSecret())
+    .update(`${normalizeEmail(email)}|${normalizedCode}`)
+    .digest("hex");
+}
+
+function normalizeOtpCode(value: string) {
+  return value.replace(/\s+/g, "").trim();
+}
+
+function isValidOtpCode(value: string) {
+  return new RegExp(`^[0-9]{${OTP_CODE_LENGTH}}$`).test(value);
+}
+
+function normalizeDateToIsoString(value: string | Date) {
+  return typeof value === "string" ? value : value.toISOString();
 }
 
 export function hashPasswordForStorage(password: string) {
@@ -263,7 +331,7 @@ export function createRoleSession(
   role: Exclude<UserRole, "visitor">,
   options?: { authMethod?: AuthMethod; email?: string },
 ) {
-  const authMethod = options?.authMethod || "code";
+  const authMethod = options?.authMethod || "otp";
   const encodedEmail = options?.email ? encodeEmailForSession(options.email) : "";
   const payload = `v2|${role}|${authMethod}|${encodedEmail}`;
   return `${payload}.${sign(payload)}`;
@@ -356,17 +424,22 @@ async function resolveValidatedSession(session: AuthSession): Promise<AuthSessio
     return session;
   }
 
-  // Access-code sessions are independent from DB users by design.
+  // Legacy access-code sessions are no longer accepted.
   if (session.authMethod === "code") {
-    return session;
+    return { role: "visitor" };
   }
 
-  if ((session.authMethod === "password" || session.authMethod === "invite") && session.email) {
+  if (
+    (session.authMethod === "otp" ||
+      session.authMethod === "password" ||
+      session.authMethod === "invite") &&
+    session.email
+  ) {
     if (!isDatabaseEnabled()) {
       return { role: "visitor" };
     }
 
-    const result = await dbQuery<UserSessionRow>(
+    const result = await dbQuery<ActiveUserRow>(
       `
         SELECT role, is_active
         FROM users
@@ -395,7 +468,7 @@ async function resolveValidatedSession(session: AuthSession): Promise<AuthSessio
     };
   }
 
-  return session;
+  return { role: "visitor" };
 }
 
 export async function getCurrentAuthSession() {
@@ -478,6 +551,289 @@ export async function resolveRoleForCredentials(
   }
 
   return null;
+}
+
+export async function requestLoginOtp(
+  email: string,
+): Promise<
+  | { ok: true; email: string; expiresAt: string }
+  | {
+      ok: false;
+      reason:
+        | "db_unavailable"
+        | "invalid_email"
+        | "not_allowed"
+        | "rate_limited"
+        | "delivery_unavailable"
+        | "delivery_failed";
+      retryAfterSeconds?: number;
+    }
+> {
+  const normalizedEmail = normalizeEmail(email);
+  if (!isLikelyEmail(normalizedEmail)) {
+    return { ok: false, reason: "invalid_email" };
+  }
+
+  if (!isDatabaseEnabled()) {
+    return { ok: false, reason: "db_unavailable" };
+  }
+
+  try {
+    const userResult = await dbQuery<ActiveUserRow>(
+      `
+        SELECT role, is_active
+        FROM users
+        WHERE email = $1
+        LIMIT 1
+      `,
+      [normalizedEmail],
+    );
+
+    if (userResult.rowCount === 0) {
+      return { ok: false, reason: "not_allowed" };
+    }
+
+    const user = userResult.rows[0];
+    if (!user.is_active || (user.role !== "admin" && user.role !== "whitelisted")) {
+      return { ok: false, reason: "not_allowed" };
+    }
+
+    const latestOtpResult = await dbQuery<OtpRequestThrottleRow>(
+      `
+        SELECT created_at
+        FROM auth_email_otps
+        WHERE email = $1
+          AND consumed_at IS NULL
+          AND expires_at > NOW()
+        ORDER BY created_at DESC
+        LIMIT 1
+      `,
+      [normalizedEmail],
+    );
+
+    if ((latestOtpResult.rowCount || 0) > 0) {
+      const latestCreatedAt = new Date(
+        normalizeDateToIsoString(latestOtpResult.rows[0].created_at),
+      ).getTime();
+      if (!Number.isNaN(latestCreatedAt)) {
+        const elapsedSeconds = Math.floor((Date.now() - latestCreatedAt) / 1000);
+        if (elapsedSeconds < OTP_MIN_RESEND_INTERVAL_SECONDS) {
+          return {
+            ok: false,
+            reason: "rate_limited",
+            retryAfterSeconds: OTP_MIN_RESEND_INTERVAL_SECONDS - elapsedSeconds,
+          };
+        }
+      }
+    }
+
+    const code = createOtpCode();
+    const codeHash = hashOtpCode(normalizedEmail, code);
+
+    const createdOtp = await withTransaction(async (client) => {
+      await client.query(
+        `
+          UPDATE auth_email_otps
+          SET consumed_at = NOW(),
+              consumed_reason = 'replaced'
+          WHERE email = $1
+            AND consumed_at IS NULL
+            AND expires_at > NOW()
+        `,
+        [normalizedEmail],
+      );
+
+      const inserted = await client.query<CreatedOtpRow>(
+        `
+          INSERT INTO auth_email_otps (
+            email,
+            code_hash,
+            expires_at,
+            attempts,
+            created_at
+          )
+          VALUES (
+            $1,
+            $2,
+            NOW() + make_interval(mins => $3),
+            0,
+            NOW()
+          )
+          RETURNING id, expires_at
+        `,
+        [normalizedEmail, codeHash, OTP_EXPIRY_MINUTES],
+      );
+
+      return inserted.rows[0];
+    });
+
+    const delivery = await sendLoginOtp({
+      email: normalizedEmail,
+      code,
+      expiresMinutes: OTP_EXPIRY_MINUTES,
+    });
+
+    if (!delivery.ok) {
+      await dbQuery(
+        `
+          UPDATE auth_email_otps
+          SET consumed_at = NOW(),
+              consumed_reason = 'replaced'
+          WHERE id = $1
+            AND consumed_at IS NULL
+        `,
+        [createdOtp.id],
+      );
+
+      return {
+        ok: false,
+        reason:
+          delivery.reason === "provider_unavailable" ? "delivery_unavailable" : "delivery_failed",
+      };
+    }
+
+    return {
+      ok: true,
+      email: normalizedEmail,
+      expiresAt: normalizeDateToIsoString(createdOtp.expires_at),
+    };
+  } catch (error) {
+    if (isMissingOtpStorageError(error)) {
+      return { ok: false, reason: "db_unavailable" };
+    }
+    throw error;
+  }
+}
+
+export async function verifyLoginOtp(
+  email: string,
+  otpCode: string,
+): Promise<
+  | { ok: true; role: "whitelisted" | "admin"; email: string }
+  | {
+      ok: false;
+      reason: "db_unavailable" | "invalid_email" | "invalid_code" | "invalid_or_expired" | "not_allowed";
+    }
+> {
+  const normalizedEmail = normalizeEmail(email);
+  if (!isLikelyEmail(normalizedEmail)) {
+    return { ok: false, reason: "invalid_email" };
+  }
+
+  const normalizedOtpCode = normalizeOtpCode(otpCode);
+  if (!isValidOtpCode(normalizedOtpCode)) {
+    return { ok: false, reason: "invalid_code" };
+  }
+
+  if (!isDatabaseEnabled()) {
+    return { ok: false, reason: "db_unavailable" };
+  }
+
+  try {
+    return withTransaction(async (client) => {
+      const userResult = await client.query<ActiveUserRow>(
+        `
+          SELECT role, is_active
+          FROM users
+          WHERE email = $1
+          LIMIT 1
+          FOR UPDATE
+        `,
+        [normalizedEmail],
+      );
+
+      if (userResult.rowCount === 0) {
+        return { ok: false as const, reason: "not_allowed" as const };
+      }
+
+      const user = userResult.rows[0];
+      if (!user.is_active || (user.role !== "admin" && user.role !== "whitelisted")) {
+        return { ok: false as const, reason: "not_allowed" as const };
+      }
+
+      const otpResult = await client.query<OtpValidationRow>(
+        `
+          SELECT id, code_hash, attempts
+          FROM auth_email_otps
+          WHERE email = $1
+            AND consumed_at IS NULL
+            AND expires_at > NOW()
+          ORDER BY created_at DESC
+          LIMIT 1
+          FOR UPDATE
+        `,
+        [normalizedEmail],
+      );
+
+      if (otpResult.rowCount === 0) {
+        return { ok: false as const, reason: "invalid_or_expired" as const };
+      }
+
+      const otp = otpResult.rows[0];
+      const currentAttempts = Number.isFinite(otp.attempts) ? otp.attempts : 0;
+      if (currentAttempts >= OTP_MAX_ATTEMPTS) {
+        await client.query(
+          `
+            UPDATE auth_email_otps
+            SET consumed_at = NOW(),
+                consumed_reason = 'too_many_attempts'
+            WHERE id = $1
+              AND consumed_at IS NULL
+          `,
+          [otp.id],
+        );
+        return { ok: false as const, reason: "invalid_or_expired" as const };
+      }
+
+      const expectedHash = hashOtpCode(normalizedEmail, normalizedOtpCode);
+      if (!safeEqual(expectedHash, otp.code_hash)) {
+        const nextAttempts = currentAttempts + 1;
+        if (nextAttempts >= OTP_MAX_ATTEMPTS) {
+          await client.query(
+            `
+              UPDATE auth_email_otps
+              SET attempts = $2,
+                  consumed_at = NOW(),
+                  consumed_reason = 'too_many_attempts'
+              WHERE id = $1
+            `,
+            [otp.id, nextAttempts],
+          );
+        } else {
+          await client.query(
+            `
+              UPDATE auth_email_otps
+              SET attempts = $2
+              WHERE id = $1
+            `,
+            [otp.id, nextAttempts],
+          );
+        }
+        return { ok: false as const, reason: "invalid_code" as const };
+      }
+
+      await client.query(
+        `
+          UPDATE auth_email_otps
+          SET consumed_at = NOW(),
+              consumed_reason = 'verified'
+          WHERE id = $1
+        `,
+        [otp.id],
+      );
+
+      return {
+        ok: true as const,
+        role: user.role,
+        email: normalizedEmail,
+      };
+    });
+  } catch (error) {
+    if (isMissingOtpStorageError(error)) {
+      return { ok: false, reason: "db_unavailable" };
+    }
+    throw error;
+  }
 }
 
 export async function getManagedUsers(
@@ -886,6 +1242,14 @@ export function canViewContactInfo(role: UserRole) {
   return role === "whitelisted" || role === "admin";
 }
 
+export function canViewOwnerContactInfo(role: UserRole) {
+  if (canViewContactInfo(role)) {
+    return true;
+  }
+
+  return parseBooleanEnvFlag(process.env.VISITOR_CAN_VIEW_OWNER_CONTACTS);
+}
+
 export function canSubmitReviews(role: UserRole) {
   return role === "whitelisted" || role === "admin";
 }
@@ -896,13 +1260,20 @@ export function canAccessAdmin(role: UserRole) {
 
 export function buildRoleCookie(
   role: Exclude<UserRole, "visitor">,
-  options?: { authMethod?: AuthMethod; email?: string },
+  options?: { authMethod?: AuthMethod; email?: string; trustDevice?: boolean },
 ) {
+  const maxAgeSeconds =
+    typeof options?.trustDevice === "boolean"
+      ? options.trustDevice
+        ? ROLE_COOKIE_TRUSTED_DEVICE_MAX_AGE_SECONDS
+        : undefined
+      : ROLE_COOKIE_DEFAULT_MAX_AGE_SECONDS;
+
   return {
     name: ROLE_COOKIE_NAME,
     value: createRoleSession(role, options),
     path: "/",
-    maxAge: ROLE_COOKIE_MAX_AGE_SECONDS,
+    ...(typeof maxAgeSeconds === "number" ? { maxAge: maxAgeSeconds } : {}),
     httpOnly: true,
     sameSite: "lax" as const,
     secure: process.env.NODE_ENV === "production",

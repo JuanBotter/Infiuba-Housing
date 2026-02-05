@@ -1,6 +1,6 @@
 export type Lang = "en" | "es" | "fr" | "de" | "pt" | "it" | "no";
 export type UserRole = "visitor" | "whitelisted" | "admin";
-export type AuthMethod = "code" | "password" | "invite";
+export type AuthMethod = "otp" | "code" | "password" | "invite";
 
 export type ReviewSource = "survey" | "web";
 

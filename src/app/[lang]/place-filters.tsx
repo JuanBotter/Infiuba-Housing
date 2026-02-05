@@ -21,6 +21,7 @@ interface PlaceFiltersProps {
   messages: Messages;
   listings: Listing[];
   neighborhoods: string[];
+  canViewOwnerInfo: boolean;
   canWriteReviews: boolean;
 }
 
@@ -77,6 +78,7 @@ export function PlaceFilters({
   messages,
   listings,
   neighborhoods,
+  canViewOwnerInfo,
   canWriteReviews,
 }: PlaceFiltersProps) {
   const [hasLoadedPersistedFilters, setHasLoadedPersistedFilters] = useState(false);
@@ -847,16 +849,22 @@ export function PlaceFilters({
                       </strong>
                     </p>
                   </div>
-                  {selectedMapListing.contacts.length > 0 ? (
+                  <p className="map-selected-details__contacts-label">{messages.ownerContacts}</p>
+                  {canViewOwnerInfo ? (
                     <>
-                      <p className="map-selected-details__contacts-label">{messages.ownerContacts}</p>
-                      <ul className="contact-list map-selected-details__contacts">
-                        {selectedMapListing.contacts.map((contact) => (
-                          <li key={contact}>{contact}</li>
-                        ))}
-                      </ul>
+                      {selectedMapListing.contacts.length > 0 ? (
+                        <ul className="contact-list map-selected-details__contacts">
+                          {selectedMapListing.contacts.map((contact) => (
+                            <li key={contact}>{contact}</li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p>-</p>
+                      )}
                     </>
-                  ) : null}
+                  ) : (
+                    <p className="contact-lock-hint">{messages.ownerContactsLoginHint}</p>
+                  )}
                   <Link href={`/${lang}/place/${selectedMapListing.id}`} className="inline-link">
                     {messages.viewDetails}
                   </Link>

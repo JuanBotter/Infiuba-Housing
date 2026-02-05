@@ -70,10 +70,10 @@ function isAllowedRole(value) {
 function printUsage() {
   console.log("Usage:");
   console.log(
-    "  node scripts/user-upsert.mjs --email student@example.com --role whitelisted --password \"strong-password\"",
+    "  node scripts/user-upsert.mjs --email student@example.com --role whitelisted [--password \"strong-password\"]",
   );
   console.log(
-    "  node scripts/user-upsert.mjs --email admin@example.com --role admin --password \"strong-password\" --inactive",
+    "  node scripts/user-upsert.mjs --email admin@example.com --role admin [--password \"strong-password\"] --inactive",
   );
 }
 
@@ -87,12 +87,12 @@ const role = String(args.role || "").trim().toLowerCase();
 const password = String(args.password || "");
 const isInactive = args.inactive === "true";
 
-if (!isLikelyEmail(email) || !isAllowedRole(role) || !password) {
+if (!isLikelyEmail(email) || !isAllowedRole(role)) {
   printUsage();
   throw new Error("Invalid arguments.");
 }
 
-const passwordHash = hashPasswordForStorage(password);
+const passwordHash = password ? hashPasswordForStorage(password) : "otp-only";
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: process.env.PGSSL === "true" ? { rejectUnauthorized: false } : undefined,
@@ -112,7 +112,9 @@ async function run() {
     [email, role, passwordHash, !isInactive],
   );
 
-  console.log(`User upserted: ${email} (${role}, active=${!isInactive})`);
+  console.log(
+    `User upserted: ${email} (${role}, active=${!isInactive}, password=${password ? "updated" : "otp-only"})`,
+  );
 }
 
 run()

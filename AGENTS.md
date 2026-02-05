@@ -21,6 +21,9 @@ Do not defer AGENTS updates.
 - Theme: light/dark with persisted browser preference.
 - Typography: unified sans-serif stack for headings and body (`Avenir Next` fallback stack).
 - Core domain: listings, owner contacts, survey reviews, web reviews with moderation, multilingual review text, and review-level rent history.
+- Auth/login: email OTP in top-bar access menu; only active users present in `users` can sign in.
+- OTP login includes an optional "Remember me" checkbox; trusted sessions persist for 30 days, otherwise cookie lifetime is browser-session only.
+- OTP delivery supports a console-only email override for local testing (`mock@email.com` by default outside production).
 - Admin UX: split views for reviews, invites, and access management under `/{lang}/admin/*`; access view supports client-side search by email/role.
 - Main listings UI uses a view toggle: `Map` (default), `List`, and (for whitelisted/admin) `Add review`.
 - Cards/Map filters include search, neighborhood, recommendation, min/max price, minimum rating, sorting (default: newest), and active filter chips that support one-click removal plus clear-all.
@@ -29,12 +32,14 @@ Do not defer AGENTS updates.
 - Listing aggregate fields (`average_rating`, `recommendation_rate`, `total_reviews`, `recent_year`) are recomputed from approved reviews whenever a pending web review is approved.
 - Map panel shows up to 3 latest approved review comments for the selected listing (translated to current UI language when available), with the same "show original/translation" toggle used in listing detail reviews.
 - Map view includes full selected-listing details (stats, owner contacts when visible by role, details link); historical reviews render before the inline per-listing review form for whitelisted/admin users.
+- When owner contacts are hidden by permissions, listing detail and map-selected panels show a small colored hint prompting login to view contact info.
 - On mobile/narrow layouts (`<=1100px`), map mode is map-first: a horizontal property rail sits under the map, and the full results list opens as a bottom-sheet drawer with backdrop.
 - In map mode, selected listing details (stats + owner contacts when visible to role + details link) render under the map panel content; on mobile/narrow layouts they appear under the horizontal rail.
 - Selecting a listing from map markers keeps list/rail selection in sync and auto-scrolls the corresponding item into view when visible; when sort order changes in map mode, selection resets to the first result in the new order.
 - On desktop map layout, the left listing column uses viewport-capped internal scrolling (`max-height`), while the right panel keeps a matching viewport-based minimum height.
 - Header menus (language/access) are layered above map controls/popups to avoid overlap while using map view.
 - Top-bar menus (`language-menu`, `role-menu`) close when users click outside the open menu.
+- In the OTP login popover, the "Remember me" checkbox and label stay aligned on a single row.
 
 ## Runtime and Commands
 
@@ -46,19 +51,24 @@ Do not defer AGENTS updates.
 - Init DB schema: `npm run db:init`
 - Seed DB: `npm run db:seed`
 - Init + seed: `npm run db:setup`
-- Upsert auth user: `npm run user:upsert -- --email user@example.com --role whitelisted --password "StrongPass123!"`
+- Upsert auth user: `npm run user:upsert -- --email user@example.com --role whitelisted [--password "StrongPass123!"]`
 
 ## Environment Variables
 
 - `DATABASE_URL`: enables PostgreSQL mode.
 - `PGSSL=true`: optional SSL for DB pool.
-- `WHITELIST_TOKEN` or `WHITELIST_TOKENS`: login codes for whitelisted users.
-- `ADMIN_TOKEN` or `ADMIN_TOKENS`: login codes for admin users.
 - `AUTH_SECRET`: secret for signing auth role cookie (strongly recommended).
+- `VISITOR_CAN_VIEW_OWNER_CONTACTS=true`: emergency read-only fallback to expose owner contacts to visitors (reviewer/student contacts remain protected).
+- `OTP_EMAIL_PROVIDER`: OTP delivery provider (`brevo`, `resend`, or `console`; defaults to `console` in non-production when unset).
+- `OTP_CONSOLE_ONLY_EMAIL`: optional single email forced to console OTP delivery (skips provider send); defaults to `mock@email.com` in non-production when unset.
+- `OTP_FROM_EMAIL`: optional provider-agnostic sender identity fallback (`Name <email@domain>`).
+- `BREVO_API_KEY`: required when `OTP_EMAIL_PROVIDER=brevo`.
+- `BREVO_FROM_EMAIL`: sender identity for Brevo OTP emails.
+- `RESEND_API_KEY`: required when `OTP_EMAIL_PROVIDER=resend`.
+- `RESEND_FROM_EMAIL`: sender identity for Resend OTP emails.
 
 Notes:
 
-- `*_TOKENS` supports multiple values split by comma/newline/semicolon.
 - If `AUTH_SECRET` changes, all active sessions are invalidated.
 
 ## Access Control Model
@@ -67,7 +77,7 @@ Roles:
 
 - `visitor` (default):
   - Can browse public listing/review content.
-  - Cannot see owner contacts.
+  - Cannot see owner contacts unless `VISITOR_CAN_VIEW_OWNER_CONTACTS=true`.
   - Cannot see reviewer contact info.
   - Cannot submit reviews.
   - Cannot access admin moderation.
@@ -85,14 +95,14 @@ Implementation:
 - Role session cookie name: `infiuba_role`.
 - Cookie is signed (HMAC SHA-256) in `src/lib/auth.ts`.
 - Session cookie payload includes role plus auth metadata (`authMethod`, optional email).
-- For `password`/`invite` sessions, role is revalidated against `users` on read; missing/inactive users resolve to `visitor`.
+- For `otp` (and legacy `password`/`invite`) sessions, role is revalidated against `users` on read; missing/inactive users resolve to `visitor`.
 - Session API:
-  - `POST /api/session` with either:
-    - `email` + `password` (DB users), or
-    - `accessCode` (fallback/manual codes).
-    - Both paths set signed role cookie.
+  - `POST /api/session` with:
+    - `{ action: "requestOtp", email }` to send OTP, then
+    - `{ action: "verifyOtp", email, otpCode, trustDevice }` to sign in.
+    - Verify path sets signed role cookie.
   - `DELETE /api/session` -> logout (clears cookie).
-  - `GET /api/session` -> current resolved role (DB-validated for `password`/`invite` sessions).
+  - `GET /api/session` -> current resolved role (DB-validated for cookie-backed sessions).
   - `POST /api/session/invite` with `token` + `password` activates invite and sets session.
 
 Invite onboarding:
@@ -137,6 +147,7 @@ Finite-state fields use PostgreSQL enums:
 - `review_source_enum`: `survey`, `web`
 - `review_status_enum`: `pending`, `approved`, `rejected`
 - `invite_consumed_reason_enum`: `activated`, `superseded`
+- `otp_consumed_reason_enum`: `verified`, `replaced`, `too_many_attempts`
 
 ### `dataset_meta`
 
@@ -217,6 +228,17 @@ Finite-state fields use PostgreSQL enums:
 - `created_by_email TEXT`
 - `created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`
 
+### `auth_email_otps`
+
+- `id BIGSERIAL PRIMARY KEY`
+- `email TEXT NOT NULL` (lowercased)
+- `code_hash TEXT NOT NULL` (HMAC hash of OTP code + email; raw code is never stored)
+- `expires_at TIMESTAMPTZ NOT NULL`
+- `consumed_at TIMESTAMPTZ`
+- `consumed_reason otp_consumed_reason_enum` (`verified`, `replaced`, `too_many_attempts`)
+- `attempts INTEGER NOT NULL DEFAULT 0`
+- `created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`
+
 Compatibility note:
 
 - App code tolerates legacy DBs missing `auth_invites.consumed_reason` (no 500s), but run `npm run db:init` to apply full schema and keep precise invite status history.
@@ -230,16 +252,19 @@ Indexes:
 - `idx_auth_invites_token_hash_unique ON auth_invites(token_hash)` (unique)
 - `idx_auth_invites_email_pending ON auth_invites(email, consumed_at, expires_at)`
 - `idx_auth_invites_email_lower ON auth_invites(lower(email))`
+- `idx_auth_email_otps_email_open ON auth_email_otps(email, consumed_at, expires_at DESC)`
+- `idx_auth_email_otps_email_lower ON auth_email_otps(lower(email))`
 - `idx_reviews_listing_status ON reviews(listing_id, status, source)`
 - `idx_reviews_status_created ON reviews(status, created_at DESC)`
 
 Integrity hardening (enforced in `scripts/db-init.mjs`):
 
-- Non-empty checks for core text identifiers (`users.email`, `auth_invites.email`, listing address/neighborhood, listing contact).
+- Non-empty checks for core text identifiers (`users.email`, `auth_invites.email`, `auth_email_otps.email`, listing address/neighborhood, listing contact).
 - Numeric range checks for ratings, recommendation rates, coordinates, and year fields.
 - Review approval consistency (`approved_at` must be present only when `status='approved'`).
 - Review rent consistency (`reviews.price_usd` must be null or > 0).
 - Invite consumption consistency (`consumed_at`/`consumed_reason` must be set together; consumed timestamp cannot be before creation).
+- OTP consistency (`consumed_at`/`consumed_reason` coupled, attempts non-negative, expires/consumed not before creation).
 - Legacy-row normalization before constraints are applied (trim/canonicalize emails, null-out invalid ranges, dedupe users by case-insensitive email).
 - `db:init` is idempotent across both pre-enum and post-enum states for `reviews.source`/`reviews.status`.
 
@@ -279,8 +304,8 @@ Moderation:
 
 Must remain true:
 
-1. Visitors never see owner contacts.
-2. Visitors never see reviewer contact info.
+1. Visitors never see reviewer contact info.
+2. Owner contacts are visible only to whitelisted/admin, except when emergency fallback `VISITOR_CAN_VIEW_OWNER_CONTACTS=true` is explicitly enabled.
 3. Reviewer contact info is shown only if:
    - User role is whitelisted/admin, and
    - Reviewer opted into sharing (`allow_contact_sharing = true`).
@@ -308,6 +333,7 @@ Must remain true:
   - `POST` revoke user access
 - Invite activation API: `src/app/api/session/invite/route.ts`
 - Role/auth helpers: `src/lib/auth.ts`
+- OTP mail delivery helper: `src/lib/otp-mailer.ts`
 - Data access: `src/lib/data.ts`
 - Reviews store: `src/lib/reviews-store.ts`
 - Messages/i18n: `src/i18n/messages.ts`
@@ -323,9 +349,7 @@ Must remain true:
 5. Prefer DB-backed behavior; keep fallback mode working.
 6. Avoid schema drift: update `scripts/db-init.mjs`, `scripts/db-seed.mjs`, and this file together.
 7. Never expose secrets/tokens in client code or logs.
-8. Any auth change must preserve both paths unless explicitly removed:
-   - DB email/password login
-   - access-code fallback login
+8. Keep login OTP-only for top-bar auth; only active users already present in `users` should be able to complete sign-in.
 9. Keep invite flow one-time and expiring; never store raw invite tokens in DB.
 
 ## Change Checklist (Use Every Task)

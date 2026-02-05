@@ -311,6 +311,32 @@ a {
   color: var(--ink-soft);
 }
 
+.role-menu__form label.role-menu__checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0;
+  line-height: 1.2;
+  font-size: 0.77rem;
+  color: var(--ink-soft);
+}
+
+.role-menu__checkbox input {
+  flex: 0 0 auto;
+  width: 0.95rem;
+  height: 0.95rem;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.role-menu__checkbox span {
+  text-transform: none;
+  letter-spacing: normal;
+  font-size: 0.77rem;
+  font-weight: 500;
+  color: var(--ink);
+}
+
 .language-menu__item {
   display: flex;
   align-items: center;
@@ -1155,6 +1181,13 @@ textarea {
   padding: 0.64rem 0.72rem;
   background: var(--chip-bg);
   overflow-wrap: anywhere;
+}
+
+.contact-lock-hint {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--primary);
 }
 
 .review-item {
