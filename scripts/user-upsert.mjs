@@ -1,15 +1,7 @@
-import { randomBytes, scryptSync } from "node:crypto";
-
 import { Pool } from "pg";
 import "./load-env.mjs";
 
-const PASSWORD_HASH_PREFIX = "scrypt";
-const PASSWORD_MIN_LENGTH = 10;
-const PASSWORD_MAX_LENGTH = 200;
-const SCRYPT_N = 16384;
-const SCRYPT_R = 8;
-const SCRYPT_P = 1;
-const SCRYPT_KEYLEN = 64;
+const OTP_ONLY_PASSWORD_HASH = "otp-only";
 
 function parseArgs(argv) {
   const args = {};
@@ -40,41 +32,13 @@ function isLikelyEmail(value) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
-function hashPasswordForStorage(password) {
-  const normalizedPassword = password.trim();
-  if (
-    normalizedPassword.length < PASSWORD_MIN_LENGTH ||
-    normalizedPassword.length > PASSWORD_MAX_LENGTH
-  ) {
-    throw new Error(
-      `Password must contain between ${PASSWORD_MIN_LENGTH} and ${PASSWORD_MAX_LENGTH} characters.`,
-    );
-  }
-
-  const salt = randomBytes(16);
-  const hash = scryptSync(normalizedPassword, salt, SCRYPT_KEYLEN, {
-    N: SCRYPT_N,
-    r: SCRYPT_R,
-    p: SCRYPT_P,
-  });
-
-  return `${PASSWORD_HASH_PREFIX}:${SCRYPT_N}:${SCRYPT_R}:${SCRYPT_P}:${salt.toString(
-    "hex",
-  )}:${hash.toString("hex")}`;
-}
-
 function isAllowedRole(value) {
   return value === "whitelisted" || value === "admin";
 }
 
 function printUsage() {
   console.log("Usage:");
-  console.log(
-    "  node scripts/user-upsert.mjs --email student@example.com --role whitelisted [--password \"strong-password\"]",
-  );
-  console.log(
-    "  node scripts/user-upsert.mjs --email admin@example.com --role admin [--password \"strong-password\"] --inactive",
-  );
+  console.log("  node scripts/user-upsert.mjs --email student@example.com --role whitelisted");
 }
 
 if (!process.env.DATABASE_URL) {
@@ -84,15 +48,12 @@ if (!process.env.DATABASE_URL) {
 const args = parseArgs(process.argv.slice(2));
 const email = normalizeEmail(String(args.email || ""));
 const role = String(args.role || "").trim().toLowerCase();
-const password = String(args.password || "");
-const isInactive = args.inactive === "true";
-
 if (!isLikelyEmail(email) || !isAllowedRole(role)) {
   printUsage();
   throw new Error("Invalid arguments.");
 }
 
-const passwordHash = password ? hashPasswordForStorage(password) : "otp-only";
+const passwordHash = OTP_ONLY_PASSWORD_HASH;
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: process.env.PGSSL === "true" ? { rejectUnauthorized: false } : undefined,
@@ -109,12 +70,10 @@ async function run() {
           is_active = EXCLUDED.is_active,
           updated_at = NOW()
     `,
-    [email, role, passwordHash, !isInactive],
+    [email, role, passwordHash, true],
   );
 
-  console.log(
-    `User upserted: ${email} (${role}, active=${!isInactive}, password=${password ? "updated" : "otp-only"})`,
-  );
+  console.log(`User upserted: ${email} (${role}, active=true)`);
 }
 
 run()

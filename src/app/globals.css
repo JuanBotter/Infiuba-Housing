@@ -1256,35 +1256,6 @@ textarea {
   gap: 0.68rem;
 }
 
-.activate-invite-error-view {
-  margin-top: 0.45rem;
-  display: grid;
-  gap: 0.5rem;
-}
-
-.activate-invite-error-title {
-  font-family: var(--font-body);
-}
-
-.activate-invite-error-view p {
-  margin: 0;
-}
-
-.activate-invite-error-view a {
-  color: var(--primary-deep);
-  text-decoration: underline;
-}
-
-.activate-invite-target {
-  margin: 0;
-  color: var(--ink-soft);
-  overflow-wrap: anywhere;
-}
-
-.activate-invite-target strong {
-  color: var(--ink);
-}
-
 .property-form-card {
   display: grid;
   gap: 0.45rem;
@@ -1541,6 +1512,20 @@ textarea {
 
 .admin-users-search span {
   font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
+.admin-user-role {
+  display: grid;
+  gap: 0.34rem;
+  max-width: 240px;
+}
+
+.admin-user-role span {
+  font-size: 0.7rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   font-weight: 700;

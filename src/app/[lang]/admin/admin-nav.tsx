@@ -23,12 +23,6 @@ export function AdminNav({ lang }: AdminNavProps) {
         {messages.adminNavReviews}
       </Link>
       <Link
-        href={`/${lang}/admin/invites`}
-        className={`view-toggle__button admin-nav__link ${segment === "invites" ? "is-active" : ""}`}
-      >
-        {messages.adminNavInvites}
-      </Link>
-      <Link
         href={`/${lang}/admin/access`}
         className={`view-toggle__button admin-nav__link ${segment === "access" ? "is-active" : ""}`}
       >

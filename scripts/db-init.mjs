@@ -103,6 +103,14 @@ ALTER TABLE users
 ALTER TABLE users
   ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
 
+CREATE TABLE IF NOT EXISTS deleted_users (
+  email TEXT PRIMARY KEY,
+  deleted_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE deleted_users
+  ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+
 CREATE TABLE IF NOT EXISTS auth_invites (
   id BIGSERIAL PRIMARY KEY,
   email TEXT NOT NULL,
@@ -373,17 +381,13 @@ SET role = 'whitelisted'
 WHERE role IS NULL OR role::text NOT IN ('whitelisted', 'admin');
 
 UPDATE users
-SET password_hash = 'disabled'
+SET password_hash = 'otp-only'
 WHERE password_hash IS NULL OR BTRIM(password_hash) = '';
 
 UPDATE users
 SET is_active = COALESCE(is_active, FALSE),
     created_at = COALESCE(created_at, NOW()),
     updated_at = COALESCE(updated_at, NOW());
-
-UPDATE users
-SET is_active = FALSE
-WHERE password_hash = 'disabled';
 
 WITH ranked AS (
   SELECT
@@ -401,6 +405,27 @@ SET email = CONCAT('dedup+', target.id::text, '@invalid.local'),
 FROM ranked
 WHERE ranked.row_number > 1
   AND ranked.id = target.id;
+
+UPDATE deleted_users
+SET email = LOWER(BTRIM(email))
+WHERE email IS NOT NULL;
+
+UPDATE deleted_users
+SET email = CONCAT('unknown-deleted-', md5(random()::text || clock_timestamp()::text), '@invalid.local')
+WHERE email IS NULL OR email = '';
+
+UPDATE deleted_users
+SET deleted_at = COALESCE(deleted_at, NOW());
+
+INSERT INTO deleted_users (email, deleted_at)
+SELECT email, updated_at
+FROM users
+WHERE is_active = FALSE
+ON CONFLICT (email) DO UPDATE
+SET deleted_at = EXCLUDED.deleted_at;
+
+DELETE FROM users
+WHERE is_active = FALSE;
 
 UPDATE auth_invites
 SET email = LOWER(BTRIM(email))
@@ -899,6 +924,20 @@ BEGIN
   IF NOT EXISTS (
     SELECT 1
     FROM pg_constraint
+    WHERE conname = 'deleted_users_email_not_blank'
+  ) THEN
+    ALTER TABLE deleted_users
+      ADD CONSTRAINT deleted_users_email_not_blank
+      CHECK (BTRIM(email) <> '');
+  END IF;
+END
+$$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
     WHERE conname = 'auth_invites_email_not_blank'
   ) THEN
     ALTER TABLE auth_invites
@@ -1002,6 +1041,8 @@ CREATE INDEX IF NOT EXISTS idx_listings_neighborhood ON listings(neighborhood);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email_unique ON users(email);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email_lower_unique ON users((LOWER(email)));
 CREATE INDEX IF NOT EXISTS idx_users_role_active ON users(role, is_active);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_deleted_users_email_lower_unique ON deleted_users((LOWER(email)));
+CREATE INDEX IF NOT EXISTS idx_deleted_users_deleted_at ON deleted_users(deleted_at DESC);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_auth_invites_token_hash_unique ON auth_invites(token_hash);
 CREATE INDEX IF NOT EXISTS idx_auth_invites_email_pending ON auth_invites(email, consumed_at, expires_at);
 CREATE INDEX IF NOT EXISTS idx_auth_invites_email_lower ON auth_invites((LOWER(email)));

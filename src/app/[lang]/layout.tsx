@@ -39,7 +39,6 @@ export default async function LanguageLayout({ children, params }: LayoutProps) 
           <RoleSwitcher
             lang={lang}
             role={role}
-            authMethod={authSession.authMethod}
             email={authSession.email}
           />
           {canAccessAdmin(role) ? (

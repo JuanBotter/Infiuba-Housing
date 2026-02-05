@@ -1,11 +1,4 @@
-import {
-  createHash,
-  createHmac,
-  randomBytes,
-  randomInt,
-  scryptSync,
-  timingSafeEqual,
-} from "node:crypto";
+import { createHmac, randomBytes, randomInt, timingSafeEqual } from "node:crypto";
 
 import { cookies } from "next/headers";
 
@@ -17,13 +10,7 @@ export const ROLE_COOKIE_NAME = "infiuba_role";
 
 const ROLE_COOKIE_DEFAULT_MAX_AGE_SECONDS = 60 * 60 * 24 * 120;
 const ROLE_COOKIE_TRUSTED_DEVICE_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
-const PASSWORD_HASH_PREFIX = "scrypt";
-const PASSWORD_MIN_LENGTH = 10;
-const PASSWORD_MAX_LENGTH = 200;
-const SCRYPT_N = 16384;
-const SCRYPT_R = 8;
-const SCRYPT_P = 1;
-const SCRYPT_KEYLEN = 64;
+const OTP_ONLY_PASSWORD_HASH = "otp-only";
 const OTP_CODE_LENGTH = 6;
 const OTP_EXPIRY_MINUTES = 15;
 const OTP_MIN_RESEND_INTERVAL_SECONDS = 45;
@@ -36,18 +23,7 @@ function isUserRole(value: string): value is UserRole {
 }
 
 function isAuthMethod(value: string): value is AuthMethod {
-  return value === "code" || value === "password" || value === "invite" || value === "otp";
-}
-
-function parseCodes(raw: string | undefined) {
-  if (!raw) {
-    return [];
-  }
-
-  return raw
-    .split(/[\n,;]/g)
-    .map((entry) => entry.trim())
-    .filter(Boolean);
+  return value === "otp";
 }
 
 function parseBooleanEnvFlag(raw: string | undefined) {
@@ -56,26 +32,6 @@ function parseBooleanEnvFlag(raw: string | undefined) {
   }
   const normalized = raw.trim().toLowerCase();
   return normalized === "1" || normalized === "true" || normalized === "yes" || normalized === "on";
-}
-
-function isMissingConsumedReasonError(error: unknown) {
-  if (!error || typeof error !== "object") {
-    return false;
-  }
-
-  const code = "code" in error ? (error as { code?: unknown }).code : undefined;
-  const column = "column" in error ? (error as { column?: unknown }).column : undefined;
-  const message = "message" in error ? (error as { message?: unknown }).message : undefined;
-
-  if (code !== "42703") {
-    return false;
-  }
-
-  if (typeof column === "string" && column === "consumed_reason") {
-    return true;
-  }
-
-  return typeof message === "string" && message.includes("consumed_reason");
 }
 
 function isMissingOtpStorageError(error: unknown) {
@@ -92,12 +48,6 @@ function isMissingOtpStorageError(error: unknown) {
   return typeof message === "string" && message.includes("auth_email_otps");
 }
 
-interface UserCredentialRow {
-  role: string;
-  password_hash: string;
-  is_active: boolean;
-}
-
 interface ManagedUserRow {
   email: string;
   role: "whitelisted" | "admin";
@@ -106,21 +56,9 @@ interface ManagedUserRow {
   updated_at: string | Date;
 }
 
-interface InviteRow {
-  id: number;
+interface DeletedUserRow {
   email: string;
-  role: "whitelisted" | "admin";
-}
-
-interface InviteHistoryRow {
-  id: number;
-  email: string;
-  role: "whitelisted" | "admin";
-  created_at: string | Date;
-  expires_at: string | Date;
-  consumed_at: string | Date | null;
-  consumed_reason: string | null;
-  created_by_email: string | null;
+  deleted_at: string | Date;
 }
 
 interface ActiveUserRow {
@@ -157,20 +95,17 @@ export interface ManagedUserItem {
   updatedAt: string;
 }
 
+export interface DeletedUserItem {
+  email: string;
+  deletedAt: string;
+}
+
 function normalizeEmail(value: string) {
   return value.trim().toLowerCase();
 }
 
 function isLikelyEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
-}
-
-function derivePasswordHash(password: string, salt: Buffer) {
-  return scryptSync(password, salt, SCRYPT_KEYLEN, {
-    N: SCRYPT_N,
-    r: SCRYPT_R,
-    p: SCRYPT_P,
-  });
 }
 
 function encodeEmailForSession(email: string) {
@@ -183,14 +118,6 @@ function decodeEmailFromSession(encoded: string) {
   } catch {
     return "";
   }
-}
-
-function hashInviteToken(token: string) {
-  return createHash("sha256").update(token).digest("hex");
-}
-
-function createInviteToken() {
-  return randomBytes(24).toString("base64url");
 }
 
 function createOtpCode() {
@@ -217,77 +144,10 @@ function normalizeDateToIsoString(value: string | Date) {
   return typeof value === "string" ? value : value.toISOString();
 }
 
-export function hashPasswordForStorage(password: string) {
-  const normalizedPassword = password.trim();
-  if (
-    normalizedPassword.length < PASSWORD_MIN_LENGTH ||
-    normalizedPassword.length > PASSWORD_MAX_LENGTH
-  ) {
-    throw new Error(
-      `Password must contain between ${PASSWORD_MIN_LENGTH} and ${PASSWORD_MAX_LENGTH} characters.`,
-    );
-  }
-
-  const salt = randomBytes(16);
-  const hash = derivePasswordHash(normalizedPassword, salt);
-  return `${PASSWORD_HASH_PREFIX}:${SCRYPT_N}:${SCRYPT_R}:${SCRYPT_P}:${salt.toString(
-    "hex",
-  )}:${hash.toString("hex")}`;
-}
-
-export function verifyPasswordAgainstHash(password: string, storedHash: string) {
-  const normalizedPassword = password.trim();
-  if (
-    normalizedPassword.length < PASSWORD_MIN_LENGTH ||
-    normalizedPassword.length > PASSWORD_MAX_LENGTH
-  ) {
-    return false;
-  }
-
-  const parts = storedHash.split(":");
-  if (parts.length !== 6) {
-    return false;
-  }
-
-  const [algorithm, nString, rString, pString, saltHex, hashHex] = parts;
-  if (algorithm !== PASSWORD_HASH_PREFIX) {
-    return false;
-  }
-
-  const n = Number(nString);
-  const r = Number(rString);
-  const p = Number(pString);
-  if (n !== SCRYPT_N || r !== SCRYPT_R || p !== SCRYPT_P) {
-    return false;
-  }
-
-  if (!saltHex || !hashHex) {
-    return false;
-  }
-
-  const salt = Buffer.from(saltHex, "hex");
-  const expectedHash = Buffer.from(hashHex, "hex");
-  if (expectedHash.length === 0 || salt.length === 0) {
-    return false;
-  }
-
-  const derived = derivePasswordHash(normalizedPassword, salt);
-  if (derived.length !== expectedHash.length) {
-    return false;
-  }
-
-  return timingSafeEqual(derived, expectedHash);
-}
-
 function getSigningSecret() {
   const configured = process.env.AUTH_SECRET?.trim();
   if (configured) {
     return configured;
-  }
-
-  const adminToken = process.env.ADMIN_TOKEN?.trim();
-  if (adminToken) {
-    return adminToken;
   }
 
   if (!runtimeSecret) {
@@ -424,17 +284,7 @@ async function resolveValidatedSession(session: AuthSession): Promise<AuthSessio
     return session;
   }
 
-  // Legacy access-code sessions are no longer accepted.
-  if (session.authMethod === "code") {
-    return { role: "visitor" };
-  }
-
-  if (
-    (session.authMethod === "otp" ||
-      session.authMethod === "password" ||
-      session.authMethod === "invite") &&
-    session.email
-  ) {
+  if (session.authMethod === "otp" && session.email) {
     if (!isDatabaseEnabled()) {
       return { role: "visitor" };
     }
@@ -485,72 +335,6 @@ export async function getAuthSessionFromRequest(request: Request) {
 export async function getRoleFromRequestAsync(request: Request) {
   const session = await getAuthSessionFromRequest(request);
   return session.role;
-}
-
-export function resolveRoleForAccessCode(code: string): UserRole | null {
-  const normalizedCode = code.trim();
-  if (!normalizedCode) {
-    return null;
-  }
-
-  const adminCodes = new Set([
-    ...parseCodes(process.env.ADMIN_TOKEN),
-    ...parseCodes(process.env.ADMIN_TOKENS),
-  ]);
-  if (adminCodes.has(normalizedCode)) {
-    return "admin";
-  }
-
-  const whitelistedCodes = new Set([
-    ...parseCodes(process.env.WHITELIST_TOKEN),
-    ...parseCodes(process.env.WHITELIST_TOKENS),
-  ]);
-  if (whitelistedCodes.has(normalizedCode)) {
-    return "whitelisted";
-  }
-
-  return null;
-}
-
-export async function resolveRoleForCredentials(
-  email: string,
-  password: string,
-): Promise<Exclude<UserRole, "visitor"> | null | "db_unavailable"> {
-  if (!isDatabaseEnabled()) {
-    return "db_unavailable";
-  }
-
-  const normalizedEmail = normalizeEmail(email);
-  if (!isLikelyEmail(normalizedEmail)) {
-    return null;
-  }
-
-  const result = await dbQuery<UserCredentialRow>(
-    `
-      SELECT role, password_hash, is_active
-      FROM users
-      WHERE email = $1
-      LIMIT 1
-    `,
-    [normalizedEmail],
-  );
-
-  if (result.rowCount === 0) {
-    return null;
-  }
-
-  const user = result.rows[0];
-  if (!user.is_active) {
-    return null;
-  }
-  if (!verifyPasswordAgainstHash(password, user.password_hash)) {
-    return null;
-  }
-  if (user.role === "admin" || user.role === "whitelisted") {
-    return user.role;
-  }
-
-  return null;
 }
 
 export async function requestLoginOtp(
@@ -848,6 +632,7 @@ export async function getManagedUsers(
     `
       SELECT email, role, is_active, created_at, updated_at
       FROM users
+      WHERE is_active = TRUE
       ORDER BY is_active DESC, role ASC, updated_at DESC, email ASC
       LIMIT $1
     `,
@@ -865,8 +650,77 @@ export async function getManagedUsers(
   return { ok: true, users };
 }
 
-export async function revokeUserAccess(
+export async function getDeletedUsers(
+  limit = 500,
+): Promise<{ ok: true; users: DeletedUserItem[] } | { ok: false; reason: "db_unavailable" }> {
+  if (!isDatabaseEnabled()) {
+    return { ok: false, reason: "db_unavailable" };
+  }
+
+  const boundedLimit = Math.max(1, Math.min(2000, Math.floor(limit)));
+  const result = await dbQuery<DeletedUserRow>(
+    `
+      SELECT email, deleted_at
+      FROM deleted_users
+      ORDER BY deleted_at DESC, email ASC
+      LIMIT $1
+    `,
+    [boundedLimit],
+  );
+
+  const users = result.rows.map((row) => ({
+    email: row.email,
+    deletedAt: typeof row.deleted_at === "string" ? row.deleted_at : row.deleted_at.toISOString(),
+  }));
+
+  return { ok: true, users };
+}
+
+export async function upsertUsers(
+  emails: string[],
+  role: "whitelisted" | "admin",
+): Promise<{ ok: true; count: number } | { ok: false; reason: "db_unavailable" }> {
+  if (!isDatabaseEnabled()) {
+    return { ok: false, reason: "db_unavailable" };
+  }
+
+  const uniqueEmails = Array.from(
+    new Set(emails.map((email) => normalizeEmail(email)).filter((email) => isLikelyEmail(email))),
+  );
+
+  if (uniqueEmails.length === 0) {
+    return { ok: true, count: 0 };
+  }
+
+  await withTransaction(async (client) => {
+    for (const email of uniqueEmails) {
+      await client.query(
+        `
+          DELETE FROM deleted_users
+          WHERE email = $1
+        `,
+        [email],
+      );
+      await client.query(
+        `
+          INSERT INTO users (email, role, password_hash, is_active, created_at, updated_at)
+          VALUES ($1, $2, $3, TRUE, NOW(), NOW())
+          ON CONFLICT (email) DO UPDATE
+          SET role = EXCLUDED.role,
+              is_active = TRUE,
+              updated_at = NOW()
+        `,
+        [email, role, OTP_ONLY_PASSWORD_HASH],
+      );
+    }
+  });
+
+  return { ok: true, count: uniqueEmails.length };
+}
+
+export async function updateUserRole(
   email: string,
+  role: "whitelisted" | "admin",
 ): Promise<
   | { ok: true; user: ManagedUserItem }
   | { ok: false; reason: "db_unavailable" | "invalid_email" | "not_found" }
@@ -883,12 +737,12 @@ export async function revokeUserAccess(
   const result = await dbQuery<ManagedUserRow>(
     `
       UPDATE users
-      SET is_active = FALSE,
+      SET role = $2,
           updated_at = NOW()
       WHERE email = $1
       RETURNING email, role, is_active, created_at, updated_at
     `,
-    [normalizedEmail],
+    [normalizedEmail, role],
   );
 
   if (result.rows.length === 0) {
@@ -908,334 +762,44 @@ export async function revokeUserAccess(
   };
 }
 
-export interface CreateInviteInput {
-  email: string;
-  role: "whitelisted" | "admin";
-  expiresHours?: number;
-  createdByEmail?: string;
-}
-
-export interface InviteHistoryItem {
-  id: number;
-  email: string;
-  role: "whitelisted" | "admin";
-  status: "open" | "activated" | "replaced" | "expired";
-  createdAt: string;
-  expiresAt: string;
-  consumedAt?: string;
-  consumedReason?: "activated" | "replaced";
-  createdByEmail?: string;
-}
-
-export async function createInviteLink(
-  input: CreateInviteInput,
-): Promise<
-  | { ok: true; token: string; email: string; role: "whitelisted" | "admin"; expiresAt: string }
-  | { ok: false; reason: "db_unavailable" | "invalid_email" }
-> {
+export async function deleteUser(
+  email: string,
+): Promise<{ ok: true } | { ok: false; reason: "db_unavailable" | "invalid_email" | "not_found" }> {
   if (!isDatabaseEnabled()) {
     return { ok: false, reason: "db_unavailable" };
   }
 
-  const normalizedEmail = normalizeEmail(input.email);
+  const normalizedEmail = normalizeEmail(email);
   if (!isLikelyEmail(normalizedEmail)) {
     return { ok: false, reason: "invalid_email" };
   }
 
-  const token = createInviteToken();
-  const tokenHash = hashInviteToken(token);
-  const boundedHours = Number.isFinite(input.expiresHours)
-    ? Math.min(24 * 30, Math.max(1, Math.floor(input.expiresHours || 0)))
-    : 24 * 7;
-
-  const result = await withTransaction(async (client) => {
-    // Only keep one open invite per email: creating a new one invalidates older open invites.
-    try {
-      await client.query(
-        `
-          UPDATE auth_invites
-          SET consumed_at = NOW(),
-              consumed_reason = 'superseded'
-          WHERE email = $1
-            AND consumed_at IS NULL
-            AND expires_at > NOW()
-        `,
-        [normalizedEmail],
-      );
-    } catch (error) {
-      if (!isMissingConsumedReasonError(error)) {
-        throw error;
-      }
-
-      // Backward compatibility for DBs that have not run the latest migration yet.
-      await client.query(
-        `
-          UPDATE auth_invites
-          SET consumed_at = NOW()
-          WHERE email = $1
-            AND consumed_at IS NULL
-            AND expires_at > NOW()
-        `,
-        [normalizedEmail],
-      );
-    }
-
-    return client.query<{ expires_at: string | Date }>(
-      `
-        INSERT INTO auth_invites (
-          email,
-          role,
-          token_hash,
-          expires_at,
-          created_by_email
-        )
-        VALUES (
-          $1,
-          $2,
-          $3,
-          NOW() + make_interval(hours => $4),
-          $5
-        )
-        RETURNING expires_at
-      `,
-      [
-        normalizedEmail,
-        input.role,
-        tokenHash,
-        boundedHours,
-        input.createdByEmail ? normalizeEmail(input.createdByEmail) : null,
-      ],
-    );
-  });
-
-  return {
-    ok: true,
-    token,
-    email: normalizedEmail,
-    role: input.role,
-    expiresAt:
-      typeof result.rows[0].expires_at === "string"
-        ? result.rows[0].expires_at
-        : result.rows[0].expires_at.toISOString(),
-  };
-}
-
-export async function getInviteHistory(
-  limit = 250,
-): Promise<{ ok: true; invites: InviteHistoryItem[] } | { ok: false; reason: "db_unavailable" }> {
-  if (!isDatabaseEnabled()) {
-    return { ok: false, reason: "db_unavailable" };
-  }
-
-  const boundedLimit = Math.max(1, Math.min(1000, Math.floor(limit)));
-  let result;
-  try {
-    result = await dbQuery<InviteHistoryRow>(
-      `
-        SELECT
-          id,
-          email,
-          role,
-          created_at,
-          expires_at,
-          consumed_at,
-          consumed_reason,
-          created_by_email
-        FROM auth_invites
-        ORDER BY created_at DESC
-        LIMIT $1
-      `,
-      [boundedLimit],
-    );
-  } catch (error) {
-    if (!isMissingConsumedReasonError(error)) {
-      throw error;
-    }
-
-    // Backward compatibility for DBs that have not run the latest migration yet.
-    result = await dbQuery<InviteHistoryRow>(
-      `
-        SELECT
-          id,
-          email,
-          role,
-          created_at,
-          expires_at,
-          consumed_at,
-          NULL::text AS consumed_reason,
-          created_by_email
-        FROM auth_invites
-        ORDER BY created_at DESC
-        LIMIT $1
-      `,
-      [boundedLimit],
-    );
-  }
-
-  const now = Date.now();
-  const invites = result.rows.map((row) => {
-    const createdAt =
-      typeof row.created_at === "string" ? row.created_at : row.created_at.toISOString();
-    const expiresAt =
-      typeof row.expires_at === "string" ? row.expires_at : row.expires_at.toISOString();
-    const consumedAt = row.consumed_at
-      ? typeof row.consumed_at === "string"
-        ? row.consumed_at
-        : row.consumed_at.toISOString()
-      : undefined;
-    const consumedReason =
-      row.consumed_reason === "activated"
-        ? "activated"
-        : row.consumed_reason === "superseded" || row.consumed_reason === "replaced"
-          ? "replaced"
-          : undefined;
-    const isExpired = !consumedAt && new Date(expiresAt).getTime() <= now;
-    const status: InviteHistoryItem["status"] = consumedAt
-      ? consumedReason === "replaced"
-        ? "replaced"
-        : "activated"
-      : isExpired
-        ? "expired"
-        : "open";
-
-    return {
-      id: row.id,
-      email: row.email,
-      role: row.role,
-      status,
-      createdAt,
-      expiresAt,
-      consumedAt,
-      consumedReason,
-      createdByEmail: row.created_by_email || undefined,
-    } satisfies InviteHistoryItem;
-  });
-
-  return { ok: true, invites };
-}
-
-export async function activateInviteWithPassword(
-  token: string,
-  password: string,
-): Promise<
-  | { ok: true; role: "whitelisted" | "admin"; email: string }
-  | { ok: false; reason: "db_unavailable" | "invalid_or_expired" | "invalid_password" }
-> {
-  if (!isDatabaseEnabled()) {
-    return { ok: false, reason: "db_unavailable" };
-  }
-
-  let passwordHash = "";
-  try {
-    passwordHash = hashPasswordForStorage(password);
-  } catch {
-    return { ok: false, reason: "invalid_password" };
-  }
-
-  const normalizedToken = token.trim();
-  if (!normalizedToken) {
-    return { ok: false, reason: "invalid_or_expired" };
-  }
-
-  const tokenHash = hashInviteToken(normalizedToken);
-
   return withTransaction(async (client) => {
-    const inviteResult = await client.query<InviteRow>(
+    const result = await client.query<{ email: string }>(
       `
-        SELECT id, email, role
-        FROM auth_invites
-        WHERE token_hash = $1
-          AND consumed_at IS NULL
-          AND expires_at > NOW()
-        LIMIT 1
-        FOR UPDATE
+        DELETE FROM users
+        WHERE email = $1
+        RETURNING email
       `,
-      [tokenHash],
+      [normalizedEmail],
     );
 
-    if (inviteResult.rowCount === 0) {
-      return { ok: false as const, reason: "invalid_or_expired" as const };
+    if (result.rows.length === 0) {
+      return { ok: false as const, reason: "not_found" as const };
     }
-
-    const invite = inviteResult.rows[0];
 
     await client.query(
       `
-        INSERT INTO users (email, role, password_hash, is_active, created_at, updated_at)
-        VALUES ($1, $2, $3, TRUE, NOW(), NOW())
+        INSERT INTO deleted_users (email, deleted_at)
+        VALUES ($1, NOW())
         ON CONFLICT (email) DO UPDATE
-        SET role = EXCLUDED.role,
-            password_hash = EXCLUDED.password_hash,
-            is_active = TRUE,
-            updated_at = NOW()
+        SET deleted_at = EXCLUDED.deleted_at
       `,
-      [invite.email, invite.role, passwordHash],
+      [normalizedEmail],
     );
 
-    try {
-      await client.query(
-        `
-          UPDATE auth_invites
-          SET consumed_at = NOW(),
-              consumed_reason = 'activated'
-          WHERE id = $1
-        `,
-        [invite.id],
-      );
-    } catch (error) {
-      if (!isMissingConsumedReasonError(error)) {
-        throw error;
-      }
-
-      // Backward compatibility for DBs that have not run the latest migration yet.
-      await client.query(
-        `
-          UPDATE auth_invites
-          SET consumed_at = NOW()
-          WHERE id = $1
-        `,
-        [invite.id],
-      );
-    }
-
-    return { ok: true as const, role: invite.role, email: invite.email };
+    return { ok: true as const };
   });
-}
-
-export async function isInviteTokenActive(
-  token: string,
-): Promise<
-  { ok: true; active: boolean; email?: string; role?: "whitelisted" | "admin" }
-  | { ok: false; reason: "db_unavailable" }
-> {
-  if (!isDatabaseEnabled()) {
-    return { ok: false, reason: "db_unavailable" };
-  }
-
-  const normalizedToken = token.trim();
-  if (!normalizedToken) {
-    return { ok: true, active: false };
-  }
-
-  const tokenHash = hashInviteToken(normalizedToken);
-  const result = await dbQuery<{ id: number; email: string; role: "whitelisted" | "admin" }>(
-    `
-      SELECT id, email, role
-      FROM auth_invites
-      WHERE token_hash = $1
-        AND consumed_at IS NULL
-        AND expires_at > NOW()
-      LIMIT 1
-    `,
-    [tokenHash],
-  );
-
-  if (result.rows.length === 0) {
-    return { ok: true, active: false };
-  }
-
-  const invite = result.rows[0];
-  return { ok: true, active: true, email: invite.email, role: invite.role };
 }
 
 export function canViewContactInfo(role: UserRole) {

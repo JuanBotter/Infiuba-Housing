@@ -24,7 +24,7 @@ Do not defer AGENTS updates.
 - Auth/login: email OTP in top-bar access menu; only active users present in `users` can sign in.
 - OTP login includes an optional "Remember me" checkbox; trusted sessions persist for 30 days, otherwise cookie lifetime is browser-session only.
 - OTP delivery supports a console-only email override for local testing (`mock@email.com` by default outside production).
-- Admin UX: split views for reviews, invites, and access management under `/{lang}/admin/*`; access view supports client-side search by email/role.
+- Admin UX: split views for reviews and access management under `/{lang}/admin/*`; access view supports search, role changes, deletion, and bulk user creation.
 - Main listings UI uses a view toggle: `Map` (default), `List`, and (for whitelisted/admin) `Add review`.
 - Cards/Map filters include search, neighborhood, recommendation, min/max price, minimum rating, sorting (default: newest), and active filter chips that support one-click removal plus clear-all.
 - Cards/Map filter state (including selected view mode) is persisted in browser `localStorage` using shared key `infiuba:filters:v2` so navigation/reloads and language switches keep the same filters/view; legacy per-language keys are auto-migrated on read.
@@ -51,7 +51,7 @@ Do not defer AGENTS updates.
 - Init DB schema: `npm run db:init`
 - Seed DB: `npm run db:seed`
 - Init + seed: `npm run db:setup`
-- Upsert auth user: `npm run user:upsert -- --email user@example.com --role whitelisted [--password "StrongPass123!"]`
+- Upsert auth user: `npm run user:upsert -- --email user@example.com --role whitelisted`
 
 ## Environment Variables
 
@@ -87,15 +87,14 @@ Roles:
   - Cannot access admin moderation.
 - `admin`:
   - Same as whitelisted.
-  - Can access admin pages for reviews, invites, and user access.
-  - Can revoke DB user access from the admin access page.
+  - Can access admin pages for reviews and user access.
 
 Implementation:
 
 - Role session cookie name: `infiuba_role`.
 - Cookie is signed (HMAC SHA-256) in `src/lib/auth.ts`.
 - Session cookie payload includes role plus auth metadata (`authMethod`, optional email).
-- For `otp` (and legacy `password`/`invite`) sessions, role is revalidated against `users` on read; missing/inactive users resolve to `visitor`.
+- For `otp` sessions, role is revalidated against `users` on read; missing users resolve to `visitor`.
 - Session API:
   - `POST /api/session` with:
     - `{ action: "requestOtp", email }` to send OTP, then
@@ -103,26 +102,17 @@ Implementation:
     - Verify path sets signed role cookie.
   - `DELETE /api/session` -> logout (clears cookie).
   - `GET /api/session` -> current resolved role (DB-validated for cookie-backed sessions).
-  - `POST /api/session/invite` with `token` + `password` activates invite and sets session.
-
-Invite onboarding:
-
-- Admin creates invite link from moderation page/API.
-- Admin can create one or many invites at once (comma/newline/semicolon-separated emails).
-- When a new invite is created for an email, any existing open invite for that same email is invalidated (shown as `replaced` in history).
-- Invite link points to `/{lang}/activate?token=...`.
-- Activation page pre-validates invite token on load; if token is invalid/expired it shows a dedicated error view (no password form) titled "Invite expired" with the generic message "This invite is no longer available."
-- In the invite-expired view, contact guidance is rendered as four lines: intro message, first admin email, second admin email, and closing text; admin emails are clickable `mailto:` links.
-- On valid invite links, activation form shows the target invite email so users can verify which account they are setting a password for.
-- Student sets password once; invite is consumed; user is created/updated in `users`.
+  - `POST /api/session` is the only sign-in path (OTP).
 
 User access management:
 
-- Admin access view includes active and revoked users.
-- API: `GET /api/admin/users` returns active/revoked user lists.
-- API: `POST /api/admin/users` with `{ action: "revoke", email }` revokes access.
-- Revocation sets `users.is_active = FALSE`; revoked users lose DB-backed access immediately on next server-side auth check.
-- Admin cannot revoke their own currently authenticated email session.
+- Admin access view includes active and deleted users.
+- API: `GET /api/admin/users` returns active/deleted user lists.
+- API: `POST /api/admin/users` supports:
+  - `{ action: "updateRole", email, role }` to change role
+  - `{ action: "delete", email }` to delete a user (stores email in `deleted_users`)
+  - `{ action: "upsert", emails, role }` to bulk create/reactivate users
+- Admin cannot modify or delete their own currently authenticated email session.
 
 ## Data Sources
 
@@ -146,7 +136,6 @@ Finite-state fields use PostgreSQL enums:
 - `user_role_enum`: `whitelisted`, `admin`
 - `review_source_enum`: `survey`, `web`
 - `review_status_enum`: `pending`, `approved`, `rejected`
-- `invite_consumed_reason_enum`: `activated`, `superseded`
 - `otp_consumed_reason_enum`: `verified`, `replaced`, `too_many_attempts`
 
 ### `dataset_meta`
@@ -211,22 +200,15 @@ Finite-state fields use PostgreSQL enums:
 - `id BIGSERIAL PRIMARY KEY`
 - `email TEXT NOT NULL UNIQUE` (store lowercased)
 - `role user_role_enum NOT NULL`
-- `password_hash TEXT NOT NULL` (scrypt encoded string)
+- `password_hash TEXT NOT NULL` (placeholder value `otp-only`; passwords are not used)
 - `is_active BOOLEAN NOT NULL DEFAULT TRUE`
 - `created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`
 - `updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`
 
-### `auth_invites`
+### `deleted_users`
 
-- `id BIGSERIAL PRIMARY KEY`
-- `email TEXT NOT NULL`
-- `role user_role_enum NOT NULL`
-- `token_hash TEXT NOT NULL UNIQUE`
-- `expires_at TIMESTAMPTZ NOT NULL`
-- `consumed_at TIMESTAMPTZ`
-- `consumed_reason invite_consumed_reason_enum` (`activated` when used, `superseded` when replaced by a newer invite)
-- `created_by_email TEXT`
-- `created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`
+- `email TEXT PRIMARY KEY` (lowercased)
+- `deleted_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`
 
 ### `auth_email_otps`
 
@@ -239,9 +221,9 @@ Finite-state fields use PostgreSQL enums:
 - `attempts INTEGER NOT NULL DEFAULT 0`
 - `created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`
 
-Compatibility note:
+Legacy (unused by app):
 
-- App code tolerates legacy DBs missing `auth_invites.consumed_reason` (no 500s), but run `npm run db:init` to apply full schema and keep precise invite status history.
+- `auth_invites` table and `invite_consumed_reason_enum` type remain in some DBs for backward compatibility, but invite flows are removed.
 
 Indexes:
 
@@ -249,9 +231,8 @@ Indexes:
 - `idx_users_email_unique ON users(email)` (unique)
 - `idx_users_email_lower_unique ON users(lower(email))` (unique, case-insensitive)
 - `idx_users_role_active ON users(role, is_active)`
-- `idx_auth_invites_token_hash_unique ON auth_invites(token_hash)` (unique)
-- `idx_auth_invites_email_pending ON auth_invites(email, consumed_at, expires_at)`
-- `idx_auth_invites_email_lower ON auth_invites(lower(email))`
+- `idx_deleted_users_email_lower_unique ON deleted_users(lower(email))` (unique, case-insensitive)
+- `idx_deleted_users_deleted_at ON deleted_users(deleted_at DESC)`
 - `idx_auth_email_otps_email_open ON auth_email_otps(email, consumed_at, expires_at DESC)`
 - `idx_auth_email_otps_email_lower ON auth_email_otps(lower(email))`
 - `idx_reviews_listing_status ON reviews(listing_id, status, source)`
@@ -259,11 +240,10 @@ Indexes:
 
 Integrity hardening (enforced in `scripts/db-init.mjs`):
 
-- Non-empty checks for core text identifiers (`users.email`, `auth_invites.email`, `auth_email_otps.email`, listing address/neighborhood, listing contact).
+- Non-empty checks for core text identifiers (`users.email`, `deleted_users.email`, `auth_email_otps.email`, listing address/neighborhood, listing contact).
 - Numeric range checks for ratings, recommendation rates, coordinates, and year fields.
 - Review approval consistency (`approved_at` must be present only when `status='approved'`).
 - Review rent consistency (`reviews.price_usd` must be null or > 0).
-- Invite consumption consistency (`consumed_at`/`consumed_reason` must be set together; consumed timestamp cannot be before creation).
 - OTP consistency (`consumed_at`/`consumed_reason` coupled, attempts non-negative, expires/consumed not before creation).
 - Legacy-row normalization before constraints are applied (trim/canonicalize emails, null-out invalid ranges, dedupe users by case-insensitive email).
 - `db:init` is idempotent across both pre-enum and post-enum states for `reviews.source`/`reviews.status`.
@@ -320,18 +300,11 @@ Must remain true:
 - Detail review form: `src/app/[lang]/place/[id]/review-form.tsx`
 - Admin layout + navigation: `src/app/[lang]/admin/layout.tsx`, `src/app/[lang]/admin/admin-nav.tsx`
 - Admin reviews page: `src/app/[lang]/admin/reviews/page.tsx`
-- Admin invites page: `src/app/[lang]/admin/invites/page.tsx`
 - Admin access page: `src/app/[lang]/admin/access/page.tsx`
 - Legacy moderation path redirect: `src/app/[lang]/admin/moderation/page.tsx` -> `/{lang}/admin/reviews`
-- Invite activation page: `src/app/[lang]/activate/page.tsx`
-- Invite activation form: `src/app/[lang]/activate/activate-form.tsx`
-- Admin invite API: `src/app/api/admin/invites/route.ts`
-  - `POST` create single/bulk invites
-  - `GET` invite history (`open` + `activated` + `replaced` + `expired`)
 - Admin users API: `src/app/api/admin/users/route.ts`
-  - `GET` managed users (`active` + `revoked`)
-  - `POST` revoke user access
-- Invite activation API: `src/app/api/session/invite/route.ts`
+  - `GET` managed users (`active` + `deleted`)
+  - `POST` update roles, delete, or bulk upsert users
 - Role/auth helpers: `src/lib/auth.ts`
 - OTP mail delivery helper: `src/lib/otp-mailer.ts`
 - Data access: `src/lib/data.ts`
@@ -350,7 +323,7 @@ Must remain true:
 6. Avoid schema drift: update `scripts/db-init.mjs`, `scripts/db-seed.mjs`, and this file together.
 7. Never expose secrets/tokens in client code or logs.
 8. Keep login OTP-only for top-bar auth; only active users already present in `users` should be able to complete sign-in.
-9. Keep invite flow one-time and expiring; never store raw invite tokens in DB.
+9. Keep OTP login as the only sign-in method unless explicitly changed.
 
 ## Change Checklist (Use Every Task)
 

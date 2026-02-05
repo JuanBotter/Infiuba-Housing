@@ -14,7 +14,7 @@ Multilingual MVP (English, Spanish, French, German, Portuguese, Italian, Norwegi
 - Public review submission flow with address suggestions; existing properties get a new review, new ones are created automatically.
 - Role-based access: `visitor` (default), `whitelisted` (student full access), `admin`.
 - Email OTP login for approved users stored in PostgreSQL (`users` table).
-- Admin moderation UI at `/{lang}/admin/moderation`.
+- Admin reviews and user access UI at `/{lang}/admin/reviews` and `/{lang}/admin/access`.
 
 ## Run locally
 
@@ -78,7 +78,7 @@ When `DATABASE_URL` is set, the app uses PostgreSQL for:
 - web reviews (pending/approved/rejected)
 - dataset metadata
 - auth users
-- auth invites
+- deleted user emails
 - auth email OTP codes
 
 Useful commands:
@@ -102,8 +102,8 @@ Translations are stored in language columns (`comment_en`, `comment_es`, `commen
 
 New student reviews are written to PostgreSQL (`reviews` table, `status='pending'`) and can be moderated from:
 
-- `http://localhost:3000/en/admin/moderation`
-- `http://localhost:3000/es/admin/moderation`
+- `http://localhost:3000/en/admin/reviews`
+- `http://localhost:3000/es/admin/reviews`
 
 ## Access roles
 
@@ -142,7 +142,7 @@ npm run user:upsert -- --email admin@example.com --role admin
   - can submit reviews
 - `admin` role:
   - everything from whitelisted
-  - can access `/{lang}/admin/moderation` and moderate reviews
+  - can access `/{lang}/admin/reviews` and `/{lang}/admin/access`
 
 Use the access icon in the top bar to:
 
@@ -150,14 +150,3 @@ Use the access icon in the top bar to:
 - verify the OTP code and start a signed session
 - optionally check "Remember me" to keep that session for 30 days (otherwise it ends when the browser session ends)
 - in local dev, `mock@email.com` always delivers OTP to server console logs instead of email provider
-
-## Invite links (optional onboarding)
-
-- Admins can generate invite links from the moderation page.
-- Bulk creation is supported (comma/newline/semicolon-separated emails).
-- Invite links open `/{lang}/activate?token=...`.
-- Students can still set a password once to activate an invite; regular day-to-day sign-in uses email OTP from the access menu.
-- Invite tokens are one-time and expire based on the selected duration.
-- Creating a new invite for the same email automatically invalidates previous open invites for that email.
-- Admin moderation now includes invite history with open/activated/replaced/expired status and timestamps.
-- After pulling schema/auth updates, run `npm run db:init` to add any missing invite columns.

@@ -4,12 +4,11 @@ import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { getMessages } from "@/lib/i18n";
-import type { AuthMethod, Lang, UserRole } from "@/types";
+import type { Lang, UserRole } from "@/types";
 
 interface RoleSwitcherProps {
   lang: Lang;
   role: UserRole;
-  authMethod?: AuthMethod;
   email?: string;
 }
 
@@ -33,7 +32,7 @@ function UserIcon() {
 type AccessStatus = "idle" | "sending" | "error" | "success";
 type OtpStep = "request" | "verify";
 
-export function RoleSwitcher({ lang, role, authMethod, email }: RoleSwitcherProps) {
+export function RoleSwitcher({ lang, role, email }: RoleSwitcherProps) {
   const t = useMemo(() => getMessages(lang), [lang]);
   const router = useRouter();
   const detailsRef = useRef<HTMLDetailsElement | null>(null);
@@ -320,8 +319,6 @@ export function RoleSwitcher({ lang, role, authMethod, email }: RoleSwitcherProp
               <p className="role-menu__hint">
                 {t.accessLoggedInAsLabel}: <strong>{email}</strong>
               </p>
-            ) : authMethod === "code" ? (
-              <p className="role-menu__hint">{t.accessLoggedInWithCodeLabel}</p>
             ) : null}
             <button type="button" className="button-link" onClick={() => void signOut()}>
               {t.accessSignOut}
