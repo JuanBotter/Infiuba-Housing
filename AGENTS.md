@@ -74,6 +74,7 @@ Do not defer AGENTS updates.
 - Test suite: `npm test`
 - Production build: `npm run build`
 - Vercel deploy uses `vercel-build` to run tests + migrations before build: `npm run test && npm run db:migrate && npm run build`
+- Next.js type-check excludes `tests/` and `vitest*.config.ts` via `tsconfig.json` to avoid build-time config/type conflicts.
 - Import dataset from CSV: `npm run import:data`
 - `npm run import:data` writes local seed dataset `src/data/accommodations.json` (gitignored).
 - Geocode listings: `npm run geocode:data`

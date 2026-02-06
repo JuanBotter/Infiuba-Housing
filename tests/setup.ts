@@ -6,7 +6,7 @@ beforeAll(() => {
     process.env.DATABASE_URL = "postgres://test";
   }
   process.env.OTP_EMAIL_PROVIDER = "console";
-  process.env.NODE_ENV = "test";
+  Object.assign(process.env, { NODE_ENV: "test" });
 });
 
 afterEach(() => {
