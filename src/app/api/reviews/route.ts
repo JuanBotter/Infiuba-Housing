@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { canSubmitReviews, getRoleFromRequestAsync } from "@/lib/auth";
 import { createListing, getListingById } from "@/lib/data";
+import { validateSameOriginRequest } from "@/lib/request-origin";
 import { appendPendingReview } from "@/lib/reviews-store";
 
 function truncate(value: unknown, maxLength: number) {
@@ -31,6 +32,11 @@ function parseContacts(value: unknown) {
 
 export async function POST(request: Request) {
   try {
+    const originValidation = validateSameOriginRequest(request);
+    if (!originValidation.ok) {
+      return originValidation.response;
+    }
+
     const role = await getRoleFromRequestAsync(request);
     if (!canSubmitReviews(role)) {
       return NextResponse.json(

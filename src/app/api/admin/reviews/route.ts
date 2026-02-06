@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { canAccessAdmin, getRoleFromRequestAsync } from "@/lib/auth";
+import { validateSameOriginRequest } from "@/lib/request-origin";
 import {
   getApprovedReviews,
   getPendingReviews,
@@ -20,6 +21,11 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const originValidation = validateSameOriginRequest(request);
+  if (!originValidation.ok) {
+    return originValidation.response;
+  }
+
   if (!canAccessAdmin(await getRoleFromRequestAsync(request))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

@@ -27,6 +27,7 @@ Do not defer AGENTS updates.
 - OTP delivery supports a console-only email override for local testing (`mock@email.com` by default outside production).
 - OTP mailer logs provider availability and send failures (redacted recipient) to server logs for troubleshooting.
 - OTP request/verify API responses are intentionally enumeration-safe: request responses are generic for allowed/not-allowed/rate-limited outcomes, and verify failures return a generic invalid-code response for auth failures.
+- Stateful API endpoints enforce same-origin checks (Origin/Referer must match request host) to reduce CSRF risk.
 - DB migrations are managed with node-pg-migrate (`migrations/` directory).
 - Admin UX: split views for reviews and access management under `/{lang}/admin/*`; access view supports search, role changes, deletion, and bulk user creation.
 - Main listings UI uses a view toggle: `Map` (default), `List`, and (for whitelisted/admin) `Add review`.

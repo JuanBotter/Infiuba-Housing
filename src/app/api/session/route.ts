@@ -7,6 +7,7 @@ import {
   requestLoginOtp,
   verifyLoginOtp,
 } from "@/lib/auth";
+import { validateSameOriginRequest } from "@/lib/request-origin";
 
 function parseEmail(value: unknown) {
   if (typeof value !== "string") {
@@ -49,6 +50,11 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const originValidation = validateSameOriginRequest(request);
+  if (!originValidation.ok) {
+    return originValidation.response;
+  }
+
   const payload = await request.json().catch(() => null);
   const action = parseAction(payload?.action);
   const email = parseEmail(payload?.email);
@@ -115,7 +121,12 @@ export async function POST(request: Request) {
   return response;
 }
 
-export function DELETE() {
+export function DELETE(request: Request) {
+  const originValidation = validateSameOriginRequest(request);
+  if (!originValidation.ok) {
+    return originValidation.response;
+  }
+
   const response = NextResponse.json({ ok: true, role: "visitor" });
   response.cookies.set(buildRoleCookieClear());
   return response;

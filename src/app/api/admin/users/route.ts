@@ -9,6 +9,7 @@ import {
   updateUserRole,
   upsertUsers,
 } from "@/lib/auth";
+import { validateSameOriginRequest } from "@/lib/request-origin";
 
 function parseLimit(value: string | null) {
   const parsed = Number(value);
@@ -74,6 +75,11 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const originValidation = validateSameOriginRequest(request);
+  if (!originValidation.ok) {
+    return originValidation.response;
+  }
+
   const session = await getAuthSessionFromRequest(request);
   if (!canAccessAdmin(session.role)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
