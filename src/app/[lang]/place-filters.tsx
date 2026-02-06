@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { AddStayReviewForm } from "@/app/[lang]/add-stay-review-form";
+import { MapListingSidebarItem } from "@/app/[lang]/map-listing-sidebar-item";
 import {
   getListingMinReviewPrice,
   hasReviewPriceInRange,
@@ -706,56 +707,20 @@ export function PlaceFilters({
             {filteredAndSorted.map((listing) => {
               const isSelected = selectedMapListing?.id === listing.id;
               return (
-                <article
+                <MapListingSidebarItem
                   key={listing.id}
-                  ref={(element) => {
+                  lang={lang}
+                  listing={listing}
+                  messages={messages}
+                  isSelected={isSelected}
+                  registerRef={(element) => {
                     mapListItemRefs.current[listing.id] = element;
                   }}
-                  className={`map-listing ${isSelected ? "is-selected" : ""}`}
-                >
-                  <button
-                    type="button"
-                    className="map-listing__select"
-                    aria-pressed={isSelected}
-                    onClick={() => {
-                      setSelectedMapListingId(listing.id);
-                      setIsMapListOpen(false);
-                    }}
-                  >
-                    <div className="map-listing__head">
-                      <p className="place-card__neighborhood">{listing.neighborhood}</p>
-                      <p className="place-card__reviews-badge">
-                        {listing.totalReviews} {messages.reviewsLabel}
-                      </p>
-                    </div>
-                    <h3>{listing.address}</h3>
-                    <div className="map-listing__stats">
-                      <p>
-                        {messages.ratingLabel}:{" "}
-                        {typeof listing.averageRating === "number"
-                          ? formatDecimal(listing.averageRating, lang)
-                          : "-"}
-                      </p>
-                      <p>
-                        {messages.priceLabel}:{" "}
-                        {(() => {
-                          const priceText = formatUsdRange(
-                            {
-                              min: listing.minPriceUsd,
-                              max: listing.maxPriceUsd,
-                              fallback: listing.priceUsd,
-                            },
-                            lang,
-                          );
-                          return priceText ? `${priceText} ${messages.monthSuffix}` : "-";
-                        })()}
-                      </p>
-                    </div>
-                  </button>
-                  <Link href={`/${lang}/place/${listing.id}`} className="inline-link">
-                    {messages.viewDetails}
-                  </Link>
-                </article>
+                  onSelect={() => {
+                    setSelectedMapListingId(listing.id);
+                    setIsMapListOpen(false);
+                  }}
+                />
               );
             })}
           </aside>

@@ -43,6 +43,7 @@ Do not defer AGENTS updates.
 - Cards/Map filters include search, neighborhood, recommendation, min/max price, minimum rating, sorting (default: newest), and active filter chips that support one-click removal plus clear-all.
 - Price filtering is review-history based: with a min/max rent filter active, a listing matches only when at least one approved review `price_usd` falls within the selected bounds.
 - `price_asc` sorting uses the listing's lowest approved-review rent value (listings without review rents sort after priced listings).
+- Place-filters/map UI is modularized with dedicated helper/components (`place-filters-price.ts`, `map-listing-sidebar-item.tsx`), and map styles are split into `globals-map.css` imported from `globals.css`.
 - Cards/Map filter state (including selected view mode) is persisted in browser `localStorage` using shared key `infiuba:filters:v2` so navigation/reloads and language switches keep the same filters/view; legacy per-language keys are auto-migrated on read.
 - Filter persistence loading is gated so initial render defaults never overwrite stored filters before hydration applies them.
 - Listing aggregate fields (`average_rating`, `recommendation_rate`, `total_reviews`, `recent_year`) are recomputed from approved reviews whenever a pending web review is approved.
@@ -345,6 +346,7 @@ Must remain true:
 - Listing page: `src/app/[lang]/page.tsx`
 - Filters + map/cards UI: `src/app/[lang]/place-filters.tsx`
 - Price filter/sort helper module: `src/app/[lang]/place-filters-price.ts`
+- Map sidebar item component: `src/app/[lang]/map-listing-sidebar-item.tsx`
 - Listing detail page: `src/app/[lang]/place/[id]/page.tsx`
 - Add review flow: `src/app/[lang]/add-stay-review-form.tsx`
 - Detail review form: `src/app/[lang]/place/[id]/review-form.tsx`
@@ -369,6 +371,7 @@ Must remain true:
 - Reviews store: `src/lib/reviews-store.ts`
 - Messages/i18n: `src/i18n/messages.ts`
 - CI checks workflow: `.github/workflows/ci.yml`
+- Global map styles partial: `src/app/globals-map.css`
 
 ## Agent Best Practices for This Repo
 
