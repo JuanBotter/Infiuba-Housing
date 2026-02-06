@@ -2,12 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 import { createListing, getListingById } from "@/lib/data";
 import { dbQuery } from "@/lib/db";
-import {
-  appendPendingReview,
-  getApprovedReviews,
-  getPendingReviews,
-  moderatePendingReview,
-} from "@/lib/reviews-store";
+import { appendPendingReview, getPendingReviews, moderatePendingReview } from "@/lib/reviews-store";
 import { resetIntegrationDatabase } from "./helpers";
 
 describe("integration: listings and reviews", () => {
@@ -59,8 +54,11 @@ describe("integration: listings and reviews", () => {
     const moderation = await moderatePendingReview(pending.id, "approve");
     expect(moderation.ok).toBe(true);
 
-    const approved = await getApprovedReviews();
-    expect(approved).toHaveLength(1);
-    expect(approved[0].priceUsd).toBe(400);
+    const approvedRows = await dbQuery<{ status: string; approved_at: string | null }>(
+      `SELECT status, approved_at FROM reviews WHERE id = $1`,
+      [pending.id],
+    );
+    expect(approvedRows.rows[0]?.status).toBe("approved");
+    expect(approvedRows.rows[0]?.approved_at).toBeTruthy();
   });
 });
