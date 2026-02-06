@@ -14,6 +14,7 @@ Multilingual MVP (English, Spanish, French, German, Portuguese, Italian, Norwegi
 - Public review submission flow with address suggestions; existing properties get a new review, new ones are created automatically.
 - Role-based access: `visitor` (default), `whitelisted` (student full access), `admin`.
 - Email OTP login for approved users stored in PostgreSQL (`users` table).
+- Layered OTP abuse throttling (request limits by IP/subnet/global and verify-failure limits by IP and email+IP).
 - Admin reviews and user access UI at `/{lang}/admin/reviews` and `/{lang}/admin/access`.
 
 ## Run locally
@@ -87,6 +88,7 @@ The app requires PostgreSQL (`DATABASE_URL`) and uses it for:
 - auth users
 - deleted user emails
 - auth email OTP codes
+- OTP rate-limit buckets (abuse protection counters)
 
 If `PGSSL=true`, certificate verification is strict by default (`rejectUnauthorized=true`).
 Only local development should use `PGSSL_ALLOW_INSECURE=true`.
@@ -168,3 +170,4 @@ Use the access icon in the top bar to:
 - verify the OTP code and start a signed session
 - optionally check "Remember me" to keep that session for 30 days (otherwise it ends when the browser session ends)
 - in local dev, `mock@email.com` always delivers OTP to server console logs instead of email provider
+- OTP endpoints apply layered network-based throttling to reduce abuse

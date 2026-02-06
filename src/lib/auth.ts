@@ -15,8 +15,24 @@ const OTP_CODE_LENGTH = 6;
 const OTP_EXPIRY_MINUTES = 15;
 const OTP_MIN_RESEND_INTERVAL_SECONDS = 45;
 const OTP_MAX_ATTEMPTS = 5;
+const OTP_RATE_LIMIT_WINDOW_SECONDS = 60 * 10;
+const OTP_REQUEST_MAX_PER_IP = 5;
+const OTP_REQUEST_MAX_PER_SUBNET = 30;
+const OTP_REQUEST_MAX_GLOBAL = 300;
+const OTP_VERIFY_FAILURE_MAX_PER_IP = 20;
+const OTP_VERIFY_FAILURE_MAX_PER_EMAIL_IP = 8;
+const OTP_RATE_LIMIT_RETENTION_SECONDS = 60 * 60 * 24;
+const OTP_RATE_LIMIT_GC_INTERVAL_MS = 60 * 60 * 1000;
+const OTP_RATE_LIMIT_UNKNOWN_NETWORK_KEY = "unknown";
+const OTP_RATE_LIMIT_GLOBAL_KEY = "global";
+const OTP_RATE_LIMIT_SCOPE_REQUEST_IP = "otp_request_ip";
+const OTP_RATE_LIMIT_SCOPE_REQUEST_SUBNET = "otp_request_subnet";
+const OTP_RATE_LIMIT_SCOPE_REQUEST_GLOBAL = "otp_request_global";
+const OTP_RATE_LIMIT_SCOPE_VERIFY_FAILURE_IP = "otp_verify_failure_ip";
+const OTP_RATE_LIMIT_SCOPE_VERIFY_FAILURE_EMAIL_IP = "otp_verify_failure_email_ip";
 
 let runtimeSecret: string | null = null;
+let lastRateLimitCleanupAt = 0;
 
 function isUserRole(value: string): value is UserRole {
   return value === "visitor" || value === "whitelisted" || value === "admin";
@@ -45,7 +61,10 @@ function isMissingOtpStorageError(error: unknown) {
   }
 
   const message = "message" in error ? (error as { message?: unknown }).message : undefined;
-  return typeof message === "string" && message.includes("auth_email_otps");
+  return (
+    typeof message === "string" &&
+    (message.includes("auth_email_otps") || message.includes("auth_rate_limit_buckets"))
+  );
 }
 
 interface ManagedUserRow {
@@ -79,6 +98,22 @@ interface OtpValidationRow {
   id: number;
   code_hash: string;
   attempts: number;
+}
+
+interface OtpRateLimitBucketRow {
+  hits: number;
+}
+
+interface OtpRateLimitRule {
+  scope: string;
+  key: string;
+  limit: number;
+  windowSeconds: number;
+}
+
+export interface OtpRateLimitContext {
+  ipKey?: string;
+  subnetKey?: string;
 }
 
 export interface AuthSession {
@@ -142,6 +177,194 @@ function isValidOtpCode(value: string) {
 
 function normalizeDateToIsoString(value: string | Date) {
   return typeof value === "string" ? value : value.toISOString();
+}
+
+function resolveRateLimitContext(context?: OtpRateLimitContext) {
+  const ipKey = context?.ipKey?.trim() || OTP_RATE_LIMIT_UNKNOWN_NETWORK_KEY;
+  const subnetKey = context?.subnetKey?.trim() || ipKey;
+  return { ipKey, subnetKey };
+}
+
+function buildRateLimitBucketKeyHash(scope: string, key: string) {
+  return createHmac("sha256", getSigningSecret())
+    .update(`${scope}|${key}`)
+    .digest("hex");
+}
+
+function resolveRateLimitBucketStart(nowMs: number, windowSeconds: number) {
+  const windowMs = windowSeconds * 1000;
+  return nowMs - (nowMs % windowMs);
+}
+
+function resolveRateLimitRetryAfterSeconds(nowMs: number, bucketStartMs: number, windowSeconds: number) {
+  const elapsedSeconds = Math.floor((nowMs - bucketStartMs) / 1000);
+  return Math.max(windowSeconds - elapsedSeconds, 1);
+}
+
+async function maybeCleanupRateLimitBuckets() {
+  const now = Date.now();
+  if (now - lastRateLimitCleanupAt < OTP_RATE_LIMIT_GC_INTERVAL_MS) {
+    return;
+  }
+  lastRateLimitCleanupAt = now;
+
+  await dbQuery(
+    `
+      DELETE FROM auth_rate_limit_buckets
+      WHERE updated_at < NOW() - make_interval(secs => $1)
+    `,
+    [OTP_RATE_LIMIT_RETENTION_SECONDS],
+  );
+}
+
+async function incrementRateLimitRule(rule: OtpRateLimitRule) {
+  const nowMs = Date.now();
+  const bucketStartMs = resolveRateLimitBucketStart(nowMs, rule.windowSeconds);
+  const bucketStart = new Date(bucketStartMs).toISOString();
+  const keyHash = buildRateLimitBucketKeyHash(rule.scope, rule.key);
+
+  const result = await dbQuery<OtpRateLimitBucketRow>(
+    `
+      INSERT INTO auth_rate_limit_buckets (
+        scope,
+        bucket_key_hash,
+        window_seconds,
+        bucket_start,
+        hits,
+        updated_at
+      )
+      VALUES ($1, $2, $3, $4, 1, NOW())
+      ON CONFLICT (scope, bucket_key_hash, window_seconds, bucket_start)
+      DO UPDATE
+      SET hits = auth_rate_limit_buckets.hits + 1,
+          updated_at = NOW()
+      RETURNING hits
+    `,
+    [rule.scope, keyHash, rule.windowSeconds, bucketStart],
+  );
+
+  const hits = Number(result.rows[0]?.hits ?? 1);
+  const retryAfterSeconds = resolveRateLimitRetryAfterSeconds(nowMs, bucketStartMs, rule.windowSeconds);
+
+  return {
+    hits,
+    blocked: hits > rule.limit,
+    retryAfterSeconds,
+  };
+}
+
+async function getRateLimitRuleHits(rule: OtpRateLimitRule) {
+  const nowMs = Date.now();
+  const bucketStart = new Date(resolveRateLimitBucketStart(nowMs, rule.windowSeconds)).toISOString();
+  const keyHash = buildRateLimitBucketKeyHash(rule.scope, rule.key);
+
+  const result = await dbQuery<OtpRateLimitBucketRow>(
+    `
+      SELECT hits
+      FROM auth_rate_limit_buckets
+      WHERE scope = $1
+        AND bucket_key_hash = $2
+        AND window_seconds = $3
+        AND bucket_start = $4
+      LIMIT 1
+    `,
+    [rule.scope, keyHash, rule.windowSeconds, bucketStart],
+  );
+
+  const hits = Number(result.rows[0]?.hits ?? 0);
+  return {
+    hits,
+    blocked: hits >= rule.limit,
+  };
+}
+
+async function consumeRateLimitRules(rules: OtpRateLimitRule[]) {
+  let blocked = false;
+  let retryAfterSeconds = 1;
+
+  for (const rule of rules) {
+    const result = await incrementRateLimitRule(rule);
+    if (result.blocked) {
+      blocked = true;
+      retryAfterSeconds = Math.max(retryAfterSeconds, result.retryAfterSeconds);
+    }
+  }
+
+  await maybeCleanupRateLimitBuckets();
+  return {
+    blocked,
+    retryAfterSeconds,
+  };
+}
+
+async function isBlockedByRateLimitRules(rules: OtpRateLimitRule[]) {
+  for (const rule of rules) {
+    const result = await getRateLimitRuleHits(rule);
+    if (result.blocked) {
+      return true;
+    }
+  }
+  return false;
+}
+
+async function consumeOtpRequestRateLimits(context?: OtpRateLimitContext) {
+  const network = resolveRateLimitContext(context);
+  return consumeRateLimitRules([
+    {
+      scope: OTP_RATE_LIMIT_SCOPE_REQUEST_IP,
+      key: network.ipKey,
+      limit: OTP_REQUEST_MAX_PER_IP,
+      windowSeconds: OTP_RATE_LIMIT_WINDOW_SECONDS,
+    },
+    {
+      scope: OTP_RATE_LIMIT_SCOPE_REQUEST_SUBNET,
+      key: network.subnetKey,
+      limit: OTP_REQUEST_MAX_PER_SUBNET,
+      windowSeconds: OTP_RATE_LIMIT_WINDOW_SECONDS,
+    },
+    {
+      scope: OTP_RATE_LIMIT_SCOPE_REQUEST_GLOBAL,
+      key: OTP_RATE_LIMIT_GLOBAL_KEY,
+      limit: OTP_REQUEST_MAX_GLOBAL,
+      windowSeconds: OTP_RATE_LIMIT_WINDOW_SECONDS,
+    },
+  ]);
+}
+
+async function isOtpVerifyFailureRateLimited(email: string, context?: OtpRateLimitContext) {
+  const network = resolveRateLimitContext(context);
+  return isBlockedByRateLimitRules([
+    {
+      scope: OTP_RATE_LIMIT_SCOPE_VERIFY_FAILURE_IP,
+      key: network.ipKey,
+      limit: OTP_VERIFY_FAILURE_MAX_PER_IP,
+      windowSeconds: OTP_RATE_LIMIT_WINDOW_SECONDS,
+    },
+    {
+      scope: OTP_RATE_LIMIT_SCOPE_VERIFY_FAILURE_EMAIL_IP,
+      key: `${email}|${network.ipKey}`,
+      limit: OTP_VERIFY_FAILURE_MAX_PER_EMAIL_IP,
+      windowSeconds: OTP_RATE_LIMIT_WINDOW_SECONDS,
+    },
+  ]);
+}
+
+async function recordOtpVerifyFailure(email: string, context?: OtpRateLimitContext) {
+  const network = resolveRateLimitContext(context);
+  return consumeRateLimitRules([
+    {
+      scope: OTP_RATE_LIMIT_SCOPE_VERIFY_FAILURE_IP,
+      key: network.ipKey,
+      limit: OTP_VERIFY_FAILURE_MAX_PER_IP,
+      windowSeconds: OTP_RATE_LIMIT_WINDOW_SECONDS,
+    },
+    {
+      scope: OTP_RATE_LIMIT_SCOPE_VERIFY_FAILURE_EMAIL_IP,
+      key: `${email}|${network.ipKey}`,
+      limit: OTP_VERIFY_FAILURE_MAX_PER_EMAIL_IP,
+      windowSeconds: OTP_RATE_LIMIT_WINDOW_SECONDS,
+    },
+  ]);
 }
 
 function getSigningSecret() {
@@ -339,6 +562,7 @@ export async function getRoleFromRequestAsync(request: Request) {
 
 export async function requestLoginOtp(
   email: string,
+  rateLimitContext?: OtpRateLimitContext,
 ): Promise<
   | { ok: true; email: string; expiresAt: string }
   | {
@@ -363,6 +587,15 @@ export async function requestLoginOtp(
   }
 
   try {
+    const consumedRequestRateLimit = await consumeOtpRequestRateLimits(rateLimitContext);
+    if (consumedRequestRateLimit.blocked) {
+      return {
+        ok: false,
+        reason: "rate_limited",
+        retryAfterSeconds: consumedRequestRateLimit.retryAfterSeconds,
+      };
+    }
+
     const userResult = await dbQuery<ActiveUserRow>(
       `
         SELECT role, is_active
@@ -492,6 +725,7 @@ export async function requestLoginOtp(
 export async function verifyLoginOtp(
   email: string,
   otpCode: string,
+  rateLimitContext?: OtpRateLimitContext,
 ): Promise<
   | { ok: true; role: "whitelisted" | "admin"; email: string }
   | {
@@ -504,17 +738,26 @@ export async function verifyLoginOtp(
     return { ok: false, reason: "invalid_email" };
   }
 
-  const normalizedOtpCode = normalizeOtpCode(otpCode);
-  if (!isValidOtpCode(normalizedOtpCode)) {
-    return { ok: false, reason: "invalid_code" };
-  }
-
   if (!isDatabaseEnabled()) {
     return { ok: false, reason: "db_unavailable" };
   }
 
   try {
-    return withTransaction(async (client) => {
+    const verifyFailureRateLimited = await isOtpVerifyFailureRateLimited(
+      normalizedEmail,
+      rateLimitContext,
+    );
+    if (verifyFailureRateLimited) {
+      return { ok: false, reason: "invalid_or_expired" };
+    }
+
+    const normalizedOtpCode = normalizeOtpCode(otpCode);
+    if (!isValidOtpCode(normalizedOtpCode)) {
+      await recordOtpVerifyFailure(normalizedEmail, rateLimitContext);
+      return { ok: false, reason: "invalid_code" };
+    }
+
+    const verification = await withTransaction(async (client) => {
       const userResult = await client.query<ActiveUserRow>(
         `
           SELECT role, is_active
@@ -608,10 +851,15 @@ export async function verifyLoginOtp(
 
       return {
         ok: true as const,
-        role: user.role,
+        role: user.role as "whitelisted" | "admin",
         email: normalizedEmail,
       };
     });
+
+    if (!verification.ok) {
+      await recordOtpVerifyFailure(normalizedEmail, rateLimitContext);
+    }
+    return verification;
   } catch (error) {
     if (isMissingOtpStorageError(error)) {
       return { ok: false, reason: "db_unavailable" };

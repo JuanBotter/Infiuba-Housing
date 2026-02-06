@@ -7,6 +7,7 @@ import {
   requestLoginOtp,
   verifyLoginOtp,
 } from "@/lib/auth";
+import { getRequestNetworkFingerprint } from "@/lib/request-network";
 import { validateSameOriginRequest } from "@/lib/request-origin";
 
 function parseEmail(value: unknown) {
@@ -55,6 +56,8 @@ export async function POST(request: Request) {
     return originValidation.response;
   }
 
+  const networkFingerprint = getRequestNetworkFingerprint(request);
+
   const payload = await request.json().catch(() => null);
   const action = parseAction(payload?.action);
   const email = parseEmail(payload?.email);
@@ -73,7 +76,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Missing email" }, { status: 400 });
     }
 
-    const requested = await requestLoginOtp(email);
+    const requested = await requestLoginOtp(email, networkFingerprint);
     if (!requested.ok) {
       if (requested.reason === "db_unavailable") {
         return NextResponse.json({ error: "Database is required for OTP login" }, { status: 503 });
@@ -92,7 +95,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Missing email or OTP code" }, { status: 400 });
   }
 
-  const verified = await verifyLoginOtp(email, otpCode);
+  const verified = await verifyLoginOtp(email, otpCode, networkFingerprint);
   if (!verified.ok) {
     if (verified.reason === "db_unavailable") {
       return NextResponse.json({ error: "Database is required for OTP login" }, { status: 503 });

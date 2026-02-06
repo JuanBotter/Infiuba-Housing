@@ -27,6 +27,7 @@ Do not defer AGENTS updates.
 - OTP delivery supports a console-only email override for local testing (`mock@email.com` by default outside production).
 - OTP mailer logs provider availability and send failures (redacted recipient) to server logs for troubleshooting.
 - OTP request/verify API responses are intentionally enumeration-safe: request responses are generic for allowed/not-allowed/rate-limited outcomes, and verify failures return a generic invalid-code response for auth failures.
+- OTP abuse controls are DB-backed and layered: OTP requests are rate limited by IP/subnet/global windows, and OTP verify failures are rate limited by IP and email+IP windows.
 - Stateful API endpoints enforce same-origin checks (Origin/Referer must match request host) to reduce CSRF risk.
 - DB migrations are managed with node-pg-migrate (`migrations/` directory).
 - Admin UX: split views for reviews and access management under `/{lang}/admin/*`; access view supports search, role changes, deletion, and bulk user creation.
@@ -113,6 +114,7 @@ Implementation:
     - Verify path sets signed role cookie.
     - `requestOtp` intentionally returns a generic success payload for most auth-related outcomes to reduce account enumeration.
     - `verifyOtp` intentionally returns generic invalid-code failures for non-success auth outcomes (`not_allowed`, invalid/expired codes, etc.).
+    - OTP abuse throttling uses request network fingerprints derived from proxy headers (`x-forwarded-for`, `cf-connecting-ip`, `x-real-ip`, `forwarded`).
   - `DELETE /api/session` -> logout (clears cookie).
   - `GET /api/session` -> current resolved role (DB-validated for cookie-backed sessions).
   - `POST /api/session` is the only sign-in path (OTP).
@@ -142,7 +144,7 @@ Seed/import tooling:
 
 ## Database Schema (Current)
 
-Defined in `migrations/001_initial_schema.sql` (applied via node-pg-migrate).
+Defined in `migrations/001_initial_schema.sql` and `migrations/002_otp_rate_limit_buckets.sql` (applied via node-pg-migrate).
 
 Finite-state fields use PostgreSQL enums:
 
@@ -234,6 +236,17 @@ Finite-state fields use PostgreSQL enums:
 - `attempts INTEGER NOT NULL DEFAULT 0`
 - `created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`
 
+### `auth_rate_limit_buckets`
+
+- `scope TEXT NOT NULL` (rate-limit scope id)
+- `bucket_key_hash TEXT NOT NULL` (HMAC hash of network/global bucket key; raw IP/subnet is never stored)
+- `window_seconds INTEGER NOT NULL` (window size per scope)
+- `bucket_start TIMESTAMPTZ NOT NULL` (fixed-window bucket start)
+- `hits INTEGER NOT NULL DEFAULT 0`
+- `created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`
+- `updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`
+- `PRIMARY KEY (scope, bucket_key_hash, window_seconds, bucket_start)`
+
 Legacy (unused by app):
 
 - `auth_invites` table and `invite_consumed_reason_enum` type remain in some DBs for backward compatibility, but invite flows are removed.
@@ -248,16 +261,19 @@ Indexes:
 - `idx_deleted_users_deleted_at ON deleted_users(deleted_at DESC)`
 - `idx_auth_email_otps_email_open ON auth_email_otps(email, consumed_at, expires_at DESC)`
 - `idx_auth_email_otps_email_lower ON auth_email_otps(lower(email))`
+- `idx_auth_rate_limit_buckets_updated_at ON auth_rate_limit_buckets(updated_at DESC)`
+- `idx_auth_rate_limit_buckets_scope_key ON auth_rate_limit_buckets(scope, bucket_key_hash, updated_at DESC)`
 - `idx_reviews_listing_status ON reviews(listing_id, status, source)`
 - `idx_reviews_status_created ON reviews(status, created_at DESC)`
 
-Integrity hardening (enforced in `migrations/001_initial_schema.sql`):
+Integrity hardening (enforced in `migrations/001_initial_schema.sql` and `migrations/002_otp_rate_limit_buckets.sql`):
 
 - Non-empty checks for core text identifiers (`users.email`, `deleted_users.email`, `auth_email_otps.email`, listing address/neighborhood, listing contact).
 - Numeric range checks for ratings, recommendation rates, coordinates, and year fields.
 - Review approval consistency (`approved_at` must be present only when `status='approved'`).
 - Review rent consistency (`reviews.price_usd` must be null or > 0).
 - OTP consistency (`consumed_at`/`consumed_reason` coupled, attempts non-negative, expires/consumed not before creation).
+- Rate-limit bucket consistency (`scope`/`bucket_key_hash` non-empty, `window_seconds > 0`, `hits >= 0`).
 - Legacy-row normalization before constraints are applied (trim/canonicalize emails, null-out invalid ranges, dedupe users by case-insensitive email).
 - Initial migration handles both pre-enum and post-enum states for `reviews.source`/`reviews.status`.
 
@@ -319,6 +335,7 @@ Must remain true:
   - `GET` managed users (`active` + `deleted`)
   - `POST` update roles, delete, or bulk upsert users
 - Role/auth helpers: `src/lib/auth.ts`
+- Request network fingerprint helper: `src/lib/request-network.ts`
 - OTP mail delivery helper: `src/lib/otp-mailer.ts`
 - Data access: `src/lib/data.ts`
 - Reviews store: `src/lib/reviews-store.ts`
