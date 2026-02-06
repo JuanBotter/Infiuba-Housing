@@ -48,6 +48,7 @@ Do not defer AGENTS updates.
 - Install deps: `npm install`
 - Dev server: `npm run dev`
 - Production build: `npm run build`
+- Vercel deploy uses `vercel-build` to run migrations before build: `npm run db:migrate && npm run build`
 - Import dataset from CSV: `npm run import:data`
 - Geocode listings: `npm run geocode:data`
 - Init/migrate DB schema: `npm run db:migrate`

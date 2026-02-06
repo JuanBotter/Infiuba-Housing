@@ -18,6 +18,8 @@ Multilingual MVP (English, Spanish, French, German, Portuguese, Italian, Norwegi
 
 ## Run locally
 
+Note: On Vercel, the `vercel-build` script runs `npm run db:migrate` before `npm run build` so migrations apply automatically.
+
 1. Install dependencies:
 
 ```bash

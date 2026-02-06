@@ -12,7 +12,8 @@
     "db:seed": "node scripts/db-seed.mjs",
     "db:setup": "npm run db:migrate && npm run db:seed",
     "user:upsert": "node scripts/user-upsert.mjs",
-    "db:migrate": "node-pg-migrate up -m migrations -d DATABASE_URL"
+    "db:migrate": "node-pg-migrate up -m migrations -d DATABASE_URL",
+    "vercel-build": "npm run db:migrate && npm run build"
   },
   "dependencies": {
     "leaflet": "^1.9.4",
