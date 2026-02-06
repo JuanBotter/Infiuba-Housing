@@ -235,7 +235,7 @@ export function RoleSwitcher({ lang, role, email }: RoleSwitcherProps) {
             </p>
             <form className="role-menu__form" onSubmit={otpStep === "request" ? requestOtp : verifyOtp}>
               <label>
-                <span>{t.formEmail}</span>
+                <span>{t.accessEmailLabel}</span>
                 <input
                   type="email"
                   value={loginEmail}

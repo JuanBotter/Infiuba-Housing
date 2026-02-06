@@ -161,6 +161,7 @@ export const messages = {
     roleAdmin: "Admin",
     accessOtpRequestHint: "Enter your approved email and we'll send a one-time code.",
     accessOtpVerifyHint: "Enter the 6-digit code we sent to your email.",
+    accessEmailLabel: "Your email",
     accessEmailPlaceholder: "you@example.com",
     accessPasswordLabel: "Password",
     accessPasswordPlaceholder: "Enter your password",
@@ -377,6 +378,7 @@ export const messages = {
     roleAdmin: "Admin",
     accessOtpRequestHint: "Ingresá tu email autorizado y te enviaremos un código de un solo uso.",
     accessOtpVerifyHint: "Ingresá el código de 6 dígitos que te enviamos por email.",
+    accessEmailLabel: "Tu email",
     accessEmailPlaceholder: "vos@ejemplo.com",
     accessPasswordLabel: "Contraseña",
     accessPasswordPlaceholder: "Ingresá tu contraseña",
@@ -596,6 +598,7 @@ export const messages = {
     accessOtpRequestHint:
       "Saisissez votre e-mail autorisé et nous vous enverrons un code à usage unique.",
     accessOtpVerifyHint: "Saisissez le code à 6 chiffres envoyé par e-mail.",
+    accessEmailLabel: "Votre email",
     accessEmailPlaceholder: "vous@exemple.com",
     accessPasswordLabel: "Mot de passe",
     accessPasswordPlaceholder: "Entrez votre mot de passe",
@@ -815,6 +818,7 @@ export const messages = {
     accessOtpRequestHint:
       "Gib deine freigeschaltete E-Mail ein, dann senden wir dir einen Einmalcode.",
     accessOtpVerifyHint: "Gib den 6-stelligen Code aus der E-Mail ein.",
+    accessEmailLabel: "Deine E-Mail",
     accessEmailPlaceholder: "du@beispiel.de",
     accessPasswordLabel: "Passwort",
     accessPasswordPlaceholder: "Passwort eingeben",
@@ -1035,6 +1039,7 @@ export const messages = {
     accessOtpRequestHint:
       "Informe seu e-mail autorizado e enviaremos um código de uso único.",
     accessOtpVerifyHint: "Digite o código de 6 dígitos enviado para seu e-mail.",
+    accessEmailLabel: "Seu e-mail",
     accessEmailPlaceholder: "voce@exemplo.com",
     accessPasswordLabel: "Senha",
     accessPasswordPlaceholder: "Digite sua senha",
@@ -1254,6 +1259,7 @@ export const messages = {
     accessOtpRequestHint:
       "Inserisci la tua e-mail autorizzata e ti invieremo un codice monouso.",
     accessOtpVerifyHint: "Inserisci il codice a 6 cifre inviato via e-mail.",
+    accessEmailLabel: "La tua email",
     accessEmailPlaceholder: "tuo@esempio.it",
     accessPasswordLabel: "Password",
     accessPasswordPlaceholder: "Inserisci la password",
@@ -1473,6 +1479,7 @@ export const messages = {
     accessOtpRequestHint:
       "Skriv inn godkjent e-postadresse, så sender vi en engangskode.",
     accessOtpVerifyHint: "Skriv inn den 6-sifrede koden vi sendte på e-post.",
+    accessEmailLabel: "E-posten din",
     accessEmailPlaceholder: "deg@eksempel.no",
     accessPasswordLabel: "Passord",
     accessPasswordPlaceholder: "Skriv inn passordet",
