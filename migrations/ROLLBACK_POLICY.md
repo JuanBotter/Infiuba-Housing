@@ -19,9 +19,12 @@ This project uses a mixed rollback strategy:
    - `down` removes the bootstrap row only when it still looks like the migration-introduced default.
 5. `005_drop_legacy_invites`: reversible.
    - `down` recreates legacy invite enum/table/indexes.
+6. `006_security_audit_events`: reversible.
+   - `down` drops `security_audit_events` and related indexes.
 
 ## Operational guidance
 
 - Always take a database backup before running destructive migrations in production.
 - Treat `down` in production as an emergency action; prefer forward fixes and new migrations.
 - For baseline rollback needs, restore backup and re-run forward migrations to the desired state.
+- Project scripts run node-pg-migrate with `--check-order false` because migration filenames use numeric prefixes (`001_`, `002_`, ...) instead of timestamp prefixes.

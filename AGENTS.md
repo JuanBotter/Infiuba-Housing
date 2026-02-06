@@ -75,6 +75,7 @@ Do not defer AGENTS updates.
 - Roll back the latest migration (when reversible): `npm run db:migrate:down`
 - `db:migrate` reads `DATABASE_URL` (node-pg-migrate `-d` expects the env var name).
 - Migration CLI discovery is scoped to JS entry files (`migrations/*.js` with `--use-glob`) so helper `.sql`/docs are not imported as migrations.
+- Migration scripts run with `--check-order false` because migrations use numeric prefixes (`001_`, `002_`, ...) rather than node-pg-migrate timestamp prefixes.
 - Legacy alias: `npm run db:init`
 - Seed DB: `npm run db:seed`
 - Init/migrate + seed: `npm run db:setup`
