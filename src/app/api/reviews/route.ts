@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 
 import { canSubmitReviews, getRoleFromRequestAsync } from "@/lib/auth";
 import { createListing, getListingById } from "@/lib/data";
@@ -81,6 +82,7 @@ export async function POST(request: Request) {
     }
 
     let resolvedListingId = listingId;
+    let createdNewListing = false;
     if (listingId) {
       const listing = await getListingById(listingId);
       if (!listing) {
@@ -103,7 +105,6 @@ export async function POST(request: Request) {
       const address = parseString(payload?.address, { maxLength: 180 });
       const neighborhood = parseString(payload?.neighborhood, { maxLength: 80 });
       const { contacts, hasContactTooLong } = parseContacts(payload?.contacts);
-      const priceUsd = submittedPriceUsd;
       const capacity = parseOptionalNumber(payload?.capacity);
       const latitude = parseOptionalNumber(payload?.latitude);
       const longitude = parseOptionalNumber(payload?.longitude);
@@ -145,12 +146,12 @@ export async function POST(request: Request) {
         address,
         neighborhood,
         contacts,
-        priceUsd,
         capacity,
         latitude,
         longitude,
       });
       resolvedListingId = created.listingId;
+      createdNewListing = true;
     }
 
     await appendPendingReview({
@@ -165,6 +166,12 @@ export async function POST(request: Request) {
       studentEmail: studentEmail || undefined,
       shareContactInfo,
     });
+
+    if (createdNewListing) {
+      revalidateTag("public-listings", "max");
+      revalidateTag("public-neighborhoods", "max");
+      revalidateTag("public-dataset-meta", "max");
+    }
 
     return NextResponse.json({ ok: true, listingId: resolvedListingId }, { status: 201 });
   } catch {

@@ -27,7 +27,6 @@ export interface Listing {
   latitude?: number;
   longitude?: number;
   contacts: string[];
-  priceUsd?: number;
   minPriceUsd?: number;
   maxPriceUsd?: number;
   reviewPrices?: number[];

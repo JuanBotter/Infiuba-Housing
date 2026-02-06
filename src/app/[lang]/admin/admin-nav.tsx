@@ -28,6 +28,12 @@ export function AdminNav({ lang }: AdminNavProps) {
       >
         {messages.adminNavAccess}
       </Link>
+      <Link
+        href={`/${lang}/admin/security`}
+        className={`view-toggle__button admin-nav__link ${segment === "security" ? "is-active" : ""}`}
+      >
+        {messages.adminNavSecurity}
+      </Link>
     </nav>
   );
 }

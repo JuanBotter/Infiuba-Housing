@@ -13,13 +13,17 @@ Multilingual MVP (English, Spanish, French, German, Portuguese, Italian, Norwegi
 - Original review comments + translated versions saved in PostgreSQL (`comment` + `comment_<lang>` columns).
 - Role-restricted review submission flow (`whitelisted`/`admin`) with address suggestions; existing properties get a new review, new ones are created automatically.
 - New listing contact inputs are capped (max 20 entries, max 180 chars per contact).
+- Rent filters/sorting and displayed ranges are review-history based (`reviews.price_usd`); listing-level `price_usd` is legacy-only.
 - Reviewer contact emails are validated server-side; `mailto:` links are rendered only for strict valid email values.
 - Role-based access: `visitor` (default), `whitelisted` (student full access), `admin`.
 - Email OTP login for approved users stored in PostgreSQL (`users` table).
 - Layered OTP abuse throttling (request limits by IP/subnet/global and verify-failure limits by IP and email+IP).
 - Sensitive auth/admin API responses include explicit `Cache-Control: no-store` headers.
+- Structured security audit logging for OTP/admin-sensitive actions.
+- Admin security telemetry view at `/{lang}/admin/security`.
+- Visitor-safe listing/detail data uses short-lived server cache with tag-based revalidation after public data changes.
 - Production browser hardening headers via `next.config.mjs` (CSP, HSTS, frame/content-type/referrer/permissions policies).
-- Admin reviews and user access UI at `/{lang}/admin/reviews` and `/{lang}/admin/access`.
+- Admin reviews, user access, and security UI at `/{lang}/admin/reviews`, `/{lang}/admin/access`, and `/{lang}/admin/security`.
 
 ## Run locally
 
@@ -93,6 +97,7 @@ The app requires PostgreSQL (`DATABASE_URL`) and uses it for:
 - deleted user emails
 - auth email OTP codes
 - OTP rate-limit buckets (abuse protection counters)
+- security audit events
 
 If `PGSSL=true`, certificate verification is strict by default (`rejectUnauthorized=true`).
 Only local development should use `PGSSL_ALLOW_INSECURE=true`.

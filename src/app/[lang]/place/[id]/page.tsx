@@ -9,11 +9,14 @@ import {
   canViewOwnerContactInfo,
   getCurrentUserRole,
 } from "@/lib/auth";
-import { getListingById } from "@/lib/data";
+import { getCachedPublicListingById, getListingById } from "@/lib/data";
 import { buildSafeMailtoHref, isStrictEmail } from "@/lib/email";
 import { formatDecimal, formatPercent, formatUsd, formatUsdRange } from "@/lib/format";
 import { getMessages, isSupportedLanguage } from "@/lib/i18n";
-import { getApprovedReviewsForListing } from "@/lib/reviews-store";
+import {
+  getApprovedReviewsForListing,
+  getCachedPublicApprovedReviewsForListing,
+} from "@/lib/reviews-store";
 import type { Lang, Review } from "@/types";
 
 export const dynamic = "force-dynamic";
@@ -35,17 +38,22 @@ export default async function PlaceDetailPage({ params }: PlaceDetailPageProps) 
   const canViewOwnerInfo = canViewOwnerContactInfo(role);
   const canViewReviewerInfo = canViewContactInfo(role);
   const canWriteReviews = canSubmitReviews(role);
-  const listing = await getListingById(resolvedParams.id, lang, {
-    includeOwnerContactInfo: canViewOwnerInfo,
-    includeReviewerContactInfo: canViewReviewerInfo,
-  });
+  const isVisitorSafeView = !canViewOwnerInfo && !canViewReviewerInfo && !canWriteReviews;
+  const listing = isVisitorSafeView
+    ? await getCachedPublicListingById(resolvedParams.id, lang)
+    : await getListingById(resolvedParams.id, lang, {
+        includeOwnerContactInfo: canViewOwnerInfo,
+        includeReviewerContactInfo: canViewReviewerInfo,
+      });
   if (!listing) {
     notFound();
   }
 
-  const approvedWebReviews = await getApprovedReviewsForListing(listing.id, lang, {
-    includePrivateContactInfo: canViewReviewerInfo,
-  });
+  const approvedWebReviews = isVisitorSafeView
+    ? await getCachedPublicApprovedReviewsForListing(listing.id, lang)
+    : await getApprovedReviewsForListing(listing.id, lang, {
+        includePrivateContactInfo: canViewReviewerInfo,
+      });
   const mergedReviews: Review[] = [
     ...listing.reviews,
     ...approvedWebReviews.map((review) => ({
@@ -68,7 +76,6 @@ export default async function PlaceDetailPage({ params }: PlaceDetailPageProps) 
     {
       min: listing.minPriceUsd,
       max: listing.maxPriceUsd,
-      fallback: listing.priceUsd,
     },
     lang,
   );

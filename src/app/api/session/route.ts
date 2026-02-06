@@ -9,6 +9,7 @@ import { jsonNoStore, withNoStore } from "@/lib/http-cache";
 import { getRequestNetworkFingerprint } from "@/lib/request-network";
 import { validateSameOriginRequest } from "@/lib/request-origin";
 import { asObject, parseBoolean, parseEnum, parseString } from "@/lib/request-validation";
+import { recordSecurityAuditEvent } from "@/lib/security-audit";
 
 function buildOtpRequestAcceptedResponse(email: string) {
   return jsonNoStore({
@@ -45,11 +46,22 @@ export async function POST(request: Request) {
 
   if (action === "requestOtp") {
     if (!email) {
+      await recordSecurityAuditEvent({
+        eventType: "auth.otp.request",
+        outcome: "invalid_request",
+        networkFingerprint,
+      });
       return jsonNoStore({ error: "Missing email" }, { status: 400 });
     }
 
     const requested = await requestLoginOtp(email, networkFingerprint);
     if (!requested.ok) {
+      await recordSecurityAuditEvent({
+        eventType: "auth.otp.request",
+        outcome: requested.reason,
+        targetEmail: email,
+        networkFingerprint,
+      });
       if (requested.reason === "db_unavailable") {
         return jsonNoStore({ error: "Database is required for OTP login" }, { status: 503 });
       }
@@ -60,15 +72,34 @@ export async function POST(request: Request) {
       return buildOtpRequestAcceptedResponse(email);
     }
 
+    await recordSecurityAuditEvent({
+      eventType: "auth.otp.request",
+      outcome: "ok",
+      targetEmail: requested.email,
+      networkFingerprint,
+      metadata: { expiresAt: requested.expiresAt },
+    });
     return buildOtpRequestAcceptedResponse(requested.email);
   }
 
   if (!email || !otpCode) {
+    await recordSecurityAuditEvent({
+      eventType: "auth.otp.verify",
+      outcome: "invalid_request",
+      targetEmail: email || null,
+      networkFingerprint,
+    });
     return jsonNoStore({ error: "Missing email or OTP code" }, { status: 400 });
   }
 
   const verified = await verifyLoginOtp(email, otpCode, networkFingerprint);
   if (!verified.ok) {
+    await recordSecurityAuditEvent({
+      eventType: "auth.otp.verify",
+      outcome: verified.reason,
+      targetEmail: email,
+      networkFingerprint,
+    });
     if (verified.reason === "db_unavailable") {
       return jsonNoStore({ error: "Database is required for OTP login" }, { status: 503 });
     }
@@ -79,6 +110,17 @@ export async function POST(request: Request) {
     return jsonNoStore({ error: "Invalid or expired OTP code" }, { status: 401 });
   }
 
+  await recordSecurityAuditEvent({
+    eventType: "auth.otp.verify",
+    outcome: "ok",
+    actorEmail: verified.email,
+    targetEmail: verified.email,
+    networkFingerprint,
+    metadata: {
+      role: verified.role,
+      trustDevice,
+    },
+  });
   const response = jsonNoStore({
     ok: true,
     role: verified.role,

@@ -17,6 +17,7 @@ import {
   parseEnum,
   parseString,
 } from "@/lib/request-validation";
+import { recordSecurityAuditEvent } from "@/lib/security-audit";
 
 export async function GET(request: Request) {
   const session = await getAuthSessionFromRequest(request);
@@ -66,14 +67,33 @@ export async function POST(request: Request) {
 
   if (action === "updateRole") {
     if (!email || !role) {
+      await recordSecurityAuditEvent({
+        eventType: "admin.user.update_role",
+        outcome: "invalid_request",
+        actorEmail: session.email,
+        targetEmail: email || null,
+      });
       return jsonNoStore({ error: "Invalid payload" }, { status: 400 });
     }
     if (selfEmail && selfEmail === email) {
+      await recordSecurityAuditEvent({
+        eventType: "admin.user.update_role",
+        outcome: "blocked_self_target",
+        actorEmail: session.email,
+        targetEmail: email,
+      });
       return jsonNoStore({ error: "You cannot modify your own account." }, { status: 400 });
     }
 
     const updated = await updateUserRole(email, role);
     if (!updated.ok) {
+      await recordSecurityAuditEvent({
+        eventType: "admin.user.update_role",
+        outcome: updated.reason,
+        actorEmail: session.email,
+        targetEmail: email,
+        metadata: { role },
+      });
       if (updated.reason === "db_unavailable") {
         return jsonNoStore({ error: "Database is required" }, { status: 503 });
       }
@@ -83,19 +103,43 @@ export async function POST(request: Request) {
       return jsonNoStore({ error: "User not found" }, { status: 404 });
     }
 
+    await recordSecurityAuditEvent({
+      eventType: "admin.user.update_role",
+      outcome: "ok",
+      actorEmail: session.email,
+      targetEmail: email,
+      metadata: { role },
+    });
     return jsonNoStore({ ok: true, user: updated.user });
   }
 
   if (action === "delete") {
     if (!email) {
+      await recordSecurityAuditEvent({
+        eventType: "admin.user.delete",
+        outcome: "invalid_request",
+        actorEmail: session.email,
+      });
       return jsonNoStore({ error: "Invalid payload" }, { status: 400 });
     }
     if (selfEmail && selfEmail === email) {
+      await recordSecurityAuditEvent({
+        eventType: "admin.user.delete",
+        outcome: "blocked_self_target",
+        actorEmail: session.email,
+        targetEmail: email,
+      });
       return jsonNoStore({ error: "You cannot modify your own account." }, { status: 400 });
     }
 
     const deleted = await deleteUser(email);
     if (!deleted.ok) {
+      await recordSecurityAuditEvent({
+        eventType: "admin.user.delete",
+        outcome: deleted.reason,
+        actorEmail: session.email,
+        targetEmail: email,
+      });
       if (deleted.reason === "db_unavailable") {
         return jsonNoStore({ error: "Database is required" }, { status: 503 });
       }
@@ -105,6 +149,12 @@ export async function POST(request: Request) {
       return jsonNoStore({ error: "User not found" }, { status: 404 });
     }
 
+    await recordSecurityAuditEvent({
+      eventType: "admin.user.delete",
+      outcome: "ok",
+      actorEmail: session.email,
+      targetEmail: email,
+    });
     return jsonNoStore({ ok: true });
   }
 
@@ -114,24 +164,71 @@ export async function POST(request: Request) {
       maxItems: 2000,
     });
     if (!role || emails.length === 0) {
+      await recordSecurityAuditEvent({
+        eventType: "admin.user.upsert",
+        outcome: "invalid_request",
+        actorEmail: session.email,
+        metadata: {
+          role: role || null,
+          submittedCount: emails.length,
+        },
+      });
       return jsonNoStore({ error: "Invalid payload" }, { status: 400 });
     }
 
     if (selfEmail && emails.includes(selfEmail)) {
+      await recordSecurityAuditEvent({
+        eventType: "admin.user.upsert",
+        outcome: "blocked_self_target",
+        actorEmail: session.email,
+        metadata: { role, submittedCount: emails.length },
+      });
       return jsonNoStore({ error: "You cannot modify your own account." }, { status: 400 });
     }
 
     const invalidEmails = emails.filter((entry) => !isLikelyEmail(entry));
     const validEmails = emails.filter((entry) => isLikelyEmail(entry));
     if (validEmails.length === 0) {
+      await recordSecurityAuditEvent({
+        eventType: "admin.user.upsert",
+        outcome: "invalid_email_list",
+        actorEmail: session.email,
+        metadata: {
+          role,
+          submittedCount: emails.length,
+          invalidCount: invalidEmails.length,
+        },
+      });
       return jsonNoStore({ error: "Invalid email list", invalidEmails }, { status: 400 });
     }
 
     const created = await upsertUsers(validEmails, role);
     if (!created.ok) {
+      await recordSecurityAuditEvent({
+        eventType: "admin.user.upsert",
+        outcome: created.reason,
+        actorEmail: session.email,
+        metadata: {
+          role,
+          submittedCount: emails.length,
+          validCount: validEmails.length,
+        },
+      });
       return jsonNoStore({ error: "Database is required" }, { status: 503 });
     }
 
+    await recordSecurityAuditEvent({
+      eventType: "admin.user.upsert",
+      outcome: "ok",
+      actorEmail: session.email,
+      metadata: {
+        role,
+        submittedCount: emails.length,
+        validCount: validEmails.length,
+        invalidCount: invalidEmails.length,
+        processedCount: created.count,
+      },
+    });
     return jsonNoStore({
       ok: true,
       processed: created.count,

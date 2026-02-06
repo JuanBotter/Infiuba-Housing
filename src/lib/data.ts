@@ -1,5 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 
+import { unstable_cache } from "next/cache";
+
 import { dbQuery, withTransaction } from "@/lib/db";
 import { getTranslatedCommentForLanguage } from "@/lib/review-translations";
 import type { Lang, Listing, Review } from "@/types";
@@ -34,7 +36,6 @@ interface ListingRow {
   latitude: string | number | null;
   longitude: string | number | null;
   contacts: string[] | null;
-  price_usd: string | number | null;
   capacity: string | number | null;
   average_rating: string | number | null;
   recommendation_rate: string | number | null;
@@ -78,7 +79,6 @@ function mapListingRow(row: ListingRow): Listing {
     latitude: toOptionalNumber(row.latitude),
     longitude: toOptionalNumber(row.longitude),
     contacts: row.contacts || [],
-    priceUsd: toOptionalNumber(row.price_usd),
     minPriceUsd: toOptionalNumber(row.min_price_usd),
     maxPriceUsd: toOptionalNumber(row.max_price_usd),
     reviewPrices,
@@ -183,7 +183,6 @@ export async function getListings(options: ListingPrivacyOptions = {}) {
         l.latitude,
         l.longitude,
         COALESCE(array_agg(c.contact) FILTER (WHERE c.contact IS NOT NULL), '{}') AS contacts,
-        l.price_usd,
         l.capacity,
         l.average_rating,
         l.recommendation_rate,
@@ -307,7 +306,6 @@ export async function getListingById(
         l.latitude,
         l.longitude,
         COALESCE(array_agg(c.contact) FILTER (WHERE c.contact IS NOT NULL), '{}') AS contacts,
-        l.price_usd,
         l.capacity,
         l.average_rating,
         l.recommendation_rate,
@@ -381,7 +379,6 @@ export interface NewListingInput {
   address: string;
   neighborhood: string;
   contacts: string[];
-  priceUsd?: number;
   capacity?: number;
   latitude?: number;
   longitude?: number;
@@ -404,13 +401,12 @@ export async function createListing(input: NewListingInput) {
           neighborhood,
           latitude,
           longitude,
-          price_usd,
           capacity,
           average_rating,
           recommendation_rate,
           total_reviews,
           recent_year
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, NULL, NULL, 0, NULL)
+        ) VALUES ($1, $2, $3, $4, $5, $6, NULL, NULL, 0, NULL)
       `,
       [
         listingId,
@@ -418,7 +414,6 @@ export async function createListing(input: NewListingInput) {
         input.neighborhood,
         input.latitude ?? null,
         input.longitude ?? null,
-        input.priceUsd ?? null,
         input.capacity ?? null,
       ],
     );
@@ -497,4 +492,51 @@ export async function getDatasetMeta() {
     sourceFile: row.source_file || "postgres",
     totalListings: Number(row.total_listings || 0),
   };
+}
+
+const PUBLIC_CACHE_REVALIDATE_SECONDS = 300;
+
+export async function getCachedPublicListings(lang: Lang) {
+  return unstable_cache(
+    async () =>
+      getListings({
+        includeOwnerContactInfo: false,
+        includeReviewerContactInfo: false,
+        lang,
+      }),
+    [`public-listings:${lang}`],
+    {
+      revalidate: PUBLIC_CACHE_REVALIDATE_SECONDS,
+      tags: ["public-listings", `public-listings:${lang}`],
+    },
+  )();
+}
+
+export async function getCachedPublicListingById(id: string, lang: Lang) {
+  return unstable_cache(
+    async () =>
+      getListingById(id, lang, {
+        includeOwnerContactInfo: false,
+        includeReviewerContactInfo: false,
+      }),
+    [`public-listing:${lang}:${id}`],
+    {
+      revalidate: PUBLIC_CACHE_REVALIDATE_SECONDS,
+      tags: ["public-listings", `public-listing:${id}`, `public-listing:${lang}:${id}`],
+    },
+  )();
+}
+
+export async function getCachedPublicNeighborhoods() {
+  return unstable_cache(async () => getNeighborhoods(), ["public-neighborhoods"], {
+    revalidate: PUBLIC_CACHE_REVALIDATE_SECONDS,
+    tags: ["public-neighborhoods"],
+  })();
+}
+
+export async function getCachedPublicDatasetMeta() {
+  return unstable_cache(async () => getDatasetMeta(), ["public-dataset-meta"], {
+    revalidate: PUBLIC_CACHE_REVALIDATE_SECONDS,
+    tags: ["public-dataset-meta"],
+  })();
 }

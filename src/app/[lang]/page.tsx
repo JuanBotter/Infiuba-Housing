@@ -7,7 +7,14 @@ import {
   canViewOwnerContactInfo,
   getCurrentUserRole,
 } from "@/lib/auth";
-import { getDatasetMeta, getListings, getNeighborhoods } from "@/lib/data";
+import {
+  getCachedPublicDatasetMeta,
+  getCachedPublicListings,
+  getCachedPublicNeighborhoods,
+  getDatasetMeta,
+  getListings,
+  getNeighborhoods,
+} from "@/lib/data";
 import { getLocaleForLang } from "@/lib/format";
 import { getMessages, isSupportedLanguage } from "@/lib/i18n";
 import type { Lang } from "@/types";
@@ -30,15 +37,22 @@ export default async function ListingsPage({ params }: PageProps) {
   const canViewOwnerInfo = canViewOwnerContactInfo(role);
   const canViewReviewerInfo = canViewContactInfo(role);
   const canWriteReviews = canSubmitReviews(role);
-  const [listings, neighborhoods, meta] = await Promise.all([
-    getListings({
-      includeOwnerContactInfo: canViewOwnerInfo,
-      includeReviewerContactInfo: canViewReviewerInfo,
-      lang,
-    }),
-    getNeighborhoods(),
-    getDatasetMeta(),
-  ]);
+  const isVisitorSafeView = !canViewOwnerInfo && !canViewReviewerInfo && !canWriteReviews;
+  const [listings, neighborhoods, meta] = isVisitorSafeView
+    ? await Promise.all([
+        getCachedPublicListings(lang),
+        getCachedPublicNeighborhoods(),
+        getCachedPublicDatasetMeta(),
+      ])
+    : await Promise.all([
+        getListings({
+          includeOwnerContactInfo: canViewOwnerInfo,
+          includeReviewerContactInfo: canViewReviewerInfo,
+          lang,
+        }),
+        getNeighborhoods(),
+        getDatasetMeta(),
+      ]);
 
   const generatedDate = new Intl.DateTimeFormat(getLocaleForLang(lang), {
     dateStyle: "medium",

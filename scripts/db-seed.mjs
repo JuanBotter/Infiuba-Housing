@@ -142,7 +142,7 @@ async function run() {
           listing.neighborhood,
           listing.latitude ?? null,
           listing.longitude ?? null,
-          listing.priceUsd ?? null,
+          null,
           listing.capacity ?? null,
           listing.averageRating ?? null,
           listing.recommendationRate ?? null,

@@ -1,5 +1,7 @@
 import { randomUUID } from "node:crypto";
 
+import { unstable_cache } from "next/cache";
+
 import { dbQuery, withTransaction } from "@/lib/db";
 import { getTranslatedCommentForLanguage } from "@/lib/review-translations";
 import type { ApprovedWebReview, Lang, PendingWebReview } from "@/types";
@@ -94,6 +96,8 @@ interface ReviewPrivacyOptions {
   includePrivateContactInfo?: boolean;
 }
 
+const PUBLIC_REVIEW_CACHE_REVALIDATE_SECONDS = 300;
+
 export async function getApprovedReviewsForListing(
   listingId: string,
   lang: Lang = "en",
@@ -135,6 +139,24 @@ export async function getApprovedReviewsForListing(
   return result.rows.map((row) =>
     mapApprovedReviewRowForLanguage(row, lang, includePrivateContactInfo),
   );
+}
+
+export async function getCachedPublicApprovedReviewsForListing(listingId: string, lang: Lang = "en") {
+  return unstable_cache(
+    async () =>
+      getApprovedReviewsForListing(listingId, lang, {
+        includePrivateContactInfo: false,
+      }),
+    [`public-approved-reviews:${listingId}:${lang}`],
+    {
+      revalidate: PUBLIC_REVIEW_CACHE_REVALIDATE_SECONDS,
+      tags: [
+        "public-approved-reviews",
+        `public-approved-reviews:${listingId}`,
+        `public-approved-reviews:${listingId}:${lang}`,
+      ],
+    },
+  )();
 }
 
 export async function getPendingReviews() {

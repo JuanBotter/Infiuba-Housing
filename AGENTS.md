@@ -29,23 +29,26 @@ Do not defer AGENTS updates.
 - OTP mailer logs provider availability and send failures (redacted recipient) to server logs for troubleshooting.
 - OTP request/verify API responses are intentionally enumeration-safe: request responses are generic for allowed/not-allowed/rate-limited outcomes, and verify failures return a generic invalid-code response for auth failures.
 - OTP abuse controls are DB-backed and layered: OTP requests are rate limited by IP/subnet/global windows, and OTP verify failures are rate limited by IP and email+IP windows.
+- Structured security audit events are recorded for OTP request/verify and admin-sensitive actions (user access changes and review moderation).
 - Sensitive auth/admin API responses explicitly send `Cache-Control: no-store` headers.
 - Stateful API endpoints enforce same-origin checks (Origin/Referer must match request host) to reduce CSRF risk.
-- API request parsing/normalization is centralized in `src/lib/request-validation.ts` and reused across session/reviews/admin-users endpoints.
+- API request parsing/normalization is centralized in `src/lib/request-validation.ts` and reused across session/reviews/admin endpoints.
 - In production, app-wide browser hardening headers are configured (`Content-Security-Policy`, `Strict-Transport-Security`, `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`) via `next.config.mjs`.
 - Reviewer contact email handling is hardened: `/api/reviews` validates strict email format for `studentEmail` and email-like `studentContact`, and listing detail renders `mailto:` only for strict emails using URI-encoded hrefs.
 - DB migrations are managed with node-pg-migrate (`migrations/` directory).
 - Survey import tooling now generates deterministic/stable survey review IDs from review content (instead of row order).
-- Admin UX: split views for reviews and access management under `/{lang}/admin/*`; access view supports search, role changes, deletion, and bulk user creation.
+- Admin UX: split views for reviews, access management, and security telemetry under `/{lang}/admin/*`; access view supports search, role changes, deletion, and bulk user creation.
 - Admin bulk user upsert uses set-based SQL (`DELETE ... WHERE email = ANY(...)` + `INSERT ... SELECT FROM UNNEST(...)`) in one transaction.
 - Add-review and detail-review flows share common review payload/state helpers in `src/lib/review-form.ts`.
 - Main listings UI uses a view toggle: `Map` (default), `List`, and (for whitelisted/admin) `Add review`.
 - Cards/Map filters include search, neighborhood, recommendation, min/max price, minimum rating, sorting (default: newest), and active filter chips that support one-click removal plus clear-all.
 - Price filtering is review-history based: with a min/max rent filter active, a listing matches only when at least one approved review `price_usd` falls within the selected bounds.
 - `price_asc` sorting uses the listing's lowest approved-review rent value (listings without review rents sort after priced listings).
+- Listing-level `price_usd` is treated as legacy/deprecated at runtime; list/detail/map rent display no longer falls back to listing-level values.
 - Place-filters/map UI is modularized with dedicated helper/components (`place-filters-price.ts`, `map-listing-sidebar-item.tsx`), and map styles are split into `globals-map.css` imported from `globals.css`.
 - Cards/Map filter state (including selected view mode) is persisted in browser `localStorage` using shared key `infiuba:filters:v2` so navigation/reloads and language switches keep the same filters/view; legacy per-language keys are auto-migrated on read.
 - Filter persistence loading is gated so initial render defaults never overwrite stored filters before hydration applies them.
+- Visitor-safe listing/detail reads use short-lived server cache (`unstable_cache`); cache tags are revalidated when public listing data changes (new listing creation, review approval).
 - Listing aggregate fields (`average_rating`, `recommendation_rate`, `total_reviews`, `recent_year`) are recomputed from approved reviews whenever a pending web review is approved.
 - Map panel shows up to 3 latest approved review comments for the selected listing (translated to current UI language when available), with the same "show original/translation" toggle used in listing detail reviews.
 - Map view includes full selected-listing details (stats, owner contacts when visible by role, details link); historical reviews render before the inline per-listing review form for whitelisted/admin users.
@@ -129,6 +132,7 @@ Implementation:
     - `requestOtp` intentionally returns a generic success payload for most auth-related outcomes to reduce account enumeration.
     - `verifyOtp` intentionally returns generic invalid-code failures for non-success auth outcomes (`not_allowed`, invalid/expired codes, etc.).
     - OTP abuse throttling uses request network fingerprints derived from proxy headers (`x-forwarded-for`, `cf-connecting-ip`, `x-real-ip`, `forwarded`).
+    - OTP request/verify outcomes are logged to `security_audit_events` (with redacted email display and hashed network keys).
     - Session API responses are returned with `Cache-Control: no-store`.
   - `DELETE /api/session` -> logout (clears cookie).
   - `GET /api/session` -> current resolved role (DB-validated for cookie-backed sessions).
@@ -143,6 +147,8 @@ User access management:
   - `{ action: "delete", email }` to delete a user (stores email in `deleted_users`)
   - `{ action: "upsert", emails, role }` to bulk create/reactivate users
 - Admin cannot modify or delete their own currently authenticated email session.
+- Admin user-management actions/outcomes are logged to `security_audit_events`.
+- Security telemetry API: `GET /api/admin/security` (admin-only, no-store) returns audit/rate-limit windows, recent redacted events, and threshold alerts.
 
 ## Data Sources
 
@@ -159,7 +165,7 @@ Seed/import tooling:
 
 ## Database Schema (Current)
 
-Defined in `migrations/001_initial_schema.sql`, `migrations/002_otp_rate_limit_buckets.sql`, `migrations/003_listing_contact_length_limit.sql`, `migrations/004_dataset_meta_bootstrap.sql`, and `migrations/005_drop_legacy_invites.sql` (applied via node-pg-migrate; rollback behavior documented in `migrations/ROLLBACK_POLICY.md`).
+Defined in `migrations/001_initial_schema.sql`, `migrations/002_otp_rate_limit_buckets.sql`, `migrations/003_listing_contact_length_limit.sql`, `migrations/004_dataset_meta_bootstrap.sql`, `migrations/005_drop_legacy_invites.sql`, and `migrations/006_security_audit_events.sql` (applied via node-pg-migrate; rollback behavior documented in `migrations/ROLLBACK_POLICY.md`).
 
 Finite-state fields use PostgreSQL enums:
 
@@ -183,7 +189,7 @@ Finite-state fields use PostgreSQL enums:
 - `neighborhood TEXT NOT NULL`
 - `latitude DOUBLE PRECISION`
 - `longitude DOUBLE PRECISION`
-- `price_usd NUMERIC`
+- `price_usd NUMERIC` (legacy/deprecated runtime field; review-level prices are canonical)
 - `capacity NUMERIC`
 - `average_rating NUMERIC`
 - `recommendation_rate NUMERIC`
@@ -263,6 +269,18 @@ Finite-state fields use PostgreSQL enums:
 - `updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`
 - `PRIMARY KEY (scope, bucket_key_hash, window_seconds, bucket_start)`
 
+### `security_audit_events`
+
+- `id BIGSERIAL PRIMARY KEY`
+- `event_type TEXT NOT NULL`
+- `actor_email TEXT`
+- `target_email TEXT`
+- `ip_key_hash TEXT` (HMAC hash; raw network key is never stored)
+- `subnet_key_hash TEXT` (HMAC hash; raw network key is never stored)
+- `outcome TEXT NOT NULL`
+- `metadata JSONB NOT NULL DEFAULT '{}'::jsonb`
+- `created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`
+
 Legacy (unused by app):
 
 - Invite flows remain removed from the application.
@@ -279,10 +297,13 @@ Indexes:
 - `idx_auth_email_otps_email_lower ON auth_email_otps(lower(email))`
 - `idx_auth_rate_limit_buckets_updated_at ON auth_rate_limit_buckets(updated_at DESC)`
 - `idx_auth_rate_limit_buckets_scope_key ON auth_rate_limit_buckets(scope, bucket_key_hash, updated_at DESC)`
+- `idx_security_audit_events_created_at ON security_audit_events(created_at DESC)`
+- `idx_security_audit_events_event_type_created ON security_audit_events(event_type, created_at DESC)`
+- `idx_security_audit_events_outcome_created ON security_audit_events(outcome, created_at DESC)`
 - `idx_reviews_listing_status ON reviews(listing_id, status, source)`
 - `idx_reviews_status_created ON reviews(status, created_at DESC)`
 
-Integrity hardening (enforced in `migrations/001_initial_schema.sql`, `migrations/002_otp_rate_limit_buckets.sql`, `migrations/003_listing_contact_length_limit.sql`, `migrations/004_dataset_meta_bootstrap.sql`, and `migrations/005_drop_legacy_invites.sql`):
+Integrity hardening (enforced in `migrations/001_initial_schema.sql`, `migrations/002_otp_rate_limit_buckets.sql`, `migrations/003_listing_contact_length_limit.sql`, `migrations/004_dataset_meta_bootstrap.sql`, `migrations/005_drop_legacy_invites.sql`, and `migrations/006_security_audit_events.sql`):
 
 - Non-empty checks for core text identifiers (`users.email`, `deleted_users.email`, `auth_email_otps.email`, listing address/neighborhood, listing contact).
 - Numeric range checks for ratings, recommendation rates, coordinates, and year fields.
@@ -290,6 +311,7 @@ Integrity hardening (enforced in `migrations/001_initial_schema.sql`, `migration
 - Review rent consistency (`reviews.price_usd` must be null or > 0).
 - OTP consistency (`consumed_at`/`consumed_reason` coupled, attempts non-negative, expires/consumed not before creation).
 - Rate-limit bucket consistency (`scope`/`bucket_key_hash` non-empty, `window_seconds > 0`, `hits >= 0`).
+- Security audit event consistency (`event_type`/`outcome` non-empty).
 - Listing contact length control (`listing_contacts.contact` <= 180 for new/updated rows).
 - `dataset_meta` bootstrap row (`id=1`) is created if missing via migration.
 - Legacy invite DB artifacts (`auth_invites`, `invite_consumed_reason_enum`) are dropped by migration.
@@ -305,11 +327,12 @@ Integrity hardening (enforced in `migrations/001_initial_schema.sql`, `migration
 
 ## Rent Data Model
 
-- Listing row keeps a representative `listings.price_usd` (legacy/compat and fallback value).
 - Canonical rent history lives in `reviews.price_usd` (one value per review when provided).
-- Cards/map preview uses approved-review min/max rent range when available; falls back to `listings.price_usd`.
+- `listings.price_usd` remains in schema as a legacy/deprecated column but is not used for runtime rent filtering/sorting/display fallback.
+- Cards/map preview and detail stats use approved-review min/max rent range only (when review rent data exists).
 - Cards/map min/max rent filters operate on approved review rent history (`reviews.price_usd`) and require at least one review rent in-range for a listing to match.
-- Detail page shows the same range in stats and includes per-review rent in review metadata when present.
+- Seed path now writes `listings.price_usd` as `NULL` for imported listings.
+- Per-review rent remains visible in review metadata when present.
 
 ## Review and Moderation Flow
 
@@ -321,6 +344,7 @@ Submission:
 - Endpoint: `POST /api/reviews`
 - New reviews are inserted as `source='web'`, `status='pending'`
 - New-listing contact ingestion (`contacts`) enforces at most 20 entries and rejects any item longer than 180 characters.
+- Creating a new listing through review submission revalidates public listing/dataset cache tags.
 - Review submission validates `studentEmail` and any email-like `studentContact` with strict email rules; invalid email input is rejected.
 - Permission enforced server-side: only `whitelisted` and `admin`
 
@@ -330,6 +354,8 @@ Moderation:
 - API: `/api/admin/reviews` (`GET`, `POST`)
 - Permission enforced server-side: `admin` only
 - On approve action, listing aggregates are refreshed in `listings` from all approved reviews for that listing.
+- On approve action, public listing/review cache tags are revalidated (`public-listings`, `public-listing:<id>`, `public-approved-reviews`).
+- Moderation actions and outcomes are recorded in `security_audit_events`.
 
 ## Contact Privacy Rules
 
@@ -354,10 +380,12 @@ Must remain true:
 - Admin layout + navigation: `src/app/[lang]/admin/layout.tsx`, `src/app/[lang]/admin/admin-nav.tsx`
 - Admin reviews page: `src/app/[lang]/admin/reviews/page.tsx`
 - Admin access page: `src/app/[lang]/admin/access/page.tsx`
+- Admin security telemetry page: `src/app/[lang]/admin/security/page.tsx`
 - Legacy moderation path redirect: `src/app/[lang]/admin/moderation/page.tsx` -> `/{lang}/admin/reviews`
 - Admin users API: `src/app/api/admin/users/route.ts`
   - `GET` managed users (`active` + `deleted`)
   - `POST` update roles, delete, or bulk upsert users
+- Admin security telemetry API: `src/app/api/admin/security/route.ts`
 - App security headers config: `next.config.mjs`
 - Root layout + theme bootstrap script loader: `src/app/layout.tsx`
 - Theme bootstrap script (static, beforeInteractive): `public/theme-init.js`
@@ -367,6 +395,8 @@ Must remain true:
 - Email/contact helpers: `src/lib/email.ts`
 - No-store response helper: `src/lib/http-cache.ts`
 - Request network fingerprint helper: `src/lib/request-network.ts`
+- Security audit event writer: `src/lib/security-audit.ts`
+- Security telemetry snapshot builder: `src/lib/security-telemetry.ts`
 - OTP mail delivery helper: `src/lib/otp-mailer.ts`
 - Data access: `src/lib/data.ts`
 - Reviews store: `src/lib/reviews-store.ts`

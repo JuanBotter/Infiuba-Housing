@@ -55,7 +55,6 @@ export function MapListingSidebarItem({
                 {
                   min: listing.minPriceUsd,
                   max: listing.maxPriceUsd,
-                  fallback: listing.priceUsd,
                 },
                 lang,
               );

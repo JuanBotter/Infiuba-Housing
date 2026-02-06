@@ -663,7 +663,6 @@ export function PlaceFilters({
                           {
                             min: listing.minPriceUsd,
                             max: listing.maxPriceUsd,
-                            fallback: listing.priceUsd,
                           },
                           lang,
                         );
@@ -804,7 +803,6 @@ export function PlaceFilters({
                             {
                               min: selectedMapListing.minPriceUsd,
                               max: selectedMapListing.maxPriceUsd,
-                              fallback: selectedMapListing.priceUsd,
                             },
                             lang,
                           );
