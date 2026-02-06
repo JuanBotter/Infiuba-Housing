@@ -1136,6 +1136,19 @@ textarea {
   font-weight: 700;
 }
 
+.form-status-slot {
+  grid-column: 1 / -1;
+  min-height: 1.35rem;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.form-status-placeholder {
+  width: 1px;
+  height: 1.35rem;
+}
+
 .form-status.success {
   color: var(--success);
 }

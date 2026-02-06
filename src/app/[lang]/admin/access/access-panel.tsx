@@ -322,17 +322,22 @@ export function AccessPanel({ lang }: AccessPanelProps) {
             {createStatus === "sending" ? messages.adminUsersCreating : messages.adminUsersCreateButton}
           </button>
         </div>
-        {createStatus === "success" ? (
-          <p className="form-status success">
-            {createCount} {messages.adminUsersCreatedCountLabel}
-          </p>
-        ) : null}
-        {invalidCreateEmails.length > 0 ? (
-          <p className="form-status error">
-            {messages.adminUsersInvalidEmailsLabel}: {invalidCreateEmails.join(", ")}
-          </p>
-        ) : null}
-        {createStatus === "error" ? <p className="form-status error">{createError}</p> : null}
+        <div className="form-status-slot" role="status" aria-live="polite">
+          {createStatus === "success" ? (
+            <p className="form-status success">
+              {createCount} {messages.adminUsersCreatedCountLabel}
+            </p>
+          ) : null}
+          {invalidCreateEmails.length > 0 ? (
+            <p className="form-status error">
+              {messages.adminUsersInvalidEmailsLabel}: {invalidCreateEmails.join(", ")}
+            </p>
+          ) : null}
+          {createStatus === "error" ? <p className="form-status error">{createError}</p> : null}
+          {createStatus === "idle" && invalidCreateEmails.length === 0 ? (
+            <span className="form-status-placeholder" aria-hidden="true" />
+          ) : null}
+        </div>
       </article>
 
       <article className="detail-card">
