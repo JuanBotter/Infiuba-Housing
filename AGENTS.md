@@ -66,6 +66,7 @@ Do not defer AGENTS updates.
 
 - Install deps: `npm install`
 - Test suite: `npm run test`
+- Test coverage: `npm run test:coverage`
 - Test watch: `npm run test:watch`
 - Dev server: `npm run dev`
 - Test suite: `npm test`

@@ -47,6 +47,26 @@ describe("/api/reviews", () => {
     expect(response.status).toBe(403);
   });
 
+  it("rejects invalid rating", async () => {
+    mockedAuth.getRoleFromRequestAsync.mockResolvedValueOnce("whitelisted");
+    mockedAuth.canSubmitReviews.mockReturnValueOnce(true);
+
+    const request = new Request("http://localhost/api/reviews", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        listingId: "listing-1",
+        confirmExistingDetails: true,
+        rating: 10,
+        recommended: true,
+        comment: "This place was comfortable and clean.",
+      }),
+    });
+
+    const response = await POST(request);
+    expect(response.status).toBe(400);
+  });
+
   it("accepts valid review for existing listing", async () => {
     mockedAuth.getRoleFromRequestAsync.mockResolvedValueOnce("whitelisted");
     mockedAuth.canSubmitReviews.mockReturnValueOnce(true);
@@ -68,5 +88,26 @@ describe("/api/reviews", () => {
     expect(response.status).toBe(201);
     const payload = await response.json();
     expect(payload.ok).toBe(true);
+  });
+
+  it("requires detail confirmation for existing listing", async () => {
+    mockedAuth.getRoleFromRequestAsync.mockResolvedValueOnce("whitelisted");
+    mockedAuth.canSubmitReviews.mockReturnValueOnce(true);
+    mockedData.getListingById.mockResolvedValueOnce({ id: "listing-2" } as never);
+
+    const request = new Request("http://localhost/api/reviews", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        listingId: "listing-2",
+        confirmExistingDetails: false,
+        rating: 4,
+        recommended: true,
+        comment: "Good spot, but confirm details.",
+      }),
+    });
+
+    const response = await POST(request);
+    expect(response.status).toBe(400);
   });
 });

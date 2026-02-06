@@ -92,6 +92,12 @@ Run unit tests (DB/email mocked):
 npm run test
 ```
 
+Coverage:
+
+```bash
+npm run test:coverage
+```
+
 Watch mode:
 
 ```bash

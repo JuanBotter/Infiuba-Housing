@@ -10,6 +10,7 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 .vercel
+coverage
 
 # Local/generated data files
 data/geocoding.cache.json
