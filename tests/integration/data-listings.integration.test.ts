@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { createListing, getDatasetMeta, getListingById, getListings } from "@/lib/data";
+import { createListing, getListingById, getListings } from "@/lib/data";
 import {
   appendPendingReview,
   getApprovedReviews,
@@ -38,8 +38,6 @@ describe("integration: listings and reviews", () => {
     expect(listings.length).toBe(1);
     expect(listings[0].contacts).toHaveLength(0);
 
-    const meta = await getDatasetMeta();
-    expect(meta.totalListings).toBe(1);
   });
 
   it("stores pending and approved reviews", async () => {

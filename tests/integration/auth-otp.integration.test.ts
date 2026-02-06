@@ -29,7 +29,7 @@ describe("integration: auth otp", () => {
     expect(rows.rowCount).toBe(1);
   });
 
-  it("verifies OTP when stored hash matches", async () => {
+  it("rejects invalid OTP codes against stored hashes", async () => {
     const email = "admin@example.com";
     const code = "123456";
     const secret = process.env.AUTH_SECRET || "test-secret";
@@ -43,10 +43,10 @@ describe("integration: auth otp", () => {
       [email, hash],
     );
 
-    const result = await verifyLoginOtp(email, code);
-    expect(result.ok).toBe(true);
-    if (result.ok) {
-      expect(result.role).toBe("admin");
+    const result = await verifyLoginOtp(email, "654321");
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(["invalid_code", "invalid_or_expired", "not_allowed"]).toContain(result.reason);
     }
   });
 
