@@ -10,7 +10,9 @@
 
 ## Screenshots
 
-Screenshots coming soon.
+![Map view](docs/screenshots/map-view.png)
+![Filters view](docs/screenshots/filters-view.png)
+![Admin view](docs/screenshots/admin-view.png)
 
 ## Technical documentation
 
