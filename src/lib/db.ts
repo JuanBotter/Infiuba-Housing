@@ -11,10 +11,55 @@ function buildPool() {
     throw new Error("DATABASE_URL is not set.");
   }
 
+  const ssl = resolvePgSslConfig();
+
   return new Pool({
     connectionString,
-    ssl: process.env.PGSSL === "true" ? { rejectUnauthorized: false } : undefined,
+    ssl,
   });
+}
+
+function parseBooleanEnvFlag(raw: string | undefined) {
+  if (!raw) {
+    return false;
+  }
+
+  const normalized = raw.trim().toLowerCase();
+  return normalized === "1" || normalized === "true" || normalized === "yes" || normalized === "on";
+}
+
+function normalizeCaCert(raw: string | undefined) {
+  if (!raw) {
+    return undefined;
+  }
+
+  const trimmed = raw.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+
+  return trimmed.replace(/\\n/g, "\n");
+}
+
+function resolvePgSslConfig() {
+  if (!parseBooleanEnvFlag(process.env.PGSSL)) {
+    return undefined;
+  }
+
+  const allowInsecure = parseBooleanEnvFlag(process.env.PGSSL_ALLOW_INSECURE);
+  if (allowInsecure) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error("PGSSL_ALLOW_INSECURE cannot be enabled in production.");
+    }
+
+    console.warn(
+      "[DB] PGSSL_ALLOW_INSECURE=true disables TLS certificate verification. Use only for local development.",
+    );
+    return { rejectUnauthorized: false };
+  }
+
+  const ca = normalizeCaCert(process.env.PGSSL_CA_CERT);
+  return ca ? { rejectUnauthorized: true, ca } : { rejectUnauthorized: true };
 }
 
 export function isDatabaseEnabled() {

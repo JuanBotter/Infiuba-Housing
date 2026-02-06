@@ -3,6 +3,7 @@ import path from "node:path";
 
 import { Pool } from "pg";
 import "./load-env.mjs";
+import { resolvePgSslConfig } from "./pg-ssl.mjs";
 
 const ROOT = process.cwd();
 const DATASET_FILE = path.join(ROOT, "src", "data", "accommodations.json");
@@ -16,7 +17,7 @@ if (!process.env.DATABASE_URL) {
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.PGSSL === "true" ? { rejectUnauthorized: false } : undefined,
+  ssl: resolvePgSslConfig(),
 });
 
 async function readJson(filePath, fallback) {

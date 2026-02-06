@@ -63,7 +63,9 @@ Do not defer AGENTS updates.
 ## Environment Variables
 
 - `DATABASE_URL`: required for runtime and DB scripts.
-- `PGSSL=true`: optional SSL for DB pool.
+- `PGSSL=true`: optional SSL for DB pool (strict certificate verification by default).
+- `PGSSL_CA_CERT`: optional PostgreSQL CA certificate in PEM format (supports escaped `\n`).
+- `PGSSL_ALLOW_INSECURE=true`: development-only override to disable certificate verification; forbidden in production.
 - `AUTH_SECRET`: secret for signing auth role cookie (strongly recommended).
 - `VISITOR_CAN_VIEW_OWNER_CONTACTS=true`: emergency read-only fallback to expose owner contacts to visitors (reviewer/student contacts remain protected).
 - `OTP_EMAIL_PROVIDER`: OTP delivery provider (`brevo`, `resend`, or `console`; defaults to `console` in non-production when unset).

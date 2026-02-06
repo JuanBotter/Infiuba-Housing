@@ -1,5 +1,6 @@
 import { Pool } from "pg";
 import "./load-env.mjs";
+import { resolvePgSslConfig } from "./pg-ssl.mjs";
 
 const OTP_ONLY_PASSWORD_HASH = "otp-only";
 
@@ -56,7 +57,7 @@ if (!isLikelyEmail(email) || !isAllowedRole(role)) {
 const passwordHash = OTP_ONLY_PASSWORD_HASH;
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.PGSSL === "true" ? { rejectUnauthorized: false } : undefined,
+  ssl: resolvePgSslConfig(),
 });
 
 async function run() {

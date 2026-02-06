@@ -42,6 +42,12 @@ npm run geocode:data
 
 ```bash
 DATABASE_URL=postgres://postgres:postgres@localhost:5432/infiuba_alojamientos
+# Optional TLS:
+# PGSSL=true
+# Optional custom CA (PEM):
+# PGSSL_CA_CERT="-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----"
+# Development only (never production):
+# PGSSL_ALLOW_INSECURE=true
 ```
 
 5. Initialize schema and seed data:
@@ -82,6 +88,9 @@ The app requires PostgreSQL (`DATABASE_URL`) and uses it for:
 - deleted user emails
 - auth email OTP codes
 
+If `PGSSL=true`, certificate verification is strict by default (`rejectUnauthorized=true`).
+Only local development should use `PGSSL_ALLOW_INSECURE=true`.
+
 Useful commands:
 
 ```bash
@@ -113,6 +122,11 @@ New student reviews are written to PostgreSQL (`reviews` table, `status='pending
 
 ```bash
 AUTH_SECRET=replace-with-a-long-random-secret
+PGSSL=true
+# Optional custom CA for strict TLS verification:
+# PGSSL_CA_CERT="-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----"
+# Development only; disables certificate verification:
+# PGSSL_ALLOW_INSECURE=true
 OTP_EMAIL_PROVIDER=brevo
 BREVO_API_KEY=xkeysib-xxxxxxxxxxxxxxxxxxxx
 BREVO_FROM_EMAIL="Infiuba Housing <your@email.com>"
