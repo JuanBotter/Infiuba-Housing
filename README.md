@@ -1,6 +1,6 @@
 # Infiuba Alojamientos Web
 
-Infiuba housing portal for exchange students in Buenos Aires ([infiuba-housing.vercel.app](https://infiuba-housing.vercel.app/)). The site helps students browse past accommodations, view reviews, and submit new stays once whitelisted.
+[Infiuba housing](https://infiuba-housing.vercel.app/) helps exchange students find and review accommodations in Buenos Aires.
 
 ## Overview
 
