@@ -9,44 +9,14 @@ import {
 } from "@/lib/auth";
 import { jsonNoStore, withNoStore } from "@/lib/http-cache";
 import { validateSameOriginRequest } from "@/lib/request-origin";
-
-function parseLimit(value: string | null) {
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed)) {
-    return 500;
-  }
-  return Math.max(1, Math.min(2000, Math.floor(parsed)));
-}
-
-function parseEmail(value: unknown) {
-  if (typeof value !== "string") {
-    return "";
-  }
-  return value.trim().toLowerCase().slice(0, 180);
-}
-
-function parseEmails(value: unknown) {
-  if (typeof value !== "string") {
-    return [];
-  }
-
-  return value
-    .split(/[\n,;]/g)
-    .map((entry) => entry.trim().toLowerCase())
-    .filter(Boolean)
-    .slice(0, 2000);
-}
-
-function isLikelyEmail(value: string) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
-}
-
-function parseRole(value: unknown): "whitelisted" | "admin" | "" {
-  if (value === "whitelisted" || value === "admin") {
-    return value;
-  }
-  return "";
-}
+import {
+  asObject,
+  isLikelyEmail,
+  parseBoundedInteger,
+  parseDelimitedList,
+  parseEnum,
+  parseString,
+} from "@/lib/request-validation";
 
 export async function GET(request: Request) {
   const session = await getAuthSessionFromRequest(request);
@@ -55,7 +25,11 @@ export async function GET(request: Request) {
   }
 
   const url = new URL(request.url);
-  const limit = parseLimit(url.searchParams.get("limit"));
+  const limit = parseBoundedInteger(url.searchParams.get("limit"), {
+    fallback: 500,
+    min: 1,
+    max: 2000,
+  });
   const users = await getManagedUsers(limit);
   if (!users.ok) {
     return jsonNoStore({ error: "Database is required" }, { status: 503 });
@@ -85,10 +59,10 @@ export async function POST(request: Request) {
   }
 
   const selfEmail = session.email ? session.email.toLowerCase() : "";
-  const payload = await request.json().catch(() => null);
+  const payload = asObject(await request.json().catch(() => null));
   const action = payload?.action;
-  const email = parseEmail(payload?.email);
-  const role = parseRole(payload?.role);
+  const email = parseString(payload?.email, { lowercase: true, maxLength: 180 });
+  const role = parseEnum(payload?.role, ["whitelisted", "admin"] as const);
 
   if (action === "updateRole") {
     if (!email || !role) {
@@ -135,7 +109,10 @@ export async function POST(request: Request) {
   }
 
   if (action === "upsert") {
-    const emails = parseEmails(payload?.emails ?? payload?.email);
+    const emails = parseDelimitedList(payload?.emails ?? payload?.email, {
+      lowercase: true,
+      maxItems: 2000,
+    });
     if (!role || emails.length === 0) {
       return jsonNoStore({ error: "Invalid payload" }, { status: 400 });
     }

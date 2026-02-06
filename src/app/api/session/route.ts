@@ -8,34 +8,7 @@ import {
 import { jsonNoStore, withNoStore } from "@/lib/http-cache";
 import { getRequestNetworkFingerprint } from "@/lib/request-network";
 import { validateSameOriginRequest } from "@/lib/request-origin";
-
-function parseEmail(value: unknown) {
-  if (typeof value !== "string") {
-    return "";
-  }
-
-  return value.trim().toLowerCase().slice(0, 180);
-}
-
-function parseOtpCode(value: unknown) {
-  if (typeof value !== "string") {
-    return "";
-  }
-
-  return value.replace(/\s+/g, "").trim().slice(0, 24);
-}
-
-function parseAction(value: unknown) {
-  if (value !== "requestOtp" && value !== "verifyOtp") {
-    return "";
-  }
-
-  return value;
-}
-
-function parseTrustDevice(value: unknown) {
-  return value === true;
-}
+import { asObject, parseBoolean, parseEnum, parseString } from "@/lib/request-validation";
 
 function buildOtpRequestAcceptedResponse(email: string) {
   return jsonNoStore({
@@ -57,11 +30,11 @@ export async function POST(request: Request) {
 
   const networkFingerprint = getRequestNetworkFingerprint(request);
 
-  const payload = await request.json().catch(() => null);
-  const action = parseAction(payload?.action);
-  const email = parseEmail(payload?.email);
-  const otpCode = parseOtpCode(payload?.otpCode);
-  const trustDevice = parseTrustDevice(payload?.trustDevice);
+  const payload = asObject(await request.json().catch(() => null));
+  const action = parseEnum(payload?.action, ["requestOtp", "verifyOtp"] as const);
+  const email = parseString(payload?.email, { lowercase: true, maxLength: 180 });
+  const otpCode = parseString(payload?.otpCode, { stripInnerWhitespace: true, maxLength: 24 });
+  const trustDevice = parseBoolean(payload?.trustDevice);
 
   if (!action) {
     return jsonNoStore(

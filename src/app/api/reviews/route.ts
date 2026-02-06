@@ -3,40 +3,19 @@ import { NextResponse } from "next/server";
 import { canSubmitReviews, getRoleFromRequestAsync } from "@/lib/auth";
 import { createListing, getListingById } from "@/lib/data";
 import { isStrictEmail, normalizeEmailInput } from "@/lib/email";
+import { asObject, parseDelimitedList, parseOptionalNumber, parseString } from "@/lib/request-validation";
 import { validateSameOriginRequest } from "@/lib/request-origin";
 import { appendPendingReview } from "@/lib/reviews-store";
 
 const MAX_NEW_LISTING_CONTACTS = 20;
 const MAX_NEW_LISTING_CONTACT_LENGTH = 180;
 
-function truncate(value: unknown, maxLength: number) {
-  if (typeof value !== "string") {
-    return "";
-  }
-  return value.trim().slice(0, maxLength);
-}
-
-function parseOptionalNumber(value: unknown) {
-  if (value === null || value === undefined || value === "") {
-    return undefined;
-  }
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : undefined;
-}
-
 function parseContacts(value: unknown) {
-  if (typeof value !== "string") {
-    return { contacts: [], hasContactTooLong: false };
-  }
-
-  const parsedContacts = value
-    .split(/\r?\n|,|;/g)
-    .map((item) => item.trim())
-    .filter(Boolean);
+  const parsedContacts = parseDelimitedList(value, { maxItems: MAX_NEW_LISTING_CONTACTS });
 
   const hasContactTooLong = parsedContacts.some((item) => item.length > MAX_NEW_LISTING_CONTACT_LENGTH);
   return {
-    contacts: [...new Set(parsedContacts)].slice(0, MAX_NEW_LISTING_CONTACTS),
+    contacts: parsedContacts,
     hasContactTooLong,
   };
 }
@@ -56,13 +35,13 @@ export async function POST(request: Request) {
       );
     }
 
-    const payload = await request.json();
-    const listingId = truncate(payload?.listingId, 200);
-    const comment = truncate(payload?.comment, 1000);
-    const semester = truncate(payload?.semester, 60);
-    const studentName = truncate(payload?.studentName, 80);
-    let studentContact = truncate(payload?.studentContact, 120);
-    let studentEmail = truncate(payload?.studentEmail, 120);
+    const payload = asObject(await request.json().catch(() => null));
+    const listingId = parseString(payload?.listingId, { maxLength: 200 });
+    const comment = parseString(payload?.comment, { maxLength: 1000 });
+    const semester = parseString(payload?.semester, { maxLength: 60 });
+    const studentName = parseString(payload?.studentName, { maxLength: 80 });
+    let studentContact = parseString(payload?.studentContact, { maxLength: 120 });
+    let studentEmail = parseString(payload?.studentEmail, { maxLength: 120 });
     const shareContactInfo = payload?.shareContactInfo === true;
     const submittedPriceUsd = parseOptionalNumber(payload?.priceUsd);
 
@@ -121,8 +100,8 @@ export async function POST(request: Request) {
         );
       }
     } else {
-      const address = truncate(payload?.address, 180);
-      const neighborhood = truncate(payload?.neighborhood, 80);
+      const address = parseString(payload?.address, { maxLength: 180 });
+      const neighborhood = parseString(payload?.neighborhood, { maxLength: 80 });
       const { contacts, hasContactTooLong } = parseContacts(payload?.contacts);
       const priceUsd = submittedPriceUsd;
       const capacity = parseOptionalNumber(payload?.capacity);

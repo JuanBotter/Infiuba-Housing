@@ -31,6 +31,7 @@ Do not defer AGENTS updates.
 - OTP abuse controls are DB-backed and layered: OTP requests are rate limited by IP/subnet/global windows, and OTP verify failures are rate limited by IP and email+IP windows.
 - Sensitive auth/admin API responses explicitly send `Cache-Control: no-store` headers.
 - Stateful API endpoints enforce same-origin checks (Origin/Referer must match request host) to reduce CSRF risk.
+- API request parsing/normalization is centralized in `src/lib/request-validation.ts` and reused across session/reviews/admin-users endpoints.
 - In production, app-wide browser hardening headers are configured (`Content-Security-Policy`, `Strict-Transport-Security`, `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`) via `next.config.mjs`.
 - Reviewer contact email handling is hardened: `/api/reviews` validates strict email format for `studentEmail` and email-like `studentContact`, and listing detail renders `mailto:` only for strict emails using URI-encoded hrefs.
 - DB migrations are managed with node-pg-migrate (`migrations/` directory).
@@ -154,7 +155,7 @@ Seed/import tooling:
 
 ## Database Schema (Current)
 
-Defined in `migrations/001_initial_schema.sql`, `migrations/002_otp_rate_limit_buckets.sql`, `migrations/003_listing_contact_length_limit.sql`, and `migrations/004_dataset_meta_bootstrap.sql` (applied via node-pg-migrate).
+Defined in `migrations/001_initial_schema.sql`, `migrations/002_otp_rate_limit_buckets.sql`, `migrations/003_listing_contact_length_limit.sql`, `migrations/004_dataset_meta_bootstrap.sql`, and `migrations/005_drop_legacy_invites.sql` (applied via node-pg-migrate).
 
 Finite-state fields use PostgreSQL enums:
 
@@ -260,7 +261,7 @@ Finite-state fields use PostgreSQL enums:
 
 Legacy (unused by app):
 
-- `auth_invites` table and `invite_consumed_reason_enum` type remain in some DBs for backward compatibility, but invite flows are removed.
+- Invite flows remain removed from the application.
 
 Indexes:
 
@@ -277,7 +278,7 @@ Indexes:
 - `idx_reviews_listing_status ON reviews(listing_id, status, source)`
 - `idx_reviews_status_created ON reviews(status, created_at DESC)`
 
-Integrity hardening (enforced in `migrations/001_initial_schema.sql`, `migrations/002_otp_rate_limit_buckets.sql`, `migrations/003_listing_contact_length_limit.sql`, and `migrations/004_dataset_meta_bootstrap.sql`):
+Integrity hardening (enforced in `migrations/001_initial_schema.sql`, `migrations/002_otp_rate_limit_buckets.sql`, `migrations/003_listing_contact_length_limit.sql`, `migrations/004_dataset_meta_bootstrap.sql`, and `migrations/005_drop_legacy_invites.sql`):
 
 - Non-empty checks for core text identifiers (`users.email`, `deleted_users.email`, `auth_email_otps.email`, listing address/neighborhood, listing contact).
 - Numeric range checks for ratings, recommendation rates, coordinates, and year fields.
@@ -287,6 +288,7 @@ Integrity hardening (enforced in `migrations/001_initial_schema.sql`, `migration
 - Rate-limit bucket consistency (`scope`/`bucket_key_hash` non-empty, `window_seconds > 0`, `hits >= 0`).
 - Listing contact length control (`listing_contacts.contact` <= 180 for new/updated rows).
 - `dataset_meta` bootstrap row (`id=1`) is created if missing via migration.
+- Legacy invite DB artifacts (`auth_invites`, `invite_consumed_reason_enum`) are dropped by migration.
 - Legacy-row normalization before constraints are applied (trim/canonicalize emails, null-out invalid ranges, dedupe users by case-insensitive email).
 - Initial migration handles both pre-enum and post-enum states for `reviews.source`/`reviews.status`.
 
@@ -353,6 +355,7 @@ Must remain true:
 - App security headers config: `next.config.mjs`
 - Root layout + theme bootstrap script loader: `src/app/layout.tsx`
 - Theme bootstrap script (static, beforeInteractive): `public/theme-init.js`
+- Request validation helpers: `src/lib/request-validation.ts`
 - Role/auth helpers: `src/lib/auth.ts`
 - Email/contact helpers: `src/lib/email.ts`
 - No-store response helper: `src/lib/http-cache.ts`
