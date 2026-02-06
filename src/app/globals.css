@@ -910,6 +910,13 @@ textarea {
   overflow-wrap: anywhere;
 }
 
+.review-item__contact {
+  margin-top: 0.45rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--primary-deep);
+}
+
 .review-item__meta {
   margin-bottom: 0.3rem !important;
   font-size: 0.76rem;

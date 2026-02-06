@@ -61,7 +61,7 @@ export const messages = {
     noComments: "No comments yet.",
     reviewShowOriginal: "Show original",
     reviewShowTranslation: "Show translation",
-    reviewContactLabel: "Contact from reviewer",
+    reviewContactLabel: "Contact",
     backToListings: "Back to listings",
     leaveReviewTitle: "Share your own review",
     leaveReviewSubtitle:
@@ -279,7 +279,7 @@ export const messages = {
     noComments: "Todavía no hay comentarios.",
     reviewShowOriginal: "Ver original",
     reviewShowTranslation: "Ver traducción",
-    reviewContactLabel: "Contacto del/la estudiante",
+    reviewContactLabel: "Contacto",
     backToListings: "Volver al listado",
     leaveReviewTitle: "Compartí tu reseña",
     leaveReviewSubtitle:
@@ -497,7 +497,7 @@ export const messages = {
     noComments: "Pas encore de commentaires.",
     reviewShowOriginal: "Voir l'original",
     reviewShowTranslation: "Voir la traduction",
-    reviewContactLabel: "Contact de l'étudiant",
+    reviewContactLabel: "Contact",
     backToListings: "Retour à la liste",
     leaveReviewTitle: "Partagez votre avis",
     leaveReviewSubtitle:
@@ -719,7 +719,7 @@ export const messages = {
     noComments: "Noch keine Kommentare.",
     reviewShowOriginal: "Original anzeigen",
     reviewShowTranslation: "Übersetzung anzeigen",
-    reviewContactLabel: "Kontakt des Studierenden",
+    reviewContactLabel: "Kontakt",
     backToListings: "Zurück zur Liste",
     leaveReviewTitle: "Teile deine Bewertung",
     leaveReviewSubtitle:
@@ -941,7 +941,7 @@ export const messages = {
     noComments: "Ainda não há comentários.",
     reviewShowOriginal: "Mostrar original",
     reviewShowTranslation: "Mostrar tradução",
-    reviewContactLabel: "Contato do estudante",
+    reviewContactLabel: "Contato",
     backToListings: "Voltar à lista",
     leaveReviewTitle: "Compartilhe sua avaliação",
     leaveReviewSubtitle:
@@ -1162,7 +1162,7 @@ export const messages = {
     noComments: "Ancora nessun commento.",
     reviewShowOriginal: "Mostra originale",
     reviewShowTranslation: "Mostra traduzione",
-    reviewContactLabel: "Contatto dello studente",
+    reviewContactLabel: "Contatto",
     backToListings: "Torna all'elenco",
     leaveReviewTitle: "Condividi la tua recensione",
     leaveReviewSubtitle:
@@ -1383,7 +1383,7 @@ export const messages = {
     noComments: "Ingen kommentarer ennå.",
     reviewShowOriginal: "Vis original",
     reviewShowTranslation: "Vis oversettelse",
-    reviewContactLabel: "Kontakt fra studenten",
+    reviewContactLabel: "Kontakt",
     backToListings: "Tilbake til listen",
     leaveReviewTitle: "Del din anmeldelse",
     leaveReviewSubtitle:

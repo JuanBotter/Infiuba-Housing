@@ -10,7 +10,7 @@ import {
   getCurrentUserRole,
 } from "@/lib/auth";
 import { getCachedPublicListingById, getListingById } from "@/lib/data";
-import { buildSafeMailtoHref, isStrictEmail } from "@/lib/email";
+import { splitReviewerContactParts } from "@/lib/reviewer-contact";
 import { splitContactParts } from "@/lib/contact-links";
 import { formatDecimal, formatPercent, formatUsd, formatUsdRange } from "@/lib/format";
 import { getMessages, isSupportedLanguage } from "@/lib/i18n";
@@ -201,13 +201,22 @@ export default async function PlaceDetailPage({ params }: PlaceDetailPageProps) 
                   {canViewReviewerInfo && review.studentContact ? (
                     <p className="review-item__contact">
                       {messages.reviewContactLabel}:{" "}
-                      {isStrictEmail(review.studentContact) ? (
-                        <a href={buildSafeMailtoHref(review.studentContact)}>
-                          {review.studentContact}
-                        </a>
-                      ) : (
-                        review.studentContact
-                      )}
+                      {splitReviewerContactParts(review.studentContact).map((part, index) => {
+                        if (part.type === "link") {
+                          const isExternal = part.kind === "whatsapp" || part.kind === "url";
+                          return (
+                            <a
+                              key={`${part.text}-${index}`}
+                              href={part.href}
+                              target={isExternal ? "_blank" : undefined}
+                              rel={isExternal ? "noreferrer" : undefined}
+                            >
+                              {part.text}
+                            </a>
+                          );
+                        }
+                        return <span key={`${part.text}-${index}`}>{part.text}</span>;
+                      })}
                     </p>
                   ) : null}
                 </li>

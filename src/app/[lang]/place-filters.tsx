@@ -14,6 +14,7 @@ import { ReviewComment } from "@/app/[lang]/place/[id]/review-comment";
 import { ReviewForm } from "@/app/[lang]/place/[id]/review-form";
 import { splitContactParts } from "@/lib/contact-links";
 import { formatDecimal, formatPercent, formatUsd, formatUsdRange } from "@/lib/format";
+import { splitReviewerContactParts } from "@/lib/reviewer-contact";
 import type { Messages } from "@/i18n/messages";
 import type { Lang, Listing } from "@/types";
 
@@ -875,6 +876,27 @@ export function PlaceFilters({
                             showOriginalLabel={messages.reviewShowOriginal}
                             showTranslationLabel={messages.reviewShowTranslation}
                           />
+                          {review.studentContact ? (
+                            <p className="review-item__contact">
+                              {messages.reviewContactLabel}:{" "}
+                              {splitReviewerContactParts(review.studentContact).map((part, index) => {
+                                if (part.type === "link") {
+                                  const isExternal = part.kind === "whatsapp" || part.kind === "url";
+                                  return (
+                                    <a
+                                      key={`${part.text}-${index}`}
+                                      href={part.href}
+                                      target={isExternal ? "_blank" : undefined}
+                                      rel={isExternal ? "noreferrer" : undefined}
+                                    >
+                                      {part.text}
+                                    </a>
+                                  );
+                                }
+                                return <span key={`${part.text}-${index}`}>{part.text}</span>;
+                              })}
+                            </p>
+                          ) : null}
                         </li>
                       ))}
                     </ul>
