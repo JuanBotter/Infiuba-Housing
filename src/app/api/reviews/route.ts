@@ -7,6 +7,7 @@ import { isStrictEmail, normalizeEmailInput } from "@/lib/email";
 import { asObject, parseDelimitedList, parseOptionalNumber, parseString } from "@/lib/request-validation";
 import { validateSameOriginRequest } from "@/lib/request-origin";
 import { appendPendingReview } from "@/lib/reviews-store";
+import { isValidSemester } from "@/lib/semester-options";
 
 const MAX_NEW_LISTING_CONTACTS = 20;
 const MAX_NEW_LISTING_CONTACT_LENGTH = 180;
@@ -58,6 +59,12 @@ export async function POST(request: Request) {
     }
     if (comment.length < 12) {
       return NextResponse.json({ error: "Comment is too short" }, { status: 400 });
+    }
+    if (!semester) {
+      return NextResponse.json({ error: "Semester is required" }, { status: 400 });
+    }
+    if (!isValidSemester(semester)) {
+      return NextResponse.json({ error: "Invalid semester" }, { status: 400 });
     }
     if (submittedPriceUsd !== undefined && (submittedPriceUsd <= 0 || submittedPriceUsd > 20000)) {
       return NextResponse.json({ error: "Invalid rent value" }, { status: 400 });

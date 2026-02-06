@@ -55,6 +55,7 @@ const baseReviewPayload = {
   rating: 4,
   recommended: true,
   comment: "Great stay with good location.",
+  semester: "1C-2026",
 };
 
 describe("/api/reviews", () => {
@@ -186,6 +187,7 @@ describe("/api/reviews", () => {
       rating: 4,
       recommended: true,
       comment: "This place was comfortable and clean.",
+      semester: "1C-2026",
     });
 
     const response = await POST(request);
@@ -205,6 +207,7 @@ describe("/api/reviews", () => {
         rating: 4,
         recommended: true,
         comment: "Legacy payload still works.",
+        semester: "1C-2026",
       }),
     );
     expect(response.status).toBe(201);
@@ -221,6 +224,7 @@ describe("/api/reviews", () => {
       rating: 4,
       recommended: true,
       comment: "Good spot, but confirm details.",
+      semester: "1C-2026",
     });
 
     const response = await POST(request);

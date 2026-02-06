@@ -9,6 +9,7 @@ import {
   createInitialReviewDraft,
   readApiErrorMessage,
 } from "@/lib/review-form";
+import { SEMESTER_OPTIONS } from "@/lib/semester-options";
 import type { Lang, Listing } from "@/types";
 
 interface AddStayReviewFormProps {
@@ -355,8 +356,16 @@ export function AddStayReviewForm({ lang, listings }: AddStayReviewFormProps) {
             onChange={(event) =>
               setReviewDraft((previous) => ({ ...previous, semester: event.target.value }))
             }
-            maxLength={60}
+            placeholder={t.formSemesterPlaceholder}
+            list="semester-options"
+            required
+            maxLength={8}
           />
+          <datalist id="semester-options">
+            {SEMESTER_OPTIONS.map((option) => (
+              <option key={option} value={option} />
+            ))}
+          </datalist>
         </label>
 
         <label>
