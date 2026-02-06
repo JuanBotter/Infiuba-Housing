@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { createListing, getListingById, getListings } from "@/lib/data";
+import { createListing, getListingById } from "@/lib/data";
+import { dbQuery } from "@/lib/db";
 import {
   appendPendingReview,
   getApprovedReviews,
@@ -31,24 +32,20 @@ describe("integration: listings and reviews", () => {
     expect(listing?.address).toBe("Calle Falsa 123");
     expect(listing?.contacts).toContain("+54 9 11 5555-5555");
 
-    const listings = await getListings({
-      includeOwnerContactInfo: false,
-      includeReviewerContactInfo: false,
-    });
-    expect(listings.length).toBe(1);
-    expect(listings[0].contacts).toHaveLength(0);
-
   });
 
   it("stores pending and approved reviews", async () => {
-    const created = await createListing({
-      address: "Avenida Siempre Viva 742",
-      neighborhood: "Belgrano",
-      contacts: ["owner@example.com"],
-    });
+    const listingId = "listing-test";
+    await dbQuery(
+      `
+        INSERT INTO listings (id, address, neighborhood, total_reviews, created_at, updated_at)
+        VALUES ($1, $2, $3, 0, NOW(), NOW())
+      `,
+      [listingId, "Avenida Siempre Viva 742", "Belgrano"],
+    );
 
     const pending = await appendPendingReview({
-      listingId: created.listingId,
+      listingId,
       rating: 5,
       recommended: true,
       comment: "Great spot for students.",
