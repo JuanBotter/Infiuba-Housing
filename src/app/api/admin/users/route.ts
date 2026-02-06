@@ -1,5 +1,3 @@
-import { NextResponse } from "next/server";
-
 import {
   canAccessAdmin,
   deleteUser,
@@ -9,6 +7,7 @@ import {
   updateUserRole,
   upsertUsers,
 } from "@/lib/auth";
+import { jsonNoStore, withNoStore } from "@/lib/http-cache";
 import { validateSameOriginRequest } from "@/lib/request-origin";
 
 function parseLimit(value: string | null) {
@@ -52,22 +51,22 @@ function parseRole(value: unknown): "whitelisted" | "admin" | "" {
 export async function GET(request: Request) {
   const session = await getAuthSessionFromRequest(request);
   if (!canAccessAdmin(session.role)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return jsonNoStore({ error: "Unauthorized" }, { status: 401 });
   }
 
   const url = new URL(request.url);
   const limit = parseLimit(url.searchParams.get("limit"));
   const users = await getManagedUsers(limit);
   if (!users.ok) {
-    return NextResponse.json({ error: "Database is required" }, { status: 503 });
+    return jsonNoStore({ error: "Database is required" }, { status: 503 });
   }
 
   const deleted = await getDeletedUsers(limit);
   if (!deleted.ok) {
-    return NextResponse.json({ error: "Database is required" }, { status: 503 });
+    return jsonNoStore({ error: "Database is required" }, { status: 503 });
   }
 
-  return NextResponse.json({
+  return jsonNoStore({
     users: users.users,
     active: users.users.filter((user) => user.isActive),
     deleted: deleted.users,
@@ -77,12 +76,12 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const originValidation = validateSameOriginRequest(request);
   if (!originValidation.ok) {
-    return originValidation.response;
+    return withNoStore(originValidation.response);
   }
 
   const session = await getAuthSessionFromRequest(request);
   if (!canAccessAdmin(session.role)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return jsonNoStore({ error: "Unauthorized" }, { status: 401 });
   }
 
   const selfEmail = session.email ? session.email.toLowerCase() : "";
@@ -93,75 +92,75 @@ export async function POST(request: Request) {
 
   if (action === "updateRole") {
     if (!email || !role) {
-      return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
+      return jsonNoStore({ error: "Invalid payload" }, { status: 400 });
     }
     if (selfEmail && selfEmail === email) {
-      return NextResponse.json({ error: "You cannot modify your own account." }, { status: 400 });
+      return jsonNoStore({ error: "You cannot modify your own account." }, { status: 400 });
     }
 
     const updated = await updateUserRole(email, role);
     if (!updated.ok) {
       if (updated.reason === "db_unavailable") {
-        return NextResponse.json({ error: "Database is required" }, { status: 503 });
+        return jsonNoStore({ error: "Database is required" }, { status: 503 });
       }
       if (updated.reason === "invalid_email") {
-        return NextResponse.json({ error: "Invalid email" }, { status: 400 });
+        return jsonNoStore({ error: "Invalid email" }, { status: 400 });
       }
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+      return jsonNoStore({ error: "User not found" }, { status: 404 });
     }
 
-    return NextResponse.json({ ok: true, user: updated.user });
+    return jsonNoStore({ ok: true, user: updated.user });
   }
 
   if (action === "delete") {
     if (!email) {
-      return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
+      return jsonNoStore({ error: "Invalid payload" }, { status: 400 });
     }
     if (selfEmail && selfEmail === email) {
-      return NextResponse.json({ error: "You cannot modify your own account." }, { status: 400 });
+      return jsonNoStore({ error: "You cannot modify your own account." }, { status: 400 });
     }
 
     const deleted = await deleteUser(email);
     if (!deleted.ok) {
       if (deleted.reason === "db_unavailable") {
-        return NextResponse.json({ error: "Database is required" }, { status: 503 });
+        return jsonNoStore({ error: "Database is required" }, { status: 503 });
       }
       if (deleted.reason === "invalid_email") {
-        return NextResponse.json({ error: "Invalid email" }, { status: 400 });
+        return jsonNoStore({ error: "Invalid email" }, { status: 400 });
       }
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+      return jsonNoStore({ error: "User not found" }, { status: 404 });
     }
 
-    return NextResponse.json({ ok: true });
+    return jsonNoStore({ ok: true });
   }
 
   if (action === "upsert") {
     const emails = parseEmails(payload?.emails ?? payload?.email);
     if (!role || emails.length === 0) {
-      return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
+      return jsonNoStore({ error: "Invalid payload" }, { status: 400 });
     }
 
     if (selfEmail && emails.includes(selfEmail)) {
-      return NextResponse.json({ error: "You cannot modify your own account." }, { status: 400 });
+      return jsonNoStore({ error: "You cannot modify your own account." }, { status: 400 });
     }
 
     const invalidEmails = emails.filter((entry) => !isLikelyEmail(entry));
     const validEmails = emails.filter((entry) => isLikelyEmail(entry));
     if (validEmails.length === 0) {
-      return NextResponse.json({ error: "Invalid email list", invalidEmails }, { status: 400 });
+      return jsonNoStore({ error: "Invalid email list", invalidEmails }, { status: 400 });
     }
 
     const created = await upsertUsers(validEmails, role);
     if (!created.ok) {
-      return NextResponse.json({ error: "Database is required" }, { status: 503 });
+      return jsonNoStore({ error: "Database is required" }, { status: 503 });
     }
 
-    return NextResponse.json({
+    return jsonNoStore({
       ok: true,
       processed: created.count,
       invalidEmails,
     });
   }
 
-  return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
+  return jsonNoStore({ error: "Invalid payload" }, { status: 400 });
 }

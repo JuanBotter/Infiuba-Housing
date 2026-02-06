@@ -12,9 +12,11 @@ Multilingual MVP (English, Spanish, French, German, Portuguese, Italian, Norwegi
 - PostgreSQL-backed listings and reviews (`DATABASE_URL` required at runtime).
 - Original review comments + translated versions saved in PostgreSQL (`comment` + `comment_<lang>` columns).
 - Public review submission flow with address suggestions; existing properties get a new review, new ones are created automatically.
+- New listing contact inputs are capped (max 20 entries, max 180 chars per contact).
 - Role-based access: `visitor` (default), `whitelisted` (student full access), `admin`.
 - Email OTP login for approved users stored in PostgreSQL (`users` table).
 - Layered OTP abuse throttling (request limits by IP/subnet/global and verify-failure limits by IP and email+IP).
+- Sensitive auth/admin API responses include explicit `Cache-Control: no-store` headers.
 - Admin reviews and user access UI at `/{lang}/admin/reviews` and `/{lang}/admin/access`.
 
 ## Run locally

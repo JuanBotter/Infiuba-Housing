@@ -29,6 +29,7 @@ Do not defer AGENTS updates.
 - OTP mailer logs provider availability and send failures (redacted recipient) to server logs for troubleshooting.
 - OTP request/verify API responses are intentionally enumeration-safe: request responses are generic for allowed/not-allowed/rate-limited outcomes, and verify failures return a generic invalid-code response for auth failures.
 - OTP abuse controls are DB-backed and layered: OTP requests are rate limited by IP/subnet/global windows, and OTP verify failures are rate limited by IP and email+IP windows.
+- Sensitive auth/admin API responses explicitly send `Cache-Control: no-store` headers.
 - Stateful API endpoints enforce same-origin checks (Origin/Referer must match request host) to reduce CSRF risk.
 - DB migrations are managed with node-pg-migrate (`migrations/` directory).
 - Admin UX: split views for reviews and access management under `/{lang}/admin/*`; access view supports search, role changes, deletion, and bulk user creation.
@@ -117,6 +118,7 @@ Implementation:
     - `requestOtp` intentionally returns a generic success payload for most auth-related outcomes to reduce account enumeration.
     - `verifyOtp` intentionally returns generic invalid-code failures for non-success auth outcomes (`not_allowed`, invalid/expired codes, etc.).
     - OTP abuse throttling uses request network fingerprints derived from proxy headers (`x-forwarded-for`, `cf-connecting-ip`, `x-real-ip`, `forwarded`).
+    - Session API responses are returned with `Cache-Control: no-store`.
   - `DELETE /api/session` -> logout (clears cookie).
   - `GET /api/session` -> current resolved role (DB-validated for cookie-backed sessions).
   - `POST /api/session` is the only sign-in path (OTP).
@@ -146,7 +148,7 @@ Seed/import tooling:
 
 ## Database Schema (Current)
 
-Defined in `migrations/001_initial_schema.sql` and `migrations/002_otp_rate_limit_buckets.sql` (applied via node-pg-migrate).
+Defined in `migrations/001_initial_schema.sql`, `migrations/002_otp_rate_limit_buckets.sql`, and `migrations/003_listing_contact_length_limit.sql` (applied via node-pg-migrate).
 
 Finite-state fields use PostgreSQL enums:
 
@@ -184,6 +186,7 @@ Finite-state fields use PostgreSQL enums:
 - `id BIGSERIAL PRIMARY KEY`
 - `listing_id TEXT NOT NULL REFERENCES listings(id) ON DELETE CASCADE`
 - `contact TEXT NOT NULL`
+- `contact` length is capped at 180 characters for new/updated rows.
 - `UNIQUE (listing_id, contact)`
 
 ### `reviews`
@@ -268,7 +271,7 @@ Indexes:
 - `idx_reviews_listing_status ON reviews(listing_id, status, source)`
 - `idx_reviews_status_created ON reviews(status, created_at DESC)`
 
-Integrity hardening (enforced in `migrations/001_initial_schema.sql` and `migrations/002_otp_rate_limit_buckets.sql`):
+Integrity hardening (enforced in `migrations/001_initial_schema.sql`, `migrations/002_otp_rate_limit_buckets.sql`, and `migrations/003_listing_contact_length_limit.sql`):
 
 - Non-empty checks for core text identifiers (`users.email`, `deleted_users.email`, `auth_email_otps.email`, listing address/neighborhood, listing contact).
 - Numeric range checks for ratings, recommendation rates, coordinates, and year fields.
@@ -276,6 +279,7 @@ Integrity hardening (enforced in `migrations/001_initial_schema.sql` and `migrat
 - Review rent consistency (`reviews.price_usd` must be null or > 0).
 - OTP consistency (`consumed_at`/`consumed_reason` coupled, attempts non-negative, expires/consumed not before creation).
 - Rate-limit bucket consistency (`scope`/`bucket_key_hash` non-empty, `window_seconds > 0`, `hits >= 0`).
+- Listing contact length control (`listing_contacts.contact` <= 180 for new/updated rows).
 - Legacy-row normalization before constraints are applied (trim/canonicalize emails, null-out invalid ranges, dedupe users by case-insensitive email).
 - Initial migration handles both pre-enum and post-enum states for `reviews.source`/`reviews.status`.
 
@@ -302,6 +306,7 @@ Submission:
   - New listing + review in one flow
 - Endpoint: `POST /api/reviews`
 - New reviews are inserted as `source='web'`, `status='pending'`
+- New-listing contact ingestion (`contacts`) enforces at most 20 entries and rejects any item longer than 180 characters.
 - Permission enforced server-side: only `whitelisted` and `admin`
 
 Moderation:
@@ -337,6 +342,7 @@ Must remain true:
   - `GET` managed users (`active` + `deleted`)
   - `POST` update roles, delete, or bulk upsert users
 - Role/auth helpers: `src/lib/auth.ts`
+- No-store response helper: `src/lib/http-cache.ts`
 - Request network fingerprint helper: `src/lib/request-network.ts`
 - OTP mail delivery helper: `src/lib/otp-mailer.ts`
 - Data access: `src/lib/data.ts`

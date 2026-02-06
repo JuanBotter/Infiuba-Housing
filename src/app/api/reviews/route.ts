@@ -5,6 +5,9 @@ import { createListing, getListingById } from "@/lib/data";
 import { validateSameOriginRequest } from "@/lib/request-origin";
 import { appendPendingReview } from "@/lib/reviews-store";
 
+const MAX_NEW_LISTING_CONTACTS = 20;
+const MAX_NEW_LISTING_CONTACT_LENGTH = 180;
+
 function truncate(value: unknown, maxLength: number) {
   if (typeof value !== "string") {
     return "";
@@ -22,12 +25,19 @@ function parseOptionalNumber(value: unknown) {
 
 function parseContacts(value: unknown) {
   if (typeof value !== "string") {
-    return [];
+    return { contacts: [], hasContactTooLong: false };
   }
 
-  return [...new Set(value.split(/\r?\n|,|;/g).map((item) => item.trim()))]
-    .filter(Boolean)
-    .slice(0, 20);
+  const parsedContacts = value
+    .split(/\r?\n|,|;/g)
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  const hasContactTooLong = parsedContacts.some((item) => item.length > MAX_NEW_LISTING_CONTACT_LENGTH);
+  return {
+    contacts: [...new Set(parsedContacts)].slice(0, MAX_NEW_LISTING_CONTACTS),
+    hasContactTooLong,
+  };
 }
 
 export async function POST(request: Request) {
@@ -100,7 +110,7 @@ export async function POST(request: Request) {
     } else {
       const address = truncate(payload?.address, 180);
       const neighborhood = truncate(payload?.neighborhood, 80);
-      const contacts = parseContacts(payload?.contacts);
+      const { contacts, hasContactTooLong } = parseContacts(payload?.contacts);
       const priceUsd = submittedPriceUsd;
       const capacity = parseOptionalNumber(payload?.capacity);
       const latitude = parseOptionalNumber(payload?.latitude);
@@ -111,6 +121,14 @@ export async function POST(request: Request) {
       }
       if (neighborhood.length < 2) {
         return NextResponse.json({ error: "Invalid neighborhood" }, { status: 400 });
+      }
+      if (hasContactTooLong) {
+        return NextResponse.json(
+          {
+            error: `Each contact must be at most ${MAX_NEW_LISTING_CONTACT_LENGTH} characters`,
+          },
+          { status: 400 },
+        );
       }
       if (capacity !== undefined && (capacity <= 0 || capacity > 50)) {
         return NextResponse.json({ error: "Invalid capacity value" }, { status: 400 });

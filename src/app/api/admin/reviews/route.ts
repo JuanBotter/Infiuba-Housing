@@ -1,6 +1,5 @@
-import { NextResponse } from "next/server";
-
 import { canAccessAdmin, getRoleFromRequestAsync } from "@/lib/auth";
+import { jsonNoStore, withNoStore } from "@/lib/http-cache";
 import { validateSameOriginRequest } from "@/lib/request-origin";
 import {
   getApprovedReviews,
@@ -10,24 +9,24 @@ import {
 
 export async function GET(request: Request) {
   if (!canAccessAdmin(await getRoleFromRequestAsync(request))) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return jsonNoStore({ error: "Unauthorized" }, { status: 401 });
   }
 
   const [pending, approved] = await Promise.all([getPendingReviews(), getApprovedReviews()]);
   pending.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   approved.sort((a, b) => b.approvedAt.localeCompare(a.approvedAt));
 
-  return NextResponse.json({ pending, approved });
+  return jsonNoStore({ pending, approved });
 }
 
 export async function POST(request: Request) {
   const originValidation = validateSameOriginRequest(request);
   if (!originValidation.ok) {
-    return originValidation.response;
+    return withNoStore(originValidation.response);
   }
 
   if (!canAccessAdmin(await getRoleFromRequestAsync(request))) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return jsonNoStore({ error: "Unauthorized" }, { status: 401 });
   }
 
   const payload = await request.json().catch(() => null);
@@ -35,13 +34,13 @@ export async function POST(request: Request) {
   const reviewId = typeof payload?.reviewId === "string" ? payload.reviewId.trim() : "";
 
   if ((action !== "approve" && action !== "reject") || !reviewId) {
-    return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
+    return jsonNoStore({ error: "Invalid payload" }, { status: 400 });
   }
 
   const result = await moderatePendingReview(reviewId, action);
   if (!result.ok) {
-    return NextResponse.json({ error: "Review not found" }, { status: 404 });
+    return jsonNoStore({ error: "Review not found" }, { status: 404 });
   }
 
-  return NextResponse.json({ ok: true, action: result.action, reviewId });
+  return jsonNoStore({ ok: true, action: result.action, reviewId });
 }

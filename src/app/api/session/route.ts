@@ -1,5 +1,3 @@
-import { NextResponse } from "next/server";
-
 import {
   buildRoleCookie,
   buildRoleCookieClear,
@@ -7,6 +5,7 @@ import {
   requestLoginOtp,
   verifyLoginOtp,
 } from "@/lib/auth";
+import { jsonNoStore, withNoStore } from "@/lib/http-cache";
 import { getRequestNetworkFingerprint } from "@/lib/request-network";
 import { validateSameOriginRequest } from "@/lib/request-origin";
 
@@ -39,7 +38,7 @@ function parseTrustDevice(value: unknown) {
 }
 
 function buildOtpRequestAcceptedResponse(email: string) {
-  return NextResponse.json({
+  return jsonNoStore({
     ok: true,
     email,
   });
@@ -47,13 +46,13 @@ function buildOtpRequestAcceptedResponse(email: string) {
 
 export async function GET(request: Request) {
   const session = await getAuthSessionFromRequest(request);
-  return NextResponse.json(session);
+  return jsonNoStore(session);
 }
 
 export async function POST(request: Request) {
   const originValidation = validateSameOriginRequest(request);
   if (!originValidation.ok) {
-    return originValidation.response;
+    return withNoStore(originValidation.response);
   }
 
   const networkFingerprint = getRequestNetworkFingerprint(request);
@@ -65,7 +64,7 @@ export async function POST(request: Request) {
   const trustDevice = parseTrustDevice(payload?.trustDevice);
 
   if (!action) {
-    return NextResponse.json(
+    return jsonNoStore(
       { error: "Unsupported action. Use requestOtp or verifyOtp." },
       { status: 400 },
     );
@@ -73,16 +72,16 @@ export async function POST(request: Request) {
 
   if (action === "requestOtp") {
     if (!email) {
-      return NextResponse.json({ error: "Missing email" }, { status: 400 });
+      return jsonNoStore({ error: "Missing email" }, { status: 400 });
     }
 
     const requested = await requestLoginOtp(email, networkFingerprint);
     if (!requested.ok) {
       if (requested.reason === "db_unavailable") {
-        return NextResponse.json({ error: "Database is required for OTP login" }, { status: 503 });
+        return jsonNoStore({ error: "Database is required for OTP login" }, { status: 503 });
       }
       if (requested.reason === "invalid_email") {
-        return NextResponse.json({ error: "Invalid email" }, { status: 400 });
+        return jsonNoStore({ error: "Invalid email" }, { status: 400 });
       }
       // Prevent account enumeration via request OTP response semantics.
       return buildOtpRequestAcceptedResponse(email);
@@ -92,22 +91,22 @@ export async function POST(request: Request) {
   }
 
   if (!email || !otpCode) {
-    return NextResponse.json({ error: "Missing email or OTP code" }, { status: 400 });
+    return jsonNoStore({ error: "Missing email or OTP code" }, { status: 400 });
   }
 
   const verified = await verifyLoginOtp(email, otpCode, networkFingerprint);
   if (!verified.ok) {
     if (verified.reason === "db_unavailable") {
-      return NextResponse.json({ error: "Database is required for OTP login" }, { status: 503 });
+      return jsonNoStore({ error: "Database is required for OTP login" }, { status: 503 });
     }
     if (verified.reason === "invalid_email") {
-      return NextResponse.json({ error: "Invalid email" }, { status: 400 });
+      return jsonNoStore({ error: "Invalid email" }, { status: 400 });
     }
     // Keep authentication failures generic to reduce account enumeration.
-    return NextResponse.json({ error: "Invalid or expired OTP code" }, { status: 401 });
+    return jsonNoStore({ error: "Invalid or expired OTP code" }, { status: 401 });
   }
 
-  const response = NextResponse.json({
+  const response = jsonNoStore({
     ok: true,
     role: verified.role,
     authMethod: "otp",
@@ -127,10 +126,10 @@ export async function POST(request: Request) {
 export function DELETE(request: Request) {
   const originValidation = validateSameOriginRequest(request);
   if (!originValidation.ok) {
-    return originValidation.response;
+    return withNoStore(originValidation.response);
   }
 
-  const response = NextResponse.json({ ok: true, role: "visitor" });
+  const response = jsonNoStore({ ok: true, role: "visitor" });
   response.cookies.set(buildRoleCookieClear());
   return response;
 }
