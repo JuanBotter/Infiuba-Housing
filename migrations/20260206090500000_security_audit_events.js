@@ -2,7 +2,7 @@ const { readFileSync } = require("node:fs");
 const path = require("node:path");
 
 exports.up = (pgm) => {
-  const sql = readFileSync(path.join(__dirname, "006_security_audit_events.sql"), "utf8");
+  const sql = readFileSync(path.join(__dirname, "20260206090500000_security_audit_events.sql"), "utf8");
   pgm.sql(sql);
 };
 

@@ -81,7 +81,8 @@ Do not defer AGENTS updates.
 - Roll back the latest migration (when reversible): `npm run db:migrate:down` (also non-verbose).
 - `db:migrate` reads `DATABASE_URL` (node-pg-migrate `-d` expects the env var name).
 - Migration CLI discovery is scoped to JS entry files (`migrations/*.js` with `--use-glob`) so helper `.sql`/docs are not imported as migrations.
-- Migration scripts run with `--check-order false` because migrations use numeric prefixes (`001_`, `002_`, ...) rather than node-pg-migrate timestamp prefixes.
+- Migration scripts run with `--check-order false` (legacy setting); migrations now use timestamp-style prefixes.
+- `scripts/db-migrate.mjs` rewrites legacy `pgmigrations.name` entries (from `001_` style) to the new timestamped names before running node-pg-migrate.
 - Legacy alias: `npm run db:init`
 - Seed DB: `npm run db:seed`
 - Init/migrate + seed: `npm run db:setup`
@@ -173,7 +174,7 @@ Seed/import tooling:
 
 ## Database Schema (Current)
 
-Defined in `migrations/001_initial_schema.sql`, `migrations/002_otp_rate_limit_buckets.sql`, `migrations/003_listing_contact_length_limit.sql`, `migrations/004_dataset_meta_bootstrap.sql`, `migrations/005_drop_legacy_invites.sql`, and `migrations/006_security_audit_events.sql` (applied via node-pg-migrate; rollback behavior documented in `migrations/ROLLBACK_POLICY.md`).
+Defined in `migrations/20260206090000000_initial_schema.sql`, `migrations/20260206090100000_otp_rate_limit_buckets.sql`, `migrations/20260206090200000_listing_contact_length_limit.sql`, `migrations/20260206090300000_dataset_meta_bootstrap.sql`, `migrations/20260206090400000_drop_legacy_invites.sql`, and `migrations/20260206090500000_security_audit_events.sql` (applied via node-pg-migrate; rollback behavior documented in `migrations/ROLLBACK_POLICY.md`).
 
 Finite-state fields use PostgreSQL enums:
 
@@ -311,7 +312,7 @@ Indexes:
 - `idx_reviews_listing_status ON reviews(listing_id, status, source)`
 - `idx_reviews_status_created ON reviews(status, created_at DESC)`
 
-Integrity hardening (enforced in `migrations/001_initial_schema.sql`, `migrations/002_otp_rate_limit_buckets.sql`, `migrations/003_listing_contact_length_limit.sql`, `migrations/004_dataset_meta_bootstrap.sql`, `migrations/005_drop_legacy_invites.sql`, and `migrations/006_security_audit_events.sql`):
+Integrity hardening (enforced in `migrations/20260206090000000_initial_schema.sql`, `migrations/20260206090100000_otp_rate_limit_buckets.sql`, `migrations/20260206090200000_listing_contact_length_limit.sql`, `migrations/20260206090300000_dataset_meta_bootstrap.sql`, `migrations/20260206090400000_drop_legacy_invites.sql`, and `migrations/20260206090500000_security_audit_events.sql`):
 
 - Non-empty checks for core text identifiers (`users.email`, `deleted_users.email`, `auth_email_otps.email`, listing address/neighborhood, listing contact).
 - Numeric range checks for ratings, recommendation rates, coordinates, and year fields.
