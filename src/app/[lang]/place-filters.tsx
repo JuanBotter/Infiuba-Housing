@@ -73,6 +73,40 @@ function normalizeSortBy(value: string | undefined): SortBy {
   return "recent_desc";
 }
 
+function getListingReviewPrices(listing: Listing) {
+  return (listing.reviewPrices || []).filter((price): price is number => Number.isFinite(price));
+}
+
+function hasReviewPriceInRange(
+  listing: Listing,
+  minValue: number | undefined,
+  maxValue: number | undefined,
+) {
+  const prices = getListingReviewPrices(listing);
+  if (prices.length === 0) {
+    return false;
+  }
+
+  return prices.some((price) => {
+    if (typeof minValue === "number" && price < minValue) {
+      return false;
+    }
+    if (typeof maxValue === "number" && price > maxValue) {
+      return false;
+    }
+    return true;
+  });
+}
+
+function getListingMinReviewPrice(listing: Listing) {
+  const prices = getListingReviewPrices(listing);
+  if (prices.length === 0) {
+    return undefined;
+  }
+
+  return Math.min(...prices);
+}
+
 export function PlaceFilters({
   lang,
   messages,
@@ -200,11 +234,14 @@ export function PlaceFilters({
         (recommendedFilter === "yes" && (listing.recommendationRate ?? 0) >= 0.5) ||
         (recommendedFilter === "no" && (listing.recommendationRate ?? 0) < 0.5);
 
-      const minPriceMatch =
-        !hasMinPrice || (typeof listing.priceUsd === "number" && listing.priceUsd >= minPriceValue);
-
-      const maxPriceMatch =
-        !hasMaxPrice || (typeof listing.priceUsd === "number" && listing.priceUsd <= maxPriceValue);
+      const priceRangeMatch =
+        !hasMinPrice && !hasMaxPrice
+          ? true
+          : hasReviewPriceInRange(
+              listing,
+              hasMinPrice ? minPriceValue : undefined,
+              hasMaxPrice ? maxPriceValue : undefined,
+            );
 
       const minRatingMatch =
         !hasMinRating ||
@@ -214,8 +251,7 @@ export function PlaceFilters({
         searchMatch &&
         neighborhoodMatch &&
         recommendationMatch &&
-        minPriceMatch &&
-        maxPriceMatch &&
+        priceRangeMatch &&
         minRatingMatch
       );
     });
@@ -251,7 +287,11 @@ export function PlaceFilters({
       }
 
       if (sortBy === "price_asc") {
-        const priceOrder = numberCompare(left.priceUsd, right.priceUsd, "asc");
+        const priceOrder = numberCompare(
+          getListingMinReviewPrice(left),
+          getListingMinReviewPrice(right),
+          "asc",
+        );
         if (priceOrder !== 0) {
           return priceOrder;
         }
@@ -702,49 +742,46 @@ export function PlaceFilters({
                     mapListItemRefs.current[listing.id] = element;
                   }}
                   className={`map-listing ${isSelected ? "is-selected" : ""}`}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => {
-                    setSelectedMapListingId(listing.id);
-                    setIsMapListOpen(false);
-                  }}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") {
-                      event.preventDefault();
+                >
+                  <button
+                    type="button"
+                    className="map-listing__select"
+                    aria-pressed={isSelected}
+                    onClick={() => {
                       setSelectedMapListingId(listing.id);
                       setIsMapListOpen(false);
-                    }
-                  }}
-                >
-                  <div className="map-listing__head">
-                    <p className="place-card__neighborhood">{listing.neighborhood}</p>
-                    <p className="place-card__reviews-badge">
-                      {listing.totalReviews} {messages.reviewsLabel}
-                    </p>
-                  </div>
-                  <h3>{listing.address}</h3>
-                  <div className="map-listing__stats">
-                    <p>
-                      {messages.ratingLabel}:{" "}
-                      {typeof listing.averageRating === "number"
-                        ? formatDecimal(listing.averageRating, lang)
-                        : "-"}
-                    </p>
-                    <p>
-                      {messages.priceLabel}:{" "}
-                      {(() => {
-                        const priceText = formatUsdRange(
-                          {
-                            min: listing.minPriceUsd,
-                            max: listing.maxPriceUsd,
-                            fallback: listing.priceUsd,
-                          },
-                          lang,
-                        );
-                        return priceText ? `${priceText} ${messages.monthSuffix}` : "-";
-                      })()}
-                    </p>
-                  </div>
+                    }}
+                  >
+                    <div className="map-listing__head">
+                      <p className="place-card__neighborhood">{listing.neighborhood}</p>
+                      <p className="place-card__reviews-badge">
+                        {listing.totalReviews} {messages.reviewsLabel}
+                      </p>
+                    </div>
+                    <h3>{listing.address}</h3>
+                    <div className="map-listing__stats">
+                      <p>
+                        {messages.ratingLabel}:{" "}
+                        {typeof listing.averageRating === "number"
+                          ? formatDecimal(listing.averageRating, lang)
+                          : "-"}
+                      </p>
+                      <p>
+                        {messages.priceLabel}:{" "}
+                        {(() => {
+                          const priceText = formatUsdRange(
+                            {
+                              min: listing.minPriceUsd,
+                              max: listing.maxPriceUsd,
+                              fallback: listing.priceUsd,
+                            },
+                            lang,
+                          );
+                          return priceText ? `${priceText} ${messages.monthSuffix}` : "-";
+                        })()}
+                      </p>
+                    </div>
+                  </button>
                   <Link href={`/${lang}/place/${listing.id}`} className="inline-link">
                     {messages.viewDetails}
                   </Link>

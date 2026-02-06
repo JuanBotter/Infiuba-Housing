@@ -42,6 +42,7 @@ interface ListingRow {
   recent_year: number | null;
   min_price_usd: string | number | null;
   max_price_usd: string | number | null;
+  review_prices: (string | number)[] | null;
 }
 
 interface ListingPrivacyOptions {
@@ -66,6 +67,10 @@ function resolvePrivacyOptions(options: ListingPrivacyOptions) {
 }
 
 function mapListingRow(row: ListingRow): Listing {
+  const reviewPrices = (row.review_prices || [])
+    .map((value) => toOptionalNumber(value))
+    .filter((value): value is number => typeof value === "number");
+
   return {
     id: row.id,
     address: row.address,
@@ -76,6 +81,7 @@ function mapListingRow(row: ListingRow): Listing {
     priceUsd: toOptionalNumber(row.price_usd),
     minPriceUsd: toOptionalNumber(row.min_price_usd),
     maxPriceUsd: toOptionalNumber(row.max_price_usd),
+    reviewPrices,
     capacity: toOptionalNumber(row.capacity),
     averageRating: toOptionalNumber(row.average_rating),
     recommendationRate: toOptionalNumber(row.recommendation_rate),
@@ -184,20 +190,22 @@ export async function getListings(options: ListingPrivacyOptions = {}) {
         l.total_reviews,
         l.recent_year,
         rp.min_price_usd,
-        rp.max_price_usd
+        rp.max_price_usd,
+        rp.review_prices
       FROM listings l
       LEFT JOIN listing_contacts c ON c.listing_id = l.id
       LEFT JOIN (
         SELECT
           listing_id,
           MIN(price_usd) AS min_price_usd,
-          MAX(price_usd) AS max_price_usd
+          MAX(price_usd) AS max_price_usd,
+          array_agg(price_usd ORDER BY price_usd ASC) AS review_prices
         FROM reviews
         WHERE status = 'approved'
           AND price_usd IS NOT NULL
         GROUP BY listing_id
       ) rp ON rp.listing_id = l.id
-      GROUP BY l.id, rp.min_price_usd, rp.max_price_usd
+      GROUP BY l.id, rp.min_price_usd, rp.max_price_usd, rp.review_prices
       ORDER BY l.neighborhood ASC, l.address ASC
     `,
   );
@@ -306,21 +314,23 @@ export async function getListingById(
         l.total_reviews,
         l.recent_year,
         rp.min_price_usd,
-        rp.max_price_usd
+        rp.max_price_usd,
+        rp.review_prices
       FROM listings l
       LEFT JOIN listing_contacts c ON c.listing_id = l.id
       LEFT JOIN (
         SELECT
           listing_id,
           MIN(price_usd) AS min_price_usd,
-          MAX(price_usd) AS max_price_usd
+          MAX(price_usd) AS max_price_usd,
+          array_agg(price_usd ORDER BY price_usd ASC) AS review_prices
         FROM reviews
         WHERE status = 'approved'
           AND price_usd IS NOT NULL
         GROUP BY listing_id
       ) rp ON rp.listing_id = l.id
       WHERE l.id = $1
-      GROUP BY l.id, rp.min_price_usd, rp.max_price_usd
+      GROUP BY l.id, rp.min_price_usd, rp.max_price_usd, rp.review_prices
     `,
     [id],
   );

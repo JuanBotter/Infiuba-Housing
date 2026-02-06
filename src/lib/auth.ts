@@ -986,26 +986,32 @@ export async function upsertUsers(
   }
 
   await withTransaction(async (client) => {
-    for (const email of uniqueEmails) {
-      await client.query(
-        `
-          DELETE FROM deleted_users
-          WHERE email = $1
-        `,
-        [email],
-      );
-      await client.query(
-        `
-          INSERT INTO users (email, role, password_hash, is_active, created_at, updated_at)
-          VALUES ($1, $2, $3, TRUE, NOW(), NOW())
-          ON CONFLICT (email) DO UPDATE
-          SET role = EXCLUDED.role,
-              is_active = TRUE,
-              updated_at = NOW()
-        `,
-        [email, role, OTP_ONLY_PASSWORD_HASH],
-      );
-    }
+    await client.query(
+      `
+        DELETE FROM deleted_users
+        WHERE email = ANY($1::text[])
+      `,
+      [uniqueEmails],
+    );
+
+    await client.query(
+      `
+        INSERT INTO users (email, role, password_hash, is_active, created_at, updated_at)
+        SELECT
+          email,
+          $2::user_role_enum,
+          $3,
+          TRUE,
+          NOW(),
+          NOW()
+        FROM UNNEST($1::text[]) AS input(email)
+        ON CONFLICT (email) DO UPDATE
+        SET role = EXCLUDED.role,
+            is_active = TRUE,
+            updated_at = NOW()
+      `,
+      [uniqueEmails, role, OTP_ONLY_PASSWORD_HASH],
+    );
   });
 
   return { ok: true, count: uniqueEmails.length };

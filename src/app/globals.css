@@ -7,6 +7,7 @@
   --surface-strong: #ffffff;
   --line: rgba(19, 43, 60, 0.14);
   --primary: #138b84;
+  --accent: #138b84;
   --primary-deep: #0d5f7b;
   --warm: #f27f4f;
   --danger: #b7332f;
@@ -33,6 +34,7 @@
   --surface-strong: #182738;
   --line: rgba(166, 193, 220, 0.2);
   --primary: #3bc0ad;
+  --accent: #3bc0ad;
   --primary-deep: #2783a8;
   --shadow-soft: 0 14px 28px rgba(3, 10, 18, 0.34);
   --shadow-heavy: 0 28px 60px rgba(2, 8, 15, 0.42);
@@ -691,7 +693,24 @@ textarea {
   border-radius: 15px;
   padding: 0.72rem;
   background: var(--surface-strong);
+}
+
+.map-listing__select {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
   cursor: pointer;
+  font: inherit;
+}
+
+.map-listing__select:focus-visible {
+  outline: 3px solid rgba(19, 139, 132, 0.34);
+  outline-offset: 4px;
+  border-radius: 10px;
 }
 
 .map-listing.is-selected {

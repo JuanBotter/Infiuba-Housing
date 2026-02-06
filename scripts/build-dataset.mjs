@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 
 const ROOT = process.cwd();
 const SOURCE_FILE = path.join(
@@ -185,6 +186,96 @@ function slugify(text) {
     .slice(0, 70);
 }
 
+function compareOptionalNumbers(left, right) {
+  if (typeof left !== "number" && typeof right !== "number") {
+    return 0;
+  }
+  if (typeof left !== "number") {
+    return 1;
+  }
+  if (typeof right !== "number") {
+    return -1;
+  }
+  return left - right;
+}
+
+function buildSurveyReviewSeed(review) {
+  return [
+    review.createdAt || "",
+    typeof review.year === "number" ? String(review.year) : "",
+    typeof review.rating === "number" ? String(review.rating) : "",
+    typeof review.priceUsd === "number" ? String(review.priceUsd) : "",
+    typeof review.recommended === "boolean" ? String(review.recommended) : "",
+    normalizeText(review.comment || ""),
+    normalizeText(review.studentContact || ""),
+  ].join("|");
+}
+
+function compareSurveyReviewDrafts(left, right) {
+  const createdCompare = left.createdAt.localeCompare(right.createdAt);
+  if (createdCompare !== 0) {
+    return createdCompare;
+  }
+
+  const yearCompare = compareOptionalNumbers(left.year, right.year);
+  if (yearCompare !== 0) {
+    return yearCompare;
+  }
+
+  const ratingCompare = compareOptionalNumbers(left.rating, right.rating);
+  if (ratingCompare !== 0) {
+    return ratingCompare;
+  }
+
+  const priceCompare = compareOptionalNumbers(left.priceUsd, right.priceUsd);
+  if (priceCompare !== 0) {
+    return priceCompare;
+  }
+
+  const recommendedLeft = typeof left.recommended === "boolean" ? Number(left.recommended) : 2;
+  const recommendedRight = typeof right.recommended === "boolean" ? Number(right.recommended) : 2;
+  if (recommendedLeft !== recommendedRight) {
+    return recommendedLeft - recommendedRight;
+  }
+
+  const commentCompare = (left.comment || "").localeCompare(right.comment || "", "es", {
+    sensitivity: "base",
+  });
+  if (commentCompare !== 0) {
+    return commentCompare;
+  }
+
+  return (left.studentContact || "").localeCompare(right.studentContact || "", "es", {
+    sensitivity: "base",
+  });
+}
+
+function assignStableSurveyReviewIds(listingId, reviews) {
+  const sortedDrafts = [...reviews].sort(compareSurveyReviewDrafts);
+  const duplicateCountByHash = new Map();
+
+  return sortedDrafts.map((review) => {
+    const hash = createHash("sha1")
+      .update(`${listingId}|${buildSurveyReviewSeed(review)}`)
+      .digest("hex")
+      .slice(0, 12);
+    const duplicateCount = (duplicateCountByHash.get(hash) || 0) + 1;
+    duplicateCountByHash.set(hash, duplicateCount);
+
+    return {
+      id: duplicateCount === 1 ? `survey-${hash}` : `survey-${hash}-${duplicateCount}`,
+      source: "survey",
+      year: review.year,
+      rating: review.rating,
+      priceUsd: review.priceUsd,
+      recommended: review.recommended,
+      comment: review.comment,
+      studentContact: review.studentContact,
+      createdAt: review.createdAt,
+    };
+  });
+}
+
 async function run() {
   const csvText = await readFile(SOURCE_FILE, "utf8");
   const rows = parseCsv(csvText);
@@ -236,7 +327,7 @@ async function run() {
     // Ignore when no previous dataset exists.
   }
 
-  dataRows.forEach((row, index) => {
+  dataRows.forEach((row) => {
     const address = (row[columns.address] || "").trim();
     if (!address) {
       return;
@@ -277,8 +368,6 @@ async function run() {
     }
 
     entry.reviews.push({
-      id: `survey-${index + 1}`,
-      source: "survey",
       year,
       rating,
       priceUsd: typeof price === "number" ? price : undefined,
@@ -307,6 +396,7 @@ async function run() {
       const hash = createHash("sha1").update(key).digest("hex").slice(0, 6);
       const listingId = `${slugBase || "listing"}-${hash}`;
       const existingCoordinates = existingCoordinatesById.get(listingId);
+      const reviews = assignStableSurveyReviewIds(listingId, value.reviews);
 
       return {
         id: listingId,
@@ -321,9 +411,9 @@ async function run() {
         recommendationRate: reviewRecommendations.length
           ? reviewRecommendations.filter(Boolean).length / reviewRecommendations.length
           : undefined,
-        totalReviews: value.reviews.length,
+        totalReviews: reviews.length,
         recentYear: years.length ? Math.max(...years) : undefined,
-        reviews: value.reviews,
+        reviews,
       };
     })
     .sort(
@@ -350,7 +440,23 @@ async function run() {
   console.log(`Created ${listings.length} normalized listings at ${OUTPUT_FILE}`);
 }
 
-run().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+const isDirectExecution =
+  typeof process.argv[1] === "string" && pathToFileURL(process.argv[1]).href === import.meta.url;
+
+if (isDirectExecution) {
+  run().catch((error) => {
+    console.error(error);
+    process.exitCode = 1;
+  });
+}
+
+export {
+  assignStableSurveyReviewIds,
+  buildSurveyReviewSeed,
+  normalizeText,
+  parseNumber,
+  parseRating,
+  parseRecommendation,
+  parseYear,
+  run,
+};

@@ -30,6 +30,7 @@ export interface Listing {
   priceUsd?: number;
   minPriceUsd?: number;
   maxPriceUsd?: number;
+  reviewPrices?: number[];
   capacity?: number;
   averageRating?: number;
   recommendationRate?: number;

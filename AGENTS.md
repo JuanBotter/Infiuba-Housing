@@ -34,9 +34,13 @@ Do not defer AGENTS updates.
 - In production, app-wide browser hardening headers are configured (`Content-Security-Policy`, `Strict-Transport-Security`, `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`) via `next.config.mjs`.
 - Reviewer contact email handling is hardened: `/api/reviews` validates strict email format for `studentEmail` and email-like `studentContact`, and listing detail renders `mailto:` only for strict emails using URI-encoded hrefs.
 - DB migrations are managed with node-pg-migrate (`migrations/` directory).
+- Survey import tooling now generates deterministic/stable survey review IDs from review content (instead of row order).
 - Admin UX: split views for reviews and access management under `/{lang}/admin/*`; access view supports search, role changes, deletion, and bulk user creation.
+- Admin bulk user upsert uses set-based SQL (`DELETE ... WHERE email = ANY(...)` + `INSERT ... SELECT FROM UNNEST(...)`) in one transaction.
 - Main listings UI uses a view toggle: `Map` (default), `List`, and (for whitelisted/admin) `Add review`.
 - Cards/Map filters include search, neighborhood, recommendation, min/max price, minimum rating, sorting (default: newest), and active filter chips that support one-click removal plus clear-all.
+- Price filtering is review-history based: with a min/max rent filter active, a listing matches only when at least one approved review `price_usd` falls within the selected bounds.
+- `price_asc` sorting uses the listing's lowest approved-review rent value (listings without review rents sort after priced listings).
 - Cards/Map filter state (including selected view mode) is persisted in browser `localStorage` using shared key `infiuba:filters:v2` so navigation/reloads and language switches keep the same filters/view; legacy per-language keys are auto-migrated on read.
 - Filter persistence loading is gated so initial render defaults never overwrite stored filters before hydration applies them.
 - Listing aggregate fields (`average_rating`, `recommendation_rate`, `total_reviews`, `recent_year`) are recomputed from approved reviews whenever a pending web review is approved.
@@ -150,7 +154,7 @@ Seed/import tooling:
 
 ## Database Schema (Current)
 
-Defined in `migrations/001_initial_schema.sql`, `migrations/002_otp_rate_limit_buckets.sql`, and `migrations/003_listing_contact_length_limit.sql` (applied via node-pg-migrate).
+Defined in `migrations/001_initial_schema.sql`, `migrations/002_otp_rate_limit_buckets.sql`, `migrations/003_listing_contact_length_limit.sql`, and `migrations/004_dataset_meta_bootstrap.sql` (applied via node-pg-migrate).
 
 Finite-state fields use PostgreSQL enums:
 
@@ -273,7 +277,7 @@ Indexes:
 - `idx_reviews_listing_status ON reviews(listing_id, status, source)`
 - `idx_reviews_status_created ON reviews(status, created_at DESC)`
 
-Integrity hardening (enforced in `migrations/001_initial_schema.sql`, `migrations/002_otp_rate_limit_buckets.sql`, and `migrations/003_listing_contact_length_limit.sql`):
+Integrity hardening (enforced in `migrations/001_initial_schema.sql`, `migrations/002_otp_rate_limit_buckets.sql`, `migrations/003_listing_contact_length_limit.sql`, and `migrations/004_dataset_meta_bootstrap.sql`):
 
 - Non-empty checks for core text identifiers (`users.email`, `deleted_users.email`, `auth_email_otps.email`, listing address/neighborhood, listing contact).
 - Numeric range checks for ratings, recommendation rates, coordinates, and year fields.
@@ -282,6 +286,7 @@ Integrity hardening (enforced in `migrations/001_initial_schema.sql`, `migration
 - OTP consistency (`consumed_at`/`consumed_reason` coupled, attempts non-negative, expires/consumed not before creation).
 - Rate-limit bucket consistency (`scope`/`bucket_key_hash` non-empty, `window_seconds > 0`, `hits >= 0`).
 - Listing contact length control (`listing_contacts.contact` <= 180 for new/updated rows).
+- `dataset_meta` bootstrap row (`id=1`) is created if missing via migration.
 - Legacy-row normalization before constraints are applied (trim/canonicalize emails, null-out invalid ranges, dedupe users by case-insensitive email).
 - Initial migration handles both pre-enum and post-enum states for `reviews.source`/`reviews.status`.
 
@@ -297,6 +302,7 @@ Integrity hardening (enforced in `migrations/001_initial_schema.sql`, `migration
 - Listing row keeps a representative `listings.price_usd` (legacy/compat and fallback value).
 - Canonical rent history lives in `reviews.price_usd` (one value per review when provided).
 - Cards/map preview uses approved-review min/max rent range when available; falls back to `listings.price_usd`.
+- Cards/map min/max rent filters operate on approved review rent history (`reviews.price_usd`) and require at least one review rent in-range for a listing to match.
 - Detail page shows the same range in stats and includes per-review rent in review metadata when present.
 
 ## Review and Moderation Flow
