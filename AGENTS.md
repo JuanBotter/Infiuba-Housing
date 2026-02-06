@@ -74,6 +74,7 @@ Do not defer AGENTS updates.
 - Init/migrate DB schema: `npm run db:migrate`
 - Roll back the latest migration (when reversible): `npm run db:migrate:down`
 - `db:migrate` reads `DATABASE_URL` (node-pg-migrate `-d` expects the env var name).
+- Migration CLI discovery is scoped to JS entry files (`migrations/*.js` with `--use-glob`) so helper `.sql`/docs are not imported as migrations.
 - Legacy alias: `npm run db:init`
 - Seed DB: `npm run db:seed`
 - Init/migrate + seed: `npm run db:setup`
