@@ -150,6 +150,7 @@ npm run user:upsert -- --email student@example.com --role whitelisted
 
 `npm run db:init` is an alias for `db:migrate`. Migrations are managed with node-pg-migrate in the `migrations/` directory.
 `db:migrate` reads the `DATABASE_URL` environment variable (node-pg-migrate's `-d` flag expects the env var name, not the URL).
+By default migrations run with reduced verbosity (no per-SQL debug); run node-pg-migrate directly with `--verbose` when you need full SQL logs.
 Migration discovery is scoped to `migrations/*.js` entry files (`--use-glob`) so helper `.sql` files/docs in that folder are not executed directly.
 Migration order-check enforcement is disabled in scripts (`--check-order false`) because this repo uses stable numeric prefixes (`001_`, `002_`, ...) instead of timestamp prefixes.
 Rollback policy and migration reversibility details are documented in `migrations/ROLLBACK_POLICY.md`.

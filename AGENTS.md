@@ -77,8 +77,8 @@ Do not defer AGENTS updates.
 - Import dataset from CSV: `npm run import:data`
 - `npm run import:data` writes local seed dataset `src/data/accommodations.json` (gitignored).
 - Geocode listings: `npm run geocode:data`
-- Init/migrate DB schema: `npm run db:migrate`
-- Roll back the latest migration (when reversible): `npm run db:migrate:down`
+- Init/migrate DB schema: `npm run db:migrate` (runs with `--verbose false` to avoid per-SQL logs; pass `--verbose` via node-pg-migrate for debug).
+- Roll back the latest migration (when reversible): `npm run db:migrate:down` (also non-verbose).
 - `db:migrate` reads `DATABASE_URL` (node-pg-migrate `-d` expects the env var name).
 - Migration CLI discovery is scoped to JS entry files (`migrations/*.js` with `--use-glob`) so helper `.sql`/docs are not imported as migrations.
 - Migration scripts run with `--check-order false` because migrations use numeric prefixes (`001_`, `002_`, ...) rather than node-pg-migrate timestamp prefixes.
