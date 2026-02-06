@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { canSubmitReviews, getRoleFromRequestAsync } from "@/lib/auth";
 import { createListing, getListingById } from "@/lib/data";
+import { isStrictEmail, normalizeEmailInput } from "@/lib/email";
 import { validateSameOriginRequest } from "@/lib/request-origin";
 import { appendPendingReview } from "@/lib/reviews-store";
 
@@ -60,8 +61,8 @@ export async function POST(request: Request) {
     const comment = truncate(payload?.comment, 1000);
     const semester = truncate(payload?.semester, 60);
     const studentName = truncate(payload?.studentName, 80);
-    const studentContact = truncate(payload?.studentContact, 120);
-    const studentEmail = truncate(payload?.studentEmail, 120);
+    let studentContact = truncate(payload?.studentContact, 120);
+    let studentEmail = truncate(payload?.studentEmail, 120);
     const shareContactInfo = payload?.shareContactInfo === true;
     const submittedPriceUsd = parseOptionalNumber(payload?.priceUsd);
 
@@ -80,6 +81,18 @@ export async function POST(request: Request) {
     }
     if (submittedPriceUsd !== undefined && (submittedPriceUsd <= 0 || submittedPriceUsd > 20000)) {
       return NextResponse.json({ error: "Invalid rent value" }, { status: 400 });
+    }
+    if (studentEmail) {
+      if (!isStrictEmail(studentEmail)) {
+        return NextResponse.json({ error: "Invalid contact email" }, { status: 400 });
+      }
+      studentEmail = normalizeEmailInput(studentEmail);
+    }
+    if (studentContact.includes("@")) {
+      if (!isStrictEmail(studentContact)) {
+        return NextResponse.json({ error: "Invalid contact email" }, { status: 400 });
+      }
+      studentContact = normalizeEmailInput(studentContact);
     }
     if (shareContactInfo && !studentEmail && !studentContact) {
       return NextResponse.json(

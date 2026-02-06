@@ -32,6 +32,7 @@ Do not defer AGENTS updates.
 - Sensitive auth/admin API responses explicitly send `Cache-Control: no-store` headers.
 - Stateful API endpoints enforce same-origin checks (Origin/Referer must match request host) to reduce CSRF risk.
 - In production, app-wide browser hardening headers are configured (`Content-Security-Policy`, `Strict-Transport-Security`, `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`) via `next.config.mjs`.
+- Reviewer contact email handling is hardened: `/api/reviews` validates strict email format for `studentEmail` and email-like `studentContact`, and listing detail renders `mailto:` only for strict emails using URI-encoded hrefs.
 - DB migrations are managed with node-pg-migrate (`migrations/` directory).
 - Admin UX: split views for reviews and access management under `/{lang}/admin/*`; access view supports search, role changes, deletion, and bulk user creation.
 - Main listings UI uses a view toggle: `Map` (default), `List`, and (for whitelisted/admin) `Add review`.
@@ -308,6 +309,7 @@ Submission:
 - Endpoint: `POST /api/reviews`
 - New reviews are inserted as `source='web'`, `status='pending'`
 - New-listing contact ingestion (`contacts`) enforces at most 20 entries and rejects any item longer than 180 characters.
+- Review submission validates `studentEmail` and any email-like `studentContact` with strict email rules; invalid email input is rejected.
 - Permission enforced server-side: only `whitelisted` and `admin`
 
 Moderation:
@@ -346,6 +348,7 @@ Must remain true:
 - Root layout + theme bootstrap script loader: `src/app/layout.tsx`
 - Theme bootstrap script (static, beforeInteractive): `public/theme-init.js`
 - Role/auth helpers: `src/lib/auth.ts`
+- Email/contact helpers: `src/lib/email.ts`
 - No-store response helper: `src/lib/http-cache.ts`
 - Request network fingerprint helper: `src/lib/request-network.ts`
 - OTP mail delivery helper: `src/lib/otp-mailer.ts`

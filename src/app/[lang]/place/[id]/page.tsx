@@ -10,6 +10,7 @@ import {
   getCurrentUserRole,
 } from "@/lib/auth";
 import { getListingById } from "@/lib/data";
+import { buildSafeMailtoHref, isStrictEmail } from "@/lib/email";
 import { formatDecimal, formatPercent, formatUsd, formatUsdRange } from "@/lib/format";
 import { getMessages, isSupportedLanguage } from "@/lib/i18n";
 import { getApprovedReviewsForListing } from "@/lib/reviews-store";
@@ -173,8 +174,10 @@ export default async function PlaceDetailPage({ params }: PlaceDetailPageProps) 
                   {canViewReviewerInfo && review.studentContact ? (
                     <p className="review-item__contact">
                       {messages.reviewContactLabel}:{" "}
-                      {review.studentContact.includes("@") ? (
-                        <a href={`mailto:${review.studentContact}`}>{review.studentContact}</a>
+                      {isStrictEmail(review.studentContact) ? (
+                        <a href={buildSafeMailtoHref(review.studentContact)}>
+                          {review.studentContact}
+                        </a>
                       ) : (
                         review.studentContact
                       )}
