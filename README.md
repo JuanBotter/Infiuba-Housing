@@ -92,6 +92,7 @@ The app requires PostgreSQL (`DATABASE_URL`) and uses it for:
 
 If `PGSSL=true`, certificate verification is strict by default (`rejectUnauthorized=true`).
 Only local development should use `PGSSL_ALLOW_INSECURE=true`.
+In production, `AUTH_SECRET` is required for auth signing and must be at least 32 characters (non-placeholder).
 
 Useful commands:
 
@@ -123,7 +124,8 @@ New student reviews are written to PostgreSQL (`reviews` table, `status='pending
 ## Access roles
 
 ```bash
-AUTH_SECRET=replace-with-a-long-random-secret
+# Required in production, minimum 32 chars, non-placeholder:
+AUTH_SECRET=replace-with-a-long-random-secret-value-32chars
 PGSSL=true
 # Optional custom CA for strict TLS verification:
 # PGSSL_CA_CERT="-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----"

@@ -30,9 +30,20 @@ const OTP_RATE_LIMIT_SCOPE_REQUEST_SUBNET = "otp_request_subnet";
 const OTP_RATE_LIMIT_SCOPE_REQUEST_GLOBAL = "otp_request_global";
 const OTP_RATE_LIMIT_SCOPE_VERIFY_FAILURE_IP = "otp_verify_failure_ip";
 const OTP_RATE_LIMIT_SCOPE_VERIFY_FAILURE_EMAIL_IP = "otp_verify_failure_email_ip";
+const AUTH_SECRET_MIN_LENGTH = 32;
+const AUTH_SECRET_WEAK_VALUES = new Set([
+  "replace-with-a-long-random-secret",
+  "changeme",
+  "change-me",
+  "secret",
+  "password",
+  "infiuba",
+]);
 
 let runtimeSecret: string | null = null;
 let lastRateLimitCleanupAt = 0;
+let hasWarnedAuthSecretFallback = false;
+let hasWarnedWeakAuthSecret = false;
 
 function isUserRole(value: string): value is UserRole {
   return value === "visitor" || value === "whitelisted" || value === "admin";
@@ -368,13 +379,47 @@ async function recordOtpVerifyFailure(email: string, context?: OtpRateLimitConte
 }
 
 function getSigningSecret() {
-  const configured = process.env.AUTH_SECRET?.trim();
+  const configured = process.env.AUTH_SECRET?.trim() || "";
+  const isProduction = process.env.NODE_ENV === "production";
+
   if (configured) {
+    const normalized = configured.toLowerCase();
+    const isTooShort = configured.length < AUTH_SECRET_MIN_LENGTH;
+    const isWeakValue = AUTH_SECRET_WEAK_VALUES.has(normalized);
+    if (isTooShort || isWeakValue) {
+      const reason =
+        isTooShort && isWeakValue
+          ? `AUTH_SECRET must be at least ${AUTH_SECRET_MIN_LENGTH} characters and cannot be a known placeholder value.`
+          : isTooShort
+            ? `AUTH_SECRET must be at least ${AUTH_SECRET_MIN_LENGTH} characters.`
+            : "AUTH_SECRET cannot use a known weak placeholder value.";
+
+      if (isProduction) {
+        throw new Error(`${reason} Refusing to run auth with insecure secret in production.`);
+      }
+
+      if (!hasWarnedWeakAuthSecret) {
+        console.warn(`[AUTH] ${reason} This warning is allowed only in non-production environments.`);
+        hasWarnedWeakAuthSecret = true;
+      }
+    }
     return configured;
+  }
+
+  if (isProduction) {
+    throw new Error(
+      `AUTH_SECRET is required in production and must be at least ${AUTH_SECRET_MIN_LENGTH} characters.`,
+    );
   }
 
   if (!runtimeSecret) {
     runtimeSecret = randomBytes(32).toString("hex");
+  }
+  if (!hasWarnedAuthSecretFallback) {
+    console.warn(
+      "[AUTH] AUTH_SECRET is not set. Using in-memory fallback secret for non-production only; sessions reset on restart.",
+    );
+    hasWarnedAuthSecretFallback = true;
   }
   return runtimeSecret;
 }

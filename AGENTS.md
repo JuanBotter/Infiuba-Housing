@@ -23,6 +23,7 @@ Do not defer AGENTS updates.
 - Typography: unified sans-serif stack for headings and body (`Avenir Next` fallback stack).
 - Core domain: listings, owner contacts, survey reviews, web reviews with moderation, multilingual review text, and review-level rent history.
 - Auth/login: email OTP in top-bar access menu; only active users present in `users` can sign in.
+- `AUTH_SECRET` is required in production for auth signing; production rejects missing/weak values (minimum length and non-placeholder).
 - OTP login includes an optional "Remember me" checkbox; trusted sessions persist for 30 days, otherwise cookie lifetime is browser-session only.
 - OTP delivery supports a console-only email override for local testing (`mock@email.com` by default outside production).
 - OTP mailer logs provider availability and send failures (redacted recipient) to server logs for troubleshooting.
@@ -69,7 +70,7 @@ Do not defer AGENTS updates.
 - `PGSSL=true`: optional SSL for DB pool (strict certificate verification by default).
 - `PGSSL_CA_CERT`: optional PostgreSQL CA certificate in PEM format (supports escaped `\n`).
 - `PGSSL_ALLOW_INSECURE=true`: development-only override to disable certificate verification; forbidden in production.
-- `AUTH_SECRET`: secret for signing auth role cookie (strongly recommended).
+- `AUTH_SECRET`: secret for signing auth role cookie; required in production, minimum 32 characters, and must not be a known placeholder value.
 - `VISITOR_CAN_VIEW_OWNER_CONTACTS=true`: emergency read-only fallback to expose owner contacts to visitors (reviewer/student contacts remain protected).
 - `OTP_EMAIL_PROVIDER`: OTP delivery provider (`brevo`, `resend`, or `console`; defaults to `console` in non-production when unset).
 - `OTP_CONSOLE_ONLY_EMAIL`: optional single email forced to console OTP delivery (skips provider send); defaults to `mock@email.com` in non-production when unset.
@@ -82,6 +83,7 @@ Do not defer AGENTS updates.
 Notes:
 
 - If `AUTH_SECRET` changes, all active sessions are invalidated.
+- In production, missing or weak `AUTH_SECRET` causes auth signing operations to fail fast.
 
 ## Access Control Model
 
