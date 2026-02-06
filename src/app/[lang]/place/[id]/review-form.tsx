@@ -3,6 +3,11 @@
 import { FormEvent, useMemo, useState } from "react";
 
 import { getMessages } from "@/lib/i18n";
+import {
+  buildReviewPayload,
+  createInitialReviewDraft,
+  readApiErrorMessage,
+} from "@/lib/review-form";
 import type { Lang } from "@/types";
 
 interface ReviewFormProps {
@@ -12,20 +17,14 @@ interface ReviewFormProps {
 
 export function ReviewForm({ lang, listingId }: ReviewFormProps) {
   const t = useMemo(() => getMessages(lang), [lang]);
-  const [rating, setRating] = useState("4");
-  const [priceUsd, setPriceUsd] = useState("");
-  const [recommended, setRecommended] = useState("yes");
-  const [comment, setComment] = useState("");
-  const [semester, setSemester] = useState("");
-  const [studentName, setStudentName] = useState("");
-  const [studentContact, setStudentContact] = useState("");
-  const [studentEmail, setStudentEmail] = useState("");
-  const [shareContactInfo, setShareContactInfo] = useState(false);
+  const [reviewDraft, setReviewDraft] = useState(createInitialReviewDraft);
   const [status, setStatus] = useState<"idle" | "sending" | "success" | "error">("idle");
+  const [serverMessage, setServerMessage] = useState("");
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setStatus("sending");
+    setServerMessage("");
 
     try {
       const response = await fetch("/api/reviews", {
@@ -35,32 +34,18 @@ export function ReviewForm({ lang, listingId }: ReviewFormProps) {
         },
         body: JSON.stringify({
           listingId,
-          rating: Number(rating),
-          priceUsd: priceUsd ? Number(priceUsd) : undefined,
-          recommended: recommended === "yes",
-          comment,
-          semester,
-          studentName,
-          studentContact,
-          studentEmail,
-          shareContactInfo,
+          ...buildReviewPayload(reviewDraft),
         }),
       });
 
       if (!response.ok) {
-        throw new Error("Request failed");
+        setServerMessage(await readApiErrorMessage(response));
+        setStatus("error");
+        return;
       }
 
       setStatus("success");
-      setComment("");
-      setSemester("");
-      setStudentName("");
-      setStudentContact("");
-      setStudentEmail("");
-      setShareContactInfo(false);
-      setRating("4");
-      setPriceUsd("");
-      setRecommended("yes");
+      setReviewDraft(createInitialReviewDraft());
     } catch {
       setStatus("error");
     }
@@ -75,15 +60,25 @@ export function ReviewForm({ lang, listingId }: ReviewFormProps) {
           min={1}
           max={5}
           step={1}
-          value={rating}
-          onChange={(event) => setRating(event.target.value)}
+          value={reviewDraft.rating}
+          onChange={(event) =>
+            setReviewDraft((previous) => ({ ...previous, rating: event.target.value }))
+          }
           required
         />
       </label>
 
       <label>
         <span>{t.formRecommended}</span>
-        <select value={recommended} onChange={(event) => setRecommended(event.target.value)}>
+        <select
+          value={reviewDraft.recommended}
+          onChange={(event) =>
+            setReviewDraft((previous) => ({
+              ...previous,
+              recommended: event.target.value === "no" ? "no" : "yes",
+            }))
+          }
+        >
           <option value="yes">{t.yes}</option>
           <option value="no">{t.no}</option>
         </select>
@@ -96,16 +91,20 @@ export function ReviewForm({ lang, listingId }: ReviewFormProps) {
           min={1}
           max={20000}
           step="0.01"
-          value={priceUsd}
-          onChange={(event) => setPriceUsd(event.target.value)}
+          value={reviewDraft.priceUsd}
+          onChange={(event) =>
+            setReviewDraft((previous) => ({ ...previous, priceUsd: event.target.value }))
+          }
         />
       </label>
 
       <label>
         <span>{t.formComment}</span>
         <textarea
-          value={comment}
-          onChange={(event) => setComment(event.target.value)}
+          value={reviewDraft.comment}
+          onChange={(event) =>
+            setReviewDraft((previous) => ({ ...previous, comment: event.target.value }))
+          }
           minLength={12}
           maxLength={1000}
           required
@@ -116,8 +115,10 @@ export function ReviewForm({ lang, listingId }: ReviewFormProps) {
         <span>{t.formSemester}</span>
         <input
           type="text"
-          value={semester}
-          onChange={(event) => setSemester(event.target.value)}
+          value={reviewDraft.semester}
+          onChange={(event) =>
+            setReviewDraft((previous) => ({ ...previous, semester: event.target.value }))
+          }
           maxLength={60}
         />
       </label>
@@ -126,8 +127,10 @@ export function ReviewForm({ lang, listingId }: ReviewFormProps) {
         <span>{t.formName}</span>
         <input
           type="text"
-          value={studentName}
-          onChange={(event) => setStudentName(event.target.value)}
+          value={reviewDraft.studentName}
+          onChange={(event) =>
+            setReviewDraft((previous) => ({ ...previous, studentName: event.target.value }))
+          }
           maxLength={80}
         />
       </label>
@@ -136,8 +139,10 @@ export function ReviewForm({ lang, listingId }: ReviewFormProps) {
         <span>{t.formPhone}</span>
         <input
           type="text"
-          value={studentContact}
-          onChange={(event) => setStudentContact(event.target.value)}
+          value={reviewDraft.studentContact}
+          onChange={(event) =>
+            setReviewDraft((previous) => ({ ...previous, studentContact: event.target.value }))
+          }
           maxLength={120}
         />
       </label>
@@ -146,8 +151,10 @@ export function ReviewForm({ lang, listingId }: ReviewFormProps) {
         <span>{t.formEmail}</span>
         <input
           type="email"
-          value={studentEmail}
-          onChange={(event) => setStudentEmail(event.target.value)}
+          value={reviewDraft.studentEmail}
+          onChange={(event) =>
+            setReviewDraft((previous) => ({ ...previous, studentEmail: event.target.value }))
+          }
           maxLength={120}
         />
       </label>
@@ -155,8 +162,13 @@ export function ReviewForm({ lang, listingId }: ReviewFormProps) {
       <label className="consent-checkbox">
         <input
           type="checkbox"
-          checked={shareContactInfo}
-          onChange={(event) => setShareContactInfo(event.target.checked)}
+          checked={reviewDraft.shareContactInfo}
+          onChange={(event) =>
+            setReviewDraft((previous) => ({
+              ...previous,
+              shareContactInfo: event.target.checked,
+            }))
+          }
         />
         <span>{t.formContactConsentLabel}</span>
         <small>{t.formContactConsentHint}</small>
@@ -167,7 +179,7 @@ export function ReviewForm({ lang, listingId }: ReviewFormProps) {
       </button>
 
       {status === "success" ? <p className="form-status success">{t.formSuccess}</p> : null}
-      {status === "error" ? <p className="form-status error">{t.formError}</p> : null}
+      {status === "error" ? <p className="form-status error">{serverMessage || t.formError}</p> : null}
     </form>
   );
 }

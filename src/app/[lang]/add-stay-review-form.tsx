@@ -4,6 +4,11 @@ import { FormEvent, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { getMessages } from "@/lib/i18n";
+import {
+  buildReviewPayload,
+  createInitialReviewDraft,
+  readApiErrorMessage,
+} from "@/lib/review-form";
 import type { Lang, Listing } from "@/types";
 
 interface AddStayReviewFormProps {
@@ -32,19 +37,10 @@ export function AddStayReviewForm({ lang, listings }: AddStayReviewFormProps) {
 
   const [neighborhood, setNeighborhood] = useState("");
   const [contacts, setContacts] = useState("");
-  const [priceUsd, setPriceUsd] = useState("");
   const [capacity, setCapacity] = useState("");
   const [latitude, setLatitude] = useState("");
   const [longitude, setLongitude] = useState("");
-
-  const [rating, setRating] = useState("4");
-  const [recommended, setRecommended] = useState("yes");
-  const [comment, setComment] = useState("");
-  const [semester, setSemester] = useState("");
-  const [studentName, setStudentName] = useState("");
-  const [studentContact, setStudentContact] = useState("");
-  const [studentEmail, setStudentEmail] = useState("");
-  const [shareContactInfo, setShareContactInfo] = useState(false);
+  const [reviewDraft, setReviewDraft] = useState(createInitialReviewDraft);
 
   const [status, setStatus] = useState<SubmitStatus>("idle");
   const [serverMessage, setServerMessage] = useState("");
@@ -97,15 +93,7 @@ export function AddStayReviewForm({ lang, listings }: AddStayReviewFormProps) {
 
     const useExistingListing = Boolean(selectedListing && matchDecision === "yes");
     const payload: Record<string, unknown> = {
-      rating: Number(rating),
-      recommended: recommended === "yes",
-      comment,
-      priceUsd: priceUsd ? Number(priceUsd) : undefined,
-      semester,
-      studentName,
-      studentContact,
-      studentEmail,
-      shareContactInfo,
+      ...buildReviewPayload(reviewDraft),
     };
 
     if (useExistingListing) {
@@ -134,24 +122,15 @@ export function AddStayReviewForm({ lang, listings }: AddStayReviewFormProps) {
         return;
       }
       if (!response.ok) {
-        const body = (await response.json().catch(() => ({}))) as { error?: string };
-        setServerMessage(body.error || "");
+        setServerMessage(await readApiErrorMessage(response));
         setStatus("error");
         return;
       }
 
       setStatus("success");
       setServerMessage("");
-      setComment("");
-      setSemester("");
-      setStudentName("");
-      setStudentContact("");
-      setStudentEmail("");
-      setShareContactInfo(false);
-      setRating("4");
-      setRecommended("yes");
+      setReviewDraft(createInitialReviewDraft());
       setContacts("");
-      setPriceUsd("");
       setCapacity("");
       setLatitude("");
       setLongitude("");
@@ -317,8 +296,10 @@ export function AddStayReviewForm({ lang, listings }: AddStayReviewFormProps) {
             min={1}
             max={20000}
             step="0.01"
-            value={priceUsd}
-            onChange={(event) => setPriceUsd(event.target.value)}
+            value={reviewDraft.priceUsd}
+            onChange={(event) =>
+              setReviewDraft((previous) => ({ ...previous, priceUsd: event.target.value }))
+            }
           />
         </label>
 
@@ -329,15 +310,25 @@ export function AddStayReviewForm({ lang, listings }: AddStayReviewFormProps) {
             min={1}
             max={5}
             step={1}
-            value={rating}
-            onChange={(event) => setRating(event.target.value)}
+            value={reviewDraft.rating}
+            onChange={(event) =>
+              setReviewDraft((previous) => ({ ...previous, rating: event.target.value }))
+            }
             required
           />
         </label>
 
         <label>
           <span>{t.formRecommended}</span>
-          <select value={recommended} onChange={(event) => setRecommended(event.target.value)}>
+          <select
+            value={reviewDraft.recommended}
+            onChange={(event) =>
+              setReviewDraft((previous) => ({
+                ...previous,
+                recommended: event.target.value === "no" ? "no" : "yes",
+              }))
+            }
+          >
             <option value="yes">{t.yes}</option>
             <option value="no">{t.no}</option>
           </select>
@@ -346,8 +337,10 @@ export function AddStayReviewForm({ lang, listings }: AddStayReviewFormProps) {
         <label className="property-form__full">
           <span>{t.formComment}</span>
           <textarea
-            value={comment}
-            onChange={(event) => setComment(event.target.value)}
+            value={reviewDraft.comment}
+            onChange={(event) =>
+              setReviewDraft((previous) => ({ ...previous, comment: event.target.value }))
+            }
             minLength={12}
             maxLength={1000}
             required
@@ -358,8 +351,10 @@ export function AddStayReviewForm({ lang, listings }: AddStayReviewFormProps) {
           <span>{t.formSemester}</span>
           <input
             type="text"
-            value={semester}
-            onChange={(event) => setSemester(event.target.value)}
+            value={reviewDraft.semester}
+            onChange={(event) =>
+              setReviewDraft((previous) => ({ ...previous, semester: event.target.value }))
+            }
             maxLength={60}
           />
         </label>
@@ -368,8 +363,10 @@ export function AddStayReviewForm({ lang, listings }: AddStayReviewFormProps) {
           <span>{t.formName}</span>
           <input
             type="text"
-            value={studentName}
-            onChange={(event) => setStudentName(event.target.value)}
+            value={reviewDraft.studentName}
+            onChange={(event) =>
+              setReviewDraft((previous) => ({ ...previous, studentName: event.target.value }))
+            }
             maxLength={80}
           />
         </label>
@@ -378,8 +375,13 @@ export function AddStayReviewForm({ lang, listings }: AddStayReviewFormProps) {
           <span>{t.formPhone}</span>
           <input
             type="text"
-            value={studentContact}
-            onChange={(event) => setStudentContact(event.target.value)}
+            value={reviewDraft.studentContact}
+            onChange={(event) =>
+              setReviewDraft((previous) => ({
+                ...previous,
+                studentContact: event.target.value,
+              }))
+            }
             maxLength={120}
           />
         </label>
@@ -388,8 +390,10 @@ export function AddStayReviewForm({ lang, listings }: AddStayReviewFormProps) {
           <span>{t.formEmail}</span>
           <input
             type="email"
-            value={studentEmail}
-            onChange={(event) => setStudentEmail(event.target.value)}
+            value={reviewDraft.studentEmail}
+            onChange={(event) =>
+              setReviewDraft((previous) => ({ ...previous, studentEmail: event.target.value }))
+            }
             maxLength={120}
           />
         </label>
@@ -397,8 +401,13 @@ export function AddStayReviewForm({ lang, listings }: AddStayReviewFormProps) {
         <label className="property-form__full consent-checkbox">
           <input
             type="checkbox"
-            checked={shareContactInfo}
-            onChange={(event) => setShareContactInfo(event.target.checked)}
+            checked={reviewDraft.shareContactInfo}
+            onChange={(event) =>
+              setReviewDraft((previous) => ({
+                ...previous,
+                shareContactInfo: event.target.checked,
+              }))
+            }
           />
           <span>{t.formContactConsentLabel}</span>
           <small>{t.formContactConsentHint}</small>

@@ -38,6 +38,7 @@ Do not defer AGENTS updates.
 - Survey import tooling now generates deterministic/stable survey review IDs from review content (instead of row order).
 - Admin UX: split views for reviews and access management under `/{lang}/admin/*`; access view supports search, role changes, deletion, and bulk user creation.
 - Admin bulk user upsert uses set-based SQL (`DELETE ... WHERE email = ANY(...)` + `INSERT ... SELECT FROM UNNEST(...)`) in one transaction.
+- Add-review and detail-review flows share common review payload/state helpers in `src/lib/review-form.ts`.
 - Main listings UI uses a view toggle: `Map` (default), `List`, and (for whitelisted/admin) `Add review`.
 - Cards/Map filters include search, neighborhood, recommendation, min/max price, minimum rating, sorting (default: newest), and active filter chips that support one-click removal plus clear-all.
 - Price filtering is review-history based: with a min/max rent filter active, a listing matches only when at least one approved review `price_usd` falls within the selected bounds.
@@ -60,6 +61,7 @@ Do not defer AGENTS updates.
 
 - Install deps: `npm install`
 - Dev server: `npm run dev`
+- Test suite: `npm test`
 - Production build: `npm run build`
 - Vercel deploy uses `vercel-build` to run migrations before build: `npm run db:migrate && npm run build`
 - Import dataset from CSV: `npm run import:data`
@@ -342,6 +344,7 @@ Must remain true:
 
 - Listing page: `src/app/[lang]/page.tsx`
 - Filters + map/cards UI: `src/app/[lang]/place-filters.tsx`
+- Price filter/sort helper module: `src/app/[lang]/place-filters-price.ts`
 - Listing detail page: `src/app/[lang]/place/[id]/page.tsx`
 - Add review flow: `src/app/[lang]/add-stay-review-form.tsx`
 - Detail review form: `src/app/[lang]/place/[id]/review-form.tsx`
@@ -356,6 +359,7 @@ Must remain true:
 - Root layout + theme bootstrap script loader: `src/app/layout.tsx`
 - Theme bootstrap script (static, beforeInteractive): `public/theme-init.js`
 - Request validation helpers: `src/lib/request-validation.ts`
+- Shared review payload helpers: `src/lib/review-form.ts`
 - Role/auth helpers: `src/lib/auth.ts`
 - Email/contact helpers: `src/lib/email.ts`
 - No-store response helper: `src/lib/http-cache.ts`
@@ -364,6 +368,7 @@ Must remain true:
 - Data access: `src/lib/data.ts`
 - Reviews store: `src/lib/reviews-store.ts`
 - Messages/i18n: `src/i18n/messages.ts`
+- CI checks workflow: `.github/workflows/ci.yml`
 
 ## Agent Best Practices for This Repo
 
@@ -371,6 +376,7 @@ Must remain true:
 2. Preserve multilingual parity: if adding/changing a message key, update all languages.
 3. Keep visitor-safe defaults when uncertain.
 4. Run checks after significant changes:
+   - `npm test`
    - `npx tsc --noEmit`
    - `npm run build`
 5. Keep runtime DB-only behavior; do not reintroduce file fallback paths.

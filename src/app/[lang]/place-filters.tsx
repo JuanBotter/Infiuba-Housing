@@ -5,6 +5,10 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { AddStayReviewForm } from "@/app/[lang]/add-stay-review-form";
+import {
+  getListingMinReviewPrice,
+  hasReviewPriceInRange,
+} from "@/app/[lang]/place-filters-price";
 import { ReviewComment } from "@/app/[lang]/place/[id]/review-comment";
 import { ReviewForm } from "@/app/[lang]/place/[id]/review-form";
 import { formatDecimal, formatPercent, formatUsd, formatUsdRange } from "@/lib/format";
@@ -71,40 +75,6 @@ function normalizeSortBy(value: string | undefined): SortBy {
     return value;
   }
   return "recent_desc";
-}
-
-function getListingReviewPrices(listing: Listing) {
-  return (listing.reviewPrices || []).filter((price): price is number => Number.isFinite(price));
-}
-
-function hasReviewPriceInRange(
-  listing: Listing,
-  minValue: number | undefined,
-  maxValue: number | undefined,
-) {
-  const prices = getListingReviewPrices(listing);
-  if (prices.length === 0) {
-    return false;
-  }
-
-  return prices.some((price) => {
-    if (typeof minValue === "number" && price < minValue) {
-      return false;
-    }
-    if (typeof maxValue === "number" && price > maxValue) {
-      return false;
-    }
-    return true;
-  });
-}
-
-function getListingMinReviewPrice(listing: Listing) {
-  const prices = getListingReviewPrices(listing);
-  if (prices.length === 0) {
-    return undefined;
-  }
-
-  return Math.min(...prices);
 }
 
 export function PlaceFilters({

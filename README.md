@@ -101,6 +101,7 @@ In production, `AUTH_SECRET` is required for auth signing and must be at least 3
 Useful commands:
 
 ```bash
+npm test
 npm run db:migrate
 npm run db:seed
 npm run db:setup
