@@ -27,6 +27,7 @@ Do not defer AGENTS updates.
 - OTP login includes an optional "Remember me" checkbox; trusted sessions persist for 30 days, otherwise cookie lifetime is browser-session only.
 - OTP delivery supports a console-only email override for local testing (`mock@email.com` by default outside production).
 - OTP mailer logs provider availability and send failures (redacted recipient) to server logs for troubleshooting.
+- Testing: Vitest unit tests mock DB/email/Next cache for API routes and auth helpers.
 - OTP request/verify API responses are intentionally enumeration-safe: request responses are generic for allowed/not-allowed/rate-limited outcomes, and verify failures return a generic invalid-code response for auth failures.
 - OTP abuse controls are DB-backed and layered: OTP requests are rate limited by IP/subnet/global windows, and OTP verify failures are rate limited by IP and email+IP windows.
 - Structured security audit events are recorded for OTP request/verify and admin-sensitive actions (user access changes and review moderation).
@@ -64,10 +65,12 @@ Do not defer AGENTS updates.
 ## Runtime and Commands
 
 - Install deps: `npm install`
+- Test suite: `npm run test`
+- Test watch: `npm run test:watch`
 - Dev server: `npm run dev`
 - Test suite: `npm test`
 - Production build: `npm run build`
-- Vercel deploy uses `vercel-build` to run migrations before build: `npm run db:migrate && npm run build`
+- Vercel deploy uses `vercel-build` to run tests + migrations before build: `npm run test && npm run db:migrate && npm run build`
 - Import dataset from CSV: `npm run import:data`
 - `npm run import:data` writes local seed dataset `src/data/accommodations.json` (gitignored).
 - Geocode listings: `npm run geocode:data`

@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "test": "node --test scripts/*.test.mjs",
+    "test": "vitest run",
     "build": "next build",
     "start": "next start",
     "import:data": "node scripts/build-dataset.mjs",
@@ -15,7 +15,8 @@
     "db:migrate:down": "node-pg-migrate down -m \"migrations/*.js\" --use-glob --check-order false -d DATABASE_URL",
     "user:upsert": "node scripts/user-upsert.mjs",
     "db:migrate": "node-pg-migrate up -m \"migrations/*.js\" --use-glob --check-order false -d DATABASE_URL",
-    "vercel-build": "npm run db:migrate && npm run build"
+    "vercel-build": "npm run test && npm run db:migrate && npm run build",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "leaflet": "^1.9.4",
@@ -30,7 +31,9 @@
     "@types/pg": "^8.15.6",
     "@types/react": "18.3.3",
     "@types/react-dom": "18.3.0",
+    "@vitest/coverage-v8": "^4.0.18",
     "node-pg-migrate": "^8.0.4",
-    "typescript": "5.5.4"
+    "typescript": "5.5.4",
+    "vitest": "^4.0.18"
   }
 }

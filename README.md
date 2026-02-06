@@ -84,6 +84,22 @@ Then open `http://localhost:3000`.
 - Local geocoding cache (optional):
   - `data/geocoding.cache.json`
 
+## Testing
+
+Run unit tests (DB/email mocked):
+
+```bash
+npm run test
+```
+
+Watch mode:
+
+```bash
+npm run test:watch
+```
+
+On Vercel deploys, `vercel-build` runs tests before migrations/build.
+
 ## Database
 
 The app requires PostgreSQL (`DATABASE_URL`) and uses it for:
