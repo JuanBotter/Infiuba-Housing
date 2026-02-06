@@ -865,6 +865,19 @@ textarea {
   overflow-wrap: anywhere;
 }
 
+.contact-list a,
+.selected-property-note a {
+  color: var(--primary);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.contact-list a:hover,
+.selected-property-note a:hover {
+  color: var(--primary-deep);
+}
+
 .contact-lock-hint {
   margin: 0;
   font-size: 0.8rem;

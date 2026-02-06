@@ -11,6 +11,7 @@ import {
 } from "@/lib/auth";
 import { getCachedPublicListingById, getListingById } from "@/lib/data";
 import { buildSafeMailtoHref, isStrictEmail } from "@/lib/email";
+import { splitContactParts } from "@/lib/contact-links";
 import { formatDecimal, formatPercent, formatUsd, formatUsdRange } from "@/lib/format";
 import { getMessages, isSupportedLanguage } from "@/lib/i18n";
 import {
@@ -23,6 +24,25 @@ export const dynamic = "force-dynamic";
 
 interface PlaceDetailPageProps {
   params: Promise<{ lang: string; id: string }>;
+}
+
+function renderContactValue(contact: string) {
+  return splitContactParts(contact).map((part, index) => {
+    if (part.type === "link") {
+      const isExternal = part.kind === "url";
+      return (
+        <a
+          key={`${part.text}-${index}`}
+          href={part.href}
+          target={isExternal ? "_blank" : undefined}
+          rel={isExternal ? "noreferrer" : undefined}
+        >
+          {part.text}
+        </a>
+      );
+    }
+    return <span key={`${part.text}-${index}`}>{part.text}</span>;
+  });
 }
 
 export default async function PlaceDetailPage({ params }: PlaceDetailPageProps) {
@@ -128,7 +148,7 @@ export default async function PlaceDetailPage({ params }: PlaceDetailPageProps) 
           listing.contacts.length > 0 ? (
             <ul className="contact-list">
               {listing.contacts.map((contact) => (
-                <li key={contact}>{contact}</li>
+                <li key={contact}>{renderContactValue(contact)}</li>
               ))}
             </ul>
           ) : (

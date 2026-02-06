@@ -9,6 +9,7 @@ import {
   createInitialReviewDraft,
   readApiErrorMessage,
 } from "@/lib/review-form";
+import { splitContactParts } from "@/lib/contact-links";
 import { SEMESTER_OPTIONS } from "@/lib/semester-options";
 import type { Lang, Listing } from "@/types";
 
@@ -26,6 +27,25 @@ function normalizeText(value: string) {
     .toLowerCase()
     .normalize("NFD")
     .replace(/\p{Diacritic}/gu, "");
+}
+
+function renderContactValue(contact: string) {
+  return splitContactParts(contact).map((part, index) => {
+    if (part.type === "link") {
+      const isExternal = part.kind === "url";
+      return (
+        <a
+          key={`${part.text}-${index}`}
+          href={part.href}
+          target={isExternal ? "_blank" : undefined}
+          rel={isExternal ? "noreferrer" : undefined}
+        >
+          {part.text}
+        </a>
+      );
+    }
+    return <span key={`${part.text}-${index}`}>{part.text}</span>;
+  });
 }
 
 export function AddStayReviewForm({ lang, listings }: AddStayReviewFormProps) {
@@ -193,9 +213,16 @@ export function AddStayReviewForm({ lang, listings }: AddStayReviewFormProps) {
               <p>
                 <span>{t.ownerContacts}</span>
                 <strong>
-                  {selectedListing.contacts.length > 0
-                    ? selectedListing.contacts.join(" · ")
-                    : "-"}
+                  {selectedListing.contacts.length > 0 ? (
+                    selectedListing.contacts.map((contact, index) => (
+                      <span key={contact}>
+                        {renderContactValue(contact)}
+                        {index < selectedListing.contacts.length - 1 ? " · " : ""}
+                      </span>
+                    ))
+                  ) : (
+                    "-"
+                  )}
                 </strong>
               </p>
             </div>
