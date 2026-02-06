@@ -26,6 +26,7 @@ Do not defer AGENTS updates.
 - OTP login includes an optional "Remember me" checkbox; trusted sessions persist for 30 days, otherwise cookie lifetime is browser-session only.
 - OTP delivery supports a console-only email override for local testing (`mock@email.com` by default outside production).
 - OTP mailer logs provider availability and send failures (redacted recipient) to server logs for troubleshooting.
+- OTP request/verify API responses are intentionally enumeration-safe: request responses are generic for allowed/not-allowed/rate-limited outcomes, and verify failures return a generic invalid-code response for auth failures.
 - DB migrations are managed with node-pg-migrate (`migrations/` directory).
 - Admin UX: split views for reviews and access management under `/{lang}/admin/*`; access view supports search, role changes, deletion, and bulk user creation.
 - Main listings UI uses a view toggle: `Map` (default), `List`, and (for whitelisted/admin) `Add review`.
@@ -109,6 +110,8 @@ Implementation:
     - `{ action: "requestOtp", email }` to send OTP, then
     - `{ action: "verifyOtp", email, otpCode, trustDevice }` to sign in.
     - Verify path sets signed role cookie.
+    - `requestOtp` intentionally returns a generic success payload for most auth-related outcomes to reduce account enumeration.
+    - `verifyOtp` intentionally returns generic invalid-code failures for non-success auth outcomes (`not_allowed`, invalid/expired codes, etc.).
   - `DELETE /api/session` -> logout (clears cookie).
   - `GET /api/session` -> current resolved role (DB-validated for cookie-backed sessions).
   - `POST /api/session` is the only sign-in path (OTP).

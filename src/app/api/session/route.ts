@@ -36,6 +36,13 @@ function parseTrustDevice(value: unknown) {
   return value === true;
 }
 
+function buildOtpRequestAcceptedResponse(email: string) {
+  return NextResponse.json({
+    ok: true,
+    email,
+  });
+}
+
 export async function GET(request: Request) {
   const session = await getAuthSessionFromRequest(request);
   return NextResponse.json(session);
@@ -68,26 +75,11 @@ export async function POST(request: Request) {
       if (requested.reason === "invalid_email") {
         return NextResponse.json({ error: "Invalid email" }, { status: 400 });
       }
-      if (requested.reason === "not_allowed") {
-        return NextResponse.json({ error: "Email not allowed" }, { status: 403 });
-      }
-      if (requested.reason === "rate_limited") {
-        return NextResponse.json(
-          {
-            error: "Please wait before requesting another code",
-            retryAfterSeconds: requested.retryAfterSeconds ?? 30,
-          },
-          { status: 429 },
-        );
-      }
-      return NextResponse.json({ error: "Could not send OTP email" }, { status: 503 });
+      // Prevent account enumeration via request OTP response semantics.
+      return buildOtpRequestAcceptedResponse(email);
     }
 
-    return NextResponse.json({
-      ok: true,
-      email: requested.email,
-      expiresAt: requested.expiresAt,
-    });
+    return buildOtpRequestAcceptedResponse(requested.email);
   }
 
   if (!email || !otpCode) {
@@ -102,9 +94,7 @@ export async function POST(request: Request) {
     if (verified.reason === "invalid_email") {
       return NextResponse.json({ error: "Invalid email" }, { status: 400 });
     }
-    if (verified.reason === "not_allowed") {
-      return NextResponse.json({ error: "Email not allowed" }, { status: 403 });
-    }
+    // Keep authentication failures generic to reduce account enumeration.
     return NextResponse.json({ error: "Invalid or expired OTP code" }, { status: 401 });
   }
 
