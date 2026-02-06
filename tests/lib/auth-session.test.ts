@@ -1,0 +1,128 @@
+import { createHmac } from "node:crypto";
+
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("@/lib/db", () => ({
+  isDatabaseEnabled: vi.fn(() => false),
+  dbQuery: vi.fn(),
+  withTransaction: vi.fn(),
+}));
+
+let auth: typeof import("@/lib/auth");
+let mockedDb: typeof import("@/lib/db");
+
+const ORIGINAL_VISITOR_CONTACTS = process.env.VISITOR_CAN_VIEW_OWNER_CONTACTS;
+
+beforeAll(async () => {
+  auth = await import("@/lib/auth");
+  mockedDb = vi.mocked(await import("@/lib/db"));
+});
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  process.env.VISITOR_CAN_VIEW_OWNER_CONTACTS = ORIGINAL_VISITOR_CONTACTS;
+});
+
+describe("auth session helpers", () => {
+  it("creates and resolves a v2 session token", () => {
+    const token = auth.createRoleSession("admin", {
+      authMethod: "otp",
+      email: "admin@example.com",
+    });
+    const resolved = auth.resolveSessionFromToken(token);
+    expect(resolved.role).toBe("admin");
+    expect(resolved.authMethod).toBe("otp");
+    expect(resolved.email).toBe("admin@example.com");
+  });
+
+  it("returns visitor for invalid session tokens", () => {
+    const token = auth.createRoleSession("admin", { authMethod: "otp", email: "admin@example.com" });
+    const tampered = `${token.slice(0, -1)}x`;
+    const resolved = auth.resolveSessionFromToken(tampered);
+    expect(resolved.role).toBe("visitor");
+  });
+
+  it("supports legacy v1 session tokens", () => {
+    const payload = "v1:admin";
+    const secret = process.env.AUTH_SECRET || "test-secret";
+    const signature = createHmac("sha256", secret).update(payload).digest("hex");
+    const token = `${payload}.${signature}`;
+    const resolved = auth.resolveSessionFromToken(token);
+    expect(resolved.role).toBe("admin");
+  });
+
+  it("reads session from cookie header", () => {
+    const token = auth.createRoleSession("whitelisted", {
+      authMethod: "otp",
+      email: "student@example.com",
+    });
+    const cookie = `other=1; ${auth.ROLE_COOKIE_NAME}=${encodeURIComponent(token)};`;
+    const session = auth.getSessionFromCookieHeader(cookie);
+    expect(session.role).toBe("whitelisted");
+    expect(session.email).toBe("student@example.com");
+  });
+
+  it("reads role from request cookies", () => {
+    const token = auth.createRoleSession("admin", {
+      authMethod: "otp",
+      email: "admin@example.com",
+    });
+    const request = new Request("http://localhost", {
+      headers: { cookie: `${auth.ROLE_COOKIE_NAME}=${token}` },
+    });
+    expect(auth.getRoleFromRequest(request)).toBe("admin");
+  });
+
+  it("builds role cookies with trust device options", () => {
+    const trusted = auth.buildRoleCookie("admin", { trustDevice: true });
+    expect(trusted.maxAge).toBeDefined();
+
+    const sessionOnly = auth.buildRoleCookie("admin", { trustDevice: false });
+    expect(sessionOnly.maxAge).toBeUndefined();
+
+    const defaultCookie = auth.buildRoleCookie("admin");
+    expect(defaultCookie.maxAge).toBeDefined();
+  });
+
+  it("clears role cookies", () => {
+    const cleared = auth.buildRoleCookieClear();
+    expect(cleared.maxAge).toBe(0);
+    expect(cleared.value).toBe("");
+  });
+
+  it("honors visitor contact override flag", () => {
+    process.env.VISITOR_CAN_VIEW_OWNER_CONTACTS = "true";
+    expect(auth.canViewOwnerContactInfo("visitor")).toBe(true);
+
+    process.env.VISITOR_CAN_VIEW_OWNER_CONTACTS = "false";
+    expect(auth.canViewOwnerContactInfo("visitor")).toBe(false);
+  });
+
+  it("validates OTP sessions against the database", async () => {
+    const token = auth.createRoleSession("whitelisted", {
+      authMethod: "otp",
+      email: "student@example.com",
+    });
+
+    mockedDb.isDatabaseEnabled.mockReturnValueOnce(false);
+    const blocked = await auth.getAuthSessionFromRequest(
+      new Request("http://localhost", {
+        headers: { cookie: `${auth.ROLE_COOKIE_NAME}=${token}` },
+      }),
+    );
+    expect(blocked.role).toBe("visitor");
+
+    mockedDb.isDatabaseEnabled.mockReturnValueOnce(true);
+    mockedDb.dbQuery.mockResolvedValueOnce({
+      rowCount: 1,
+      rows: [{ role: "admin", is_active: true }],
+    } as never);
+
+    const allowed = await auth.getAuthSessionFromRequest(
+      new Request("http://localhost", {
+        headers: { cookie: `${auth.ROLE_COOKIE_NAME}=${token}` },
+      }),
+    );
+    expect(allowed.role).toBe("admin");
+  });
+});

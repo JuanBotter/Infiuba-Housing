@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, it, vi } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/auth", () => ({
   buildRoleCookie: vi.fn(() => ({ name: "infiuba_role", value: "test", path: "/" })),
@@ -25,6 +25,10 @@ beforeAll(async () => {
   mockedAuth = vi.mocked(await import("@/lib/auth"));
 });
 
+beforeEach(() => {
+  vi.clearAllMocks();
+});
+
 function buildRequest(body: Record<string, unknown>) {
   return new Request("http://localhost/api/session", {
     method: "POST",
@@ -37,9 +41,44 @@ function buildRequest(body: Record<string, unknown>) {
 }
 
 describe("/api/session", () => {
+  it("rejects unsupported actions", async () => {
+    const response = await POST(buildRequest({ action: "nope", email: "user@example.com" }));
+    expect(response.status).toBe(400);
+  });
+
+  it("rejects invalid origin", async () => {
+    const response = await POST(
+      new Request("http://localhost/api/session", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          origin: "http://evil.example",
+        },
+        body: JSON.stringify({ action: "requestOtp", email: "user@example.com" }),
+      }),
+    );
+    expect(response.status).toBe(403);
+  });
+
   it("returns 400 when requestOtp payload is missing email", async () => {
     const response = await POST(buildRequest({ action: "requestOtp" }));
     expect(response.status).toBe(400);
+  });
+
+  it("returns 400 when requestOtp returns invalid email", async () => {
+    mockedAuth.requestLoginOtp.mockResolvedValueOnce({ ok: false, reason: "invalid_email" });
+
+    const response = await POST(buildRequest({ action: "requestOtp", email: "bad-email" }));
+    expect(response.status).toBe(400);
+  });
+
+  it("returns 503 when requestOtp needs database", async () => {
+    mockedAuth.requestLoginOtp.mockResolvedValueOnce({ ok: false, reason: "db_unavailable" });
+
+    const response = await POST(
+      buildRequest({ action: "requestOtp", email: "student@example.com" }),
+    );
+    expect(response.status).toBe(503);
   });
 
   it("returns 200 when requestOtp is not allowed (non-enumerating)", async () => {
@@ -86,6 +125,34 @@ describe("/api/session", () => {
     const payload = await response.json();
     expect(payload.ok).toBe(true);
     expect(payload.role).toBe("admin");
+    expect(mockedAuth.buildRoleCookie).toHaveBeenCalledWith("admin", {
+      authMethod: "otp",
+      email: "admin@example.com",
+      trustDevice: true,
+    });
+  });
+
+  it("returns 400 when verifyOtp payload is missing values", async () => {
+    const response = await POST(buildRequest({ action: "verifyOtp", email: "" }));
+    expect(response.status).toBe(400);
+  });
+
+  it("returns 400 when verifyOtp returns invalid email", async () => {
+    mockedAuth.verifyLoginOtp.mockResolvedValueOnce({ ok: false, reason: "invalid_email" });
+
+    const response = await POST(
+      buildRequest({ action: "verifyOtp", email: "bad", otpCode: "123456" }),
+    );
+    expect(response.status).toBe(400);
+  });
+
+  it("returns 503 when verifyOtp needs database", async () => {
+    mockedAuth.verifyLoginOtp.mockResolvedValueOnce({ ok: false, reason: "db_unavailable" });
+
+    const response = await POST(
+      buildRequest({ action: "verifyOtp", email: "admin@example.com", otpCode: "123456" }),
+    );
+    expect(response.status).toBe(503);
   });
 
   it("returns 401 when verifyOtp fails", async () => {
@@ -120,5 +187,15 @@ describe("/api/session", () => {
       }),
     );
     expect(response.status).toBe(200);
+  });
+
+  it("rejects DELETE with invalid origin", async () => {
+    const response = await DELETE(
+      new Request("http://localhost/api/session", {
+        method: "DELETE",
+        headers: { origin: "http://evil.example" },
+      }),
+    );
+    expect(response.status).toBe(403);
   });
 });
