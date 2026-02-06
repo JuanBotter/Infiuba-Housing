@@ -1,27 +1,8 @@
 import { randomUUID } from "node:crypto";
-import { readFile, writeFile } from "node:fs/promises";
-import path from "node:path";
 
-import { dbQuery, isDatabaseEnabled, withTransaction } from "@/lib/db";
+import { dbQuery, withTransaction } from "@/lib/db";
 import { getTranslatedCommentForLanguage } from "@/lib/review-translations";
 import type { ApprovedWebReview, Lang, PendingWebReview } from "@/types";
-
-const PENDING_FILE = path.join(process.cwd(), "data", "reviews.pending.json");
-const APPROVED_FILE = path.join(process.cwd(), "data", "reviews.approved.json");
-
-async function readArrayFile<T>(filePath: string): Promise<T[]> {
-  try {
-    const raw = await readFile(filePath, "utf8");
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? (parsed as T[]) : [];
-  } catch {
-    return [];
-  }
-}
-
-async function writeArrayFile<T>(filePath: string, values: T[]) {
-  await writeFile(filePath, `${JSON.stringify(values, null, 2)}\n`, "utf8");
-}
 
 function toIsoString(value: string | Date) {
   return typeof value === "string" ? value : value.toISOString();
@@ -120,125 +101,106 @@ export async function getApprovedReviewsForListing(
 ) {
   const includePrivateContactInfo = options.includePrivateContactInfo ?? true;
 
-  if (isDatabaseEnabled()) {
-    const result = await dbQuery<ReviewRow>(
-      `
-        SELECT
-          id,
-          listing_id,
-          rating,
-          price_usd,
-          recommended,
-          comment,
-          comment_en,
-          comment_es,
-          comment_fr,
-          comment_de,
-          comment_pt,
-          comment_it,
-          comment_no,
-          semester,
-          student_contact,
-          student_name,
-          student_email,
-          allow_contact_sharing,
-          created_at,
-          approved_at
-        FROM reviews
-        WHERE listing_id = $1
-          AND source = 'web'
-          AND status = 'approved'
-        ORDER BY approved_at DESC NULLS LAST, created_at DESC
-      `,
-      [listingId],
-    );
-    return result.rows.map((row) =>
-      mapApprovedReviewRowForLanguage(row, lang, includePrivateContactInfo),
-    );
-  }
-
-  const approved = await readArrayFile<ApprovedWebReview>(APPROVED_FILE);
-  return approved
-    .filter((review) => review.listingId === listingId)
-    .map((review) => ({
-      ...review,
-      studentEmail: includePrivateContactInfo ? review.studentEmail : undefined,
-      studentContact: includePrivateContactInfo ? review.studentContact : undefined,
-    }));
+  const result = await dbQuery<ReviewRow>(
+    `
+      SELECT
+        id,
+        listing_id,
+        rating,
+        price_usd,
+        recommended,
+        comment,
+        comment_en,
+        comment_es,
+        comment_fr,
+        comment_de,
+        comment_pt,
+        comment_it,
+        comment_no,
+        semester,
+        student_contact,
+        student_name,
+        student_email,
+        allow_contact_sharing,
+        created_at,
+        approved_at
+      FROM reviews
+      WHERE listing_id = $1
+        AND source = 'web'
+        AND status = 'approved'
+      ORDER BY approved_at DESC NULLS LAST, created_at DESC
+    `,
+    [listingId],
+  );
+  return result.rows.map((row) =>
+    mapApprovedReviewRowForLanguage(row, lang, includePrivateContactInfo),
+  );
 }
 
 export async function getPendingReviews() {
-  if (isDatabaseEnabled()) {
-    const result = await dbQuery<ReviewRow>(
-      `
-        SELECT
-          id,
-          listing_id,
-          rating,
-          price_usd,
-          recommended,
-          comment,
-          comment_en,
-          comment_es,
-          comment_fr,
-          comment_de,
-          comment_pt,
-          comment_it,
-          comment_no,
-          semester,
-          student_contact,
-          student_name,
-          student_email,
-          allow_contact_sharing,
-          created_at,
-          approved_at
-        FROM reviews
-        WHERE source = 'web'
-          AND status = 'pending'
-        ORDER BY created_at DESC
-      `,
-    );
-    return result.rows.map(mapPendingReviewRow);
-  }
-
-  return readArrayFile<PendingWebReview>(PENDING_FILE);
+  const result = await dbQuery<ReviewRow>(
+    `
+      SELECT
+        id,
+        listing_id,
+        rating,
+        price_usd,
+        recommended,
+        comment,
+        comment_en,
+        comment_es,
+        comment_fr,
+        comment_de,
+        comment_pt,
+        comment_it,
+        comment_no,
+        semester,
+        student_contact,
+        student_name,
+        student_email,
+        allow_contact_sharing,
+        created_at,
+        approved_at
+      FROM reviews
+      WHERE source = 'web'
+        AND status = 'pending'
+      ORDER BY created_at DESC
+    `,
+  );
+  return result.rows.map(mapPendingReviewRow);
 }
 
 export async function getApprovedReviews() {
-  if (isDatabaseEnabled()) {
-    const result = await dbQuery<ReviewRow>(
-      `
-        SELECT
-          id,
-          listing_id,
-          rating,
-          price_usd,
-          recommended,
-          comment,
-          comment_en,
-          comment_es,
-          comment_fr,
-          comment_de,
-          comment_pt,
-          comment_it,
-          comment_no,
-          semester,
-          student_contact,
-          student_name,
-          student_email,
-          allow_contact_sharing,
-          created_at,
-          approved_at
-        FROM reviews
-        WHERE source = 'web'
-          AND status = 'approved'
-        ORDER BY approved_at DESC NULLS LAST, created_at DESC
-      `,
-    );
-    return result.rows.map(mapApprovedReviewRow);
-  }
-
-  return readArrayFile<ApprovedWebReview>(APPROVED_FILE);
+  const result = await dbQuery<ReviewRow>(
+    `
+      SELECT
+        id,
+        listing_id,
+        rating,
+        price_usd,
+        recommended,
+        comment,
+        comment_en,
+        comment_es,
+        comment_fr,
+        comment_de,
+        comment_pt,
+        comment_it,
+        comment_no,
+        semester,
+        student_contact,
+        student_name,
+        student_email,
+        allow_contact_sharing,
+        created_at,
+        approved_at
+      FROM reviews
+      WHERE source = 'web'
+        AND status = 'approved'
+      ORDER BY approved_at DESC NULLS LAST, created_at DESC
+    `,
+  );
+  return result.rows.map(mapApprovedReviewRow);
 }
 
 export interface NewReviewInput {
@@ -255,61 +217,6 @@ export interface NewReviewInput {
 }
 
 export async function appendPendingReview(input: NewReviewInput) {
-  if (isDatabaseEnabled()) {
-    const review: PendingWebReview = {
-      id: `web-${randomUUID()}`,
-      listingId: input.listingId,
-      rating: input.rating,
-      priceUsd: input.priceUsd,
-      recommended: input.recommended,
-      comment: input.comment,
-      semester: input.semester || undefined,
-      studentName: input.studentName || undefined,
-      studentContact: input.studentContact || undefined,
-      studentEmail: input.studentEmail || undefined,
-      shareContactInfo: input.shareContactInfo || false,
-      createdAt: new Date().toISOString(),
-    };
-
-    await dbQuery(
-      `
-        INSERT INTO reviews (
-          id,
-          listing_id,
-          source,
-          status,
-          rating,
-          price_usd,
-          recommended,
-          comment,
-          semester,
-          student_contact,
-          student_name,
-          student_email,
-          allow_contact_sharing,
-          created_at
-        ) VALUES ($1, $2, 'web', 'pending', $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-      `,
-      [
-        review.id,
-        review.listingId,
-        review.rating,
-        review.priceUsd ?? null,
-        review.recommended,
-        review.comment,
-        review.semester || null,
-        review.studentContact || null,
-        review.studentName || null,
-        review.studentEmail || null,
-        review.shareContactInfo || false,
-        review.createdAt,
-      ],
-    );
-    return review;
-  }
-
-  const pending = await readArrayFile<PendingWebReview>(PENDING_FILE);
-
   const review: PendingWebReview = {
     id: `web-${randomUUID()}`,
     listingId: input.listingId,
@@ -325,8 +232,40 @@ export async function appendPendingReview(input: NewReviewInput) {
     createdAt: new Date().toISOString(),
   };
 
-  pending.push(review);
-  await writeArrayFile(PENDING_FILE, pending);
+  await dbQuery(
+    `
+      INSERT INTO reviews (
+        id,
+        listing_id,
+        source,
+        status,
+        rating,
+        price_usd,
+        recommended,
+        comment,
+        semester,
+        student_contact,
+        student_name,
+        student_email,
+        allow_contact_sharing,
+        created_at
+      ) VALUES ($1, $2, 'web', 'pending', $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+    `,
+    [
+      review.id,
+      review.listingId,
+      review.rating,
+      review.priceUsd ?? null,
+      review.recommended,
+      review.comment,
+      review.semester || null,
+      review.studentContact || null,
+      review.studentName || null,
+      review.studentEmail || null,
+      review.shareContactInfo || false,
+      review.createdAt,
+    ],
+  );
   return review;
 }
 
@@ -334,9 +273,98 @@ export async function moderatePendingReview(
   reviewId: string,
   action: "approve" | "reject",
 ) {
-  if (isDatabaseEnabled()) {
-    return withTransaction(async (client) => {
-      const selected = await client.query<ReviewRow>(
+  return withTransaction(async (client) => {
+    const selected = await client.query<ReviewRow>(
+      `
+        SELECT
+          id,
+          listing_id,
+          rating,
+          price_usd,
+          recommended,
+          comment,
+          comment_en,
+          comment_es,
+          comment_fr,
+          comment_de,
+          comment_pt,
+          comment_it,
+          comment_no,
+          semester,
+          student_contact,
+          student_name,
+          student_email,
+          allow_contact_sharing,
+          created_at,
+          approved_at
+        FROM reviews
+        WHERE id = $1
+          AND source = 'web'
+          AND status = 'pending'
+        FOR UPDATE
+      `,
+      [reviewId],
+    );
+
+    if (selected.rowCount === 0) {
+      return { ok: false as const, reason: "not_found" as const };
+    }
+
+    const reviewRow = selected.rows[0];
+
+    if (action === "approve") {
+      await client.query(
+        `
+          UPDATE reviews
+          SET status = 'approved',
+              approved_at = NOW()
+          WHERE id = $1
+        `,
+        [reviewId],
+      );
+
+      await client.query(
+        `
+          UPDATE listings
+          SET
+            average_rating = (
+              SELECT AVG(rating)
+              FROM reviews
+              WHERE listing_id = $1
+                AND status = 'approved'
+                AND rating IS NOT NULL
+            ),
+            recommendation_rate = (
+              SELECT CASE
+                WHEN COUNT(*) FILTER (WHERE recommended IS NOT NULL) = 0 THEN NULL
+                ELSE
+                  COUNT(*) FILTER (WHERE recommended = TRUE)::numeric
+                  / COUNT(*) FILTER (WHERE recommended IS NOT NULL)::numeric
+              END
+              FROM reviews
+              WHERE listing_id = $1
+                AND status = 'approved'
+            ),
+            total_reviews = (
+              SELECT COUNT(*)::integer
+              FROM reviews
+              WHERE listing_id = $1
+                AND status = 'approved'
+            ),
+            recent_year = (
+              SELECT MAX(year)
+              FROM reviews
+              WHERE listing_id = $1
+                AND status = 'approved'
+                AND year IS NOT NULL
+            ),
+            updated_at = NOW()
+          WHERE id = $1
+        `,
+        [reviewRow.listing_id],
+      );
+
+      const approved = await client.query<ReviewRow>(
         `
           SELECT
             id,
@@ -361,144 +389,31 @@ export async function moderatePendingReview(
             approved_at
           FROM reviews
           WHERE id = $1
-            AND source = 'web'
-            AND status = 'pending'
-          FOR UPDATE
-        `,
-        [reviewId],
-      );
-
-      if (selected.rowCount === 0) {
-        return { ok: false as const, reason: "not_found" as const };
-      }
-
-      const reviewRow = selected.rows[0];
-
-      if (action === "approve") {
-        await client.query(
-          `
-            UPDATE reviews
-            SET status = 'approved',
-                approved_at = NOW()
-            WHERE id = $1
-          `,
-          [reviewId],
-        );
-
-        await client.query(
-          `
-            UPDATE listings
-            SET
-              average_rating = (
-                SELECT AVG(rating)
-                FROM reviews
-                WHERE listing_id = $1
-                  AND status = 'approved'
-                  AND rating IS NOT NULL
-              ),
-              recommendation_rate = (
-                SELECT CASE
-                  WHEN COUNT(*) FILTER (WHERE recommended IS NOT NULL) = 0 THEN NULL
-                  ELSE
-                    COUNT(*) FILTER (WHERE recommended = TRUE)::numeric
-                    / COUNT(*) FILTER (WHERE recommended IS NOT NULL)::numeric
-                END
-                FROM reviews
-                WHERE listing_id = $1
-                  AND status = 'approved'
-              ),
-              total_reviews = (
-                SELECT COUNT(*)::integer
-                FROM reviews
-                WHERE listing_id = $1
-                  AND status = 'approved'
-              ),
-              recent_year = (
-                SELECT MAX(year)
-                FROM reviews
-                WHERE listing_id = $1
-                  AND status = 'approved'
-                  AND year IS NOT NULL
-              ),
-              updated_at = NOW()
-            WHERE id = $1
-          `,
-          [reviewRow.listing_id],
-        );
-
-        const approved = await client.query<ReviewRow>(
-          `
-            SELECT
-              id,
-              listing_id,
-              rating,
-              price_usd,
-              recommended,
-              comment,
-              comment_en,
-              comment_es,
-              comment_fr,
-              comment_de,
-              comment_pt,
-              comment_it,
-              comment_no,
-              semester,
-              student_contact,
-              student_name,
-              student_email,
-              allow_contact_sharing,
-              created_at,
-              approved_at
-            FROM reviews
-            WHERE id = $1
-          `,
-          [reviewId],
-        );
-
-        return {
-          ok: true as const,
-          action: "approve" as const,
-          review: mapApprovedReviewRow(approved.rows[0]),
-        };
-      }
-
-      await client.query(
-        `
-          UPDATE reviews
-          SET status = 'rejected',
-              approved_at = NULL
-          WHERE id = $1
         `,
         [reviewId],
       );
 
       return {
         ok: true as const,
-        action: "reject" as const,
-        review: mapPendingReviewRow(reviewRow),
+        action: "approve" as const,
+        review: mapApprovedReviewRow(approved.rows[0]),
       };
-    });
-  }
+    }
 
-  const pending = await readArrayFile<PendingWebReview>(PENDING_FILE);
-  const reviewIndex = pending.findIndex((review) => review.id === reviewId);
-  if (reviewIndex < 0) {
-    return { ok: false as const, reason: "not_found" as const };
-  }
+    await client.query(
+      `
+        UPDATE reviews
+        SET status = 'rejected',
+            approved_at = NULL
+        WHERE id = $1
+      `,
+      [reviewId],
+    );
 
-  const [review] = pending.splice(reviewIndex, 1);
-  await writeArrayFile(PENDING_FILE, pending);
-
-  if (action === "approve") {
-    const approved = await readArrayFile<ApprovedWebReview>(APPROVED_FILE);
-    const approvedReview: ApprovedWebReview = {
-      ...review,
-      approvedAt: new Date().toISOString(),
+    return {
+      ok: true as const,
+      action: "reject" as const,
+      review: mapPendingReviewRow(reviewRow),
     };
-    approved.push(approvedReview);
-    await writeArrayFile(APPROVED_FILE, approved);
-    return { ok: true as const, action: "approve" as const, review: approvedReview };
-  }
-
-  return { ok: true as const, action: "reject" as const, review };
+  });
 }

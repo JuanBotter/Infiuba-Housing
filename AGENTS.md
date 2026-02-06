@@ -16,6 +16,7 @@ Do not defer AGENTS updates.
 
 - Project: Infiuba housing portal for exchange students in Buenos Aires.
 - Stack: Next.js App Router + TypeScript + PostgreSQL + Leaflet.
+- Runtime data source: PostgreSQL only (no file-based fallback mode).
 - Languages: `en`, `es`, `fr`, `de`, `pt`, `it`, `no`.
 - Default landing language is Spanish (`/` redirects to `/es`).
 - Theme: light/dark with persisted browser preference.
@@ -50,6 +51,7 @@ Do not defer AGENTS updates.
 - Production build: `npm run build`
 - Vercel deploy uses `vercel-build` to run migrations before build: `npm run db:migrate && npm run build`
 - Import dataset from CSV: `npm run import:data`
+- `npm run import:data` writes local seed dataset `src/data/accommodations.json` (gitignored).
 - Geocode listings: `npm run geocode:data`
 - Init/migrate DB schema: `npm run db:migrate`
 - `db:migrate` reads `DATABASE_URL` (node-pg-migrate `-d` expects the env var name).
@@ -60,7 +62,7 @@ Do not defer AGENTS updates.
 
 ## Environment Variables
 
-- `DATABASE_URL`: enables PostgreSQL mode.
+- `DATABASE_URL`: required for runtime and DB scripts.
 - `PGSSL=true`: optional SSL for DB pool.
 - `AUTH_SECRET`: secret for signing auth role cookie (strongly recommended).
 - `VISITOR_CAN_VIEW_OWNER_CONTACTS=true`: emergency read-only fallback to expose owner contacts to visitors (reviewer/student contacts remain protected).
@@ -121,16 +123,16 @@ User access management:
 
 ## Data Sources
 
-Primary mode (recommended):
+Runtime:
 
 - PostgreSQL for listings, contacts, reviews, metadata.
+- App/API behavior assumes DB availability; there is no JSON/file fallback at runtime.
 
-Fallback mode (when `DATABASE_URL` is missing):
+Seed/import tooling:
 
-- Read listings from `src/data/accommodations.json`.
-- Pending/approved web reviews from:
-  - `data/reviews.pending.json`
-  - `data/reviews.approved.json`
+- `scripts/build-dataset.mjs` generates `src/data/accommodations.json` locally for `scripts/db-seed.mjs`.
+- Optional local seed inputs (if present): `data/reviews.pending.json`, `data/reviews.approved.json`.
+- `data/geocoding.cache.json` is a local cache used by `scripts/geocode-listings.mjs`.
 
 ## Database Schema (Current)
 
@@ -324,7 +326,7 @@ Must remain true:
 4. Run checks after significant changes:
    - `npx tsc --noEmit`
    - `npm run build`
-5. Prefer DB-backed behavior; keep fallback mode working.
+5. Keep runtime DB-only behavior; do not reintroduce file fallback paths.
 6. Avoid schema drift: update `migrations/` (and any future migrations), `scripts/db-seed.mjs`, and this file together.
 7. Never expose secrets/tokens in client code or logs.
 8. Keep login OTP-only for top-bar auth; only active users already present in `users` should be able to complete sign-in.

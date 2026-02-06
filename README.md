@@ -9,7 +9,7 @@ Multilingual MVP (English, Spanish, French, German, Portuguese, Italian, Norwegi
 - Card view + map view toggle for browsing listings.
 - Light/dark theme toggle (saved per browser).
 - Historical reviews imported from your survey CSV.
-- PostgreSQL-backed listings and reviews (with file fallback if `DATABASE_URL` is not set).
+- PostgreSQL-backed listings and reviews (`DATABASE_URL` required at runtime).
 - Original review comments + translated versions saved in PostgreSQL (`comment` + `comment_<lang>` columns).
 - Public review submission flow with address suggestions; existing properties get a new review, new ones are created automatically.
 - Role-based access: `visitor` (default), `whitelisted` (student full access), `admin`.
@@ -63,16 +63,15 @@ Then open `http://localhost:3000`.
 - Source survey data:
   - `data/Alojamientos Recomendados Infiuba.xlsx - Hoja 1.csv`
   - `data/Alojamientos Recomendados Infiuba.xlsx`
-- Generated dataset:
+- Generated dataset for seeding:
   - `src/data/accommodations.json`
-- Local review fallback files:
-  - `data/reviews.pending.json`
-  - `data/reviews.approved.json`
+- `src/data/accommodations.json` and cache/review JSON artifacts are local generated files (gitignored).
+- Local geocoding cache (optional):
   - `data/geocoding.cache.json`
 
 ## Database
 
-When `DATABASE_URL` is set, the app uses PostgreSQL for:
+The app requires PostgreSQL (`DATABASE_URL`) and uses it for:
 
 - listings
 - contacts

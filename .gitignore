@@ -10,3 +10,11 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 .vercel
+
+# Local/generated data files
+data/geocoding.cache.json
+data/reviews.pending.json
+data/reviews.approved.json
+src/data/accommodations.json
+data/Alojamientos Recomendados Infiuba.xlsx
+data/Alojamientos Recomendados Infiuba.xlsx - Hoja 1.csv

@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { access, mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 const ROOT = process.cwd();
@@ -9,8 +9,6 @@ const SOURCE_FILE = path.join(
   "Alojamientos Recomendados Infiuba.xlsx - Hoja 1.csv",
 );
 const OUTPUT_FILE = path.join(ROOT, "src", "data", "accommodations.json");
-const PENDING_REVIEWS_FILE = path.join(ROOT, "data", "reviews.pending.json");
-const APPROVED_REVIEWS_FILE = path.join(ROOT, "data", "reviews.approved.json");
 
 function parseCsv(text) {
   const rows = [];
@@ -187,14 +185,6 @@ function slugify(text) {
     .slice(0, 70);
 }
 
-async function ensureFileIfMissing(filePath, initialValue = "[]\n") {
-  try {
-    await access(filePath);
-  } catch {
-    await writeFile(filePath, initialValue, "utf8");
-  }
-}
-
 async function run() {
   const csvText = await readFile(SOURCE_FILE, "utf8");
   const rows = parseCsv(csvText);
@@ -357,10 +347,6 @@ async function run() {
     )}\n`,
     "utf8",
   );
-
-  await ensureFileIfMissing(PENDING_REVIEWS_FILE);
-  await ensureFileIfMissing(APPROVED_REVIEWS_FILE);
-
   console.log(`Created ${listings.length} normalized listings at ${OUTPUT_FILE}`);
 }
 

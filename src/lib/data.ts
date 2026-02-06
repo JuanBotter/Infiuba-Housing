@@ -1,11 +1,8 @@
 import { createHash, randomUUID } from "node:crypto";
 
-import datasetJson from "@/data/accommodations.json";
-import { dbQuery, isDatabaseEnabled, withTransaction } from "@/lib/db";
+import { dbQuery, withTransaction } from "@/lib/db";
 import { getTranslatedCommentForLanguage } from "@/lib/review-translations";
-import type { Dataset, Lang, Listing, Review } from "@/types";
-
-const dataset = datasetJson as Dataset;
+import type { Lang, Listing, Review } from "@/types";
 
 function toOptionalNumber(value: unknown) {
   if (value === null || value === undefined || value === "") {
@@ -171,12 +168,6 @@ export async function getListings(options: ListingPrivacyOptions = {}) {
   const { includeOwnerContactInfo, includeReviewerContactInfo } = resolvePrivacyOptions(options);
   const lang = options.lang ?? "en";
 
-  if (!isDatabaseEnabled()) {
-    return dataset.listings.map((listing) =>
-      applyPrivacy(listing, includeOwnerContactInfo, includeReviewerContactInfo),
-    );
-  }
-
   const result = await dbQuery<ListingRow>(
     `
       SELECT
@@ -299,13 +290,6 @@ export async function getListingById(
 ): Promise<Listing | undefined> {
   const { includeOwnerContactInfo, includeReviewerContactInfo } = resolvePrivacyOptions(options);
 
-  if (!isDatabaseEnabled()) {
-    const listing = dataset.listings.find((candidate) => candidate.id === id);
-    return listing
-      ? applyPrivacy(listing, includeOwnerContactInfo, includeReviewerContactInfo)
-      : undefined;
-  }
-
   const listingResult = await dbQuery<ListingRow>(
     `
       SELECT
@@ -394,10 +378,6 @@ export interface NewListingInput {
 }
 
 export async function createListing(input: NewListingInput) {
-  if (!isDatabaseEnabled()) {
-    return { ok: false as const, reason: "db_disabled" as const };
-  }
-
   return withTransaction(async (client) => {
     const slugBase = slugify(`${input.neighborhood}-${input.address}`);
     const hash = createHash("sha1")
@@ -462,12 +442,6 @@ export async function createListing(input: NewListingInput) {
 }
 
 export async function getNeighborhoods() {
-  if (!isDatabaseEnabled()) {
-    return [...new Set(dataset.listings.map((listing) => listing.neighborhood))].sort((a, b) =>
-      a.localeCompare(b, "es"),
-    );
-  }
-
   const result = await dbQuery<{ neighborhood: string }>(
     `SELECT DISTINCT neighborhood FROM listings ORDER BY neighborhood ASC`,
   );
@@ -475,14 +449,6 @@ export async function getNeighborhoods() {
 }
 
 export async function getDatasetMeta() {
-  if (!isDatabaseEnabled()) {
-    return {
-      generatedAt: dataset.generatedAt,
-      sourceFile: dataset.sourceFile,
-      totalListings: dataset.totalListings,
-    };
-  }
-
   const result = await dbQuery<{
     generated_at: string | Date | null;
     source_file: string | null;

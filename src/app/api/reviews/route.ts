@@ -134,13 +134,6 @@ export async function POST(request: Request) {
         latitude,
         longitude,
       });
-
-      if (!created.ok) {
-        return NextResponse.json(
-          { error: "Database is not configured for new property submissions" },
-          { status: 503 },
-        );
-      }
       resolvedListingId = created.listingId;
     }
 
