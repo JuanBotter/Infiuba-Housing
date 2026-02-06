@@ -17,7 +17,9 @@
     "db:migrate": "node-pg-migrate up -m \"migrations/*.js\" --use-glob --check-order false -d DATABASE_URL",
     "vercel-build": "npm run test && npm run db:migrate && npm run build",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "test:integration:docker": "bash scripts/test-integration.sh"
   },
   "dependencies": {
     "leaflet": "^1.9.4",

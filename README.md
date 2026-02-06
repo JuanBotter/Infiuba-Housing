@@ -104,6 +104,18 @@ Watch mode:
 npm run test:watch
 ```
 
+Integration tests (Docker Postgres):
+
+```bash
+npm run test:integration:docker
+```
+
+If you already have a test DB running, set `DATABASE_URL` and run:
+
+```bash
+npm run test:integration
+```
+
 On Vercel deploys, `vercel-build` runs tests before migrations/build.
 
 ## Database

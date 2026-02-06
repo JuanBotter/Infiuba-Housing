@@ -68,6 +68,8 @@ Do not defer AGENTS updates.
 - Test suite: `npm run test`
 - Test coverage: `npm run test:coverage`
 - Test watch: `npm run test:watch`
+- Integration tests (Docker Postgres): `npm run test:integration:docker`
+- Integration tests (existing DB): set `DATABASE_URL` then `npm run test:integration`
 - Dev server: `npm run dev`
 - Test suite: `npm test`
 - Production build: `npm run build`
