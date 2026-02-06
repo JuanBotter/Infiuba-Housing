@@ -125,4 +125,19 @@ describe("auth session helpers", () => {
     );
     expect(allowed.role).toBe("admin");
   });
+
+  it("drops sessions with invalid auth method", async () => {
+    const payload = "v2|admin|magic|";
+    const secret = process.env.AUTH_SECRET || "test-secret";
+    const signature = createHmac("sha256", secret).update(payload).digest("hex");
+    const token = `${payload}.${signature}`;
+
+    const session = await auth.getAuthSessionFromRequest(
+      new Request("http://localhost", {
+        headers: { cookie: `${auth.ROLE_COOKIE_NAME}=${token}` },
+      }),
+    );
+
+    expect(session.role).toBe("visitor");
+  });
 });

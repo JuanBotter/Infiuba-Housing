@@ -51,6 +51,16 @@ describe("auth OTP flow", () => {
     }
   });
 
+  it("returns db_unavailable when OTP storage table is missing", async () => {
+    mockedDb.dbQuery.mockRejectedValueOnce({ code: "42P01" });
+
+    const result = await requestLoginOtp("student@example.com");
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.reason).toBe("db_unavailable");
+    }
+  });
+
   it("rate limits OTP requests", async () => {
     mockedDb.dbQuery.mockImplementation(async (text: string) => {
       if (text.includes("auth_rate_limit_buckets")) {
@@ -64,6 +74,30 @@ describe("auth OTP flow", () => {
     if (!result.ok) {
       expect(result.reason).toBe("rate_limited");
       expect(result.retryAfterSeconds).toBeDefined();
+    }
+  });
+
+  it("rate limits OTP resend within cooldown window", async () => {
+    mockedDb.dbQuery.mockImplementation(async (text: string) => {
+      if (text.includes("auth_rate_limit_buckets")) {
+        return defaultRateLimitResult() as never;
+      }
+      if (text.includes("FROM users")) {
+        return {
+          rowCount: 1,
+          rows: [{ role: "whitelisted", is_active: true }],
+        } as never;
+      }
+      if (text.includes("FROM auth_email_otps")) {
+        return { rowCount: 1, rows: [{ created_at: new Date().toISOString() }] } as never;
+      }
+      return { rowCount: 0, rows: [] } as never;
+    });
+
+    const result = await requestLoginOtp("student@example.com");
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.reason).toBe("rate_limited");
     }
   });
 
@@ -222,6 +256,36 @@ describe("auth OTP flow", () => {
     }
   });
 
+  it("rejects OTP verification when no valid OTP exists", async () => {
+    mockedDb.dbQuery.mockImplementation(async (text: string) => {
+      if (text.includes("auth_rate_limit_buckets")) {
+        return defaultRateLimitResult() as never;
+      }
+      return { rowCount: 0, rows: [] } as never;
+    });
+
+    mockedDb.withTransaction.mockImplementationOnce(async (callback) => {
+      const client = {
+        query: vi.fn(async (text: string) => {
+          if (text.includes("FROM users")) {
+            return { rowCount: 1, rows: [{ role: "admin", is_active: true }] };
+          }
+          if (text.includes("FROM auth_email_otps")) {
+            return { rowCount: 0, rows: [] };
+          }
+          return { rowCount: 0, rows: [] };
+        }),
+      };
+      return callback(client as never);
+    });
+
+    const result = await verifyLoginOtp("admin@example.com", "123456");
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.reason).toBe("invalid_or_expired");
+    }
+  });
+
   it("rejects OTP verification with malformed codes", async () => {
     mockedDb.dbQuery.mockImplementation(async (text: string) => {
       if (text.includes("auth_rate_limit_buckets")) {
@@ -231,6 +295,43 @@ describe("auth OTP flow", () => {
     });
 
     const result = await verifyLoginOtp("admin@example.com", "abc");
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.reason).toBe("invalid_code");
+    }
+  });
+
+  it("rejects OTP verification when code mismatches", async () => {
+    const email = "admin@example.com";
+    const secret = process.env.AUTH_SECRET || "test-secret";
+    const expectedHash = createHmac("sha256", secret).update(`${email}|123456`).digest("hex");
+
+    mockedDb.dbQuery.mockImplementation(async (text: string) => {
+      if (text.includes("INSERT INTO auth_rate_limit_buckets")) {
+        return { rowCount: 1, rows: [{ hits: 1 }] } as never;
+      }
+      if (text.includes("auth_rate_limit_buckets")) {
+        return defaultRateLimitResult() as never;
+      }
+      return { rowCount: 0, rows: [] } as never;
+    });
+
+    mockedDb.withTransaction.mockImplementationOnce(async (callback) => {
+      const client = {
+        query: vi.fn(async (text: string) => {
+          if (text.includes("FROM users")) {
+            return { rowCount: 1, rows: [{ role: "admin", is_active: true }] };
+          }
+          if (text.includes("FROM auth_email_otps")) {
+            return { rowCount: 1, rows: [{ id: 1, code_hash: expectedHash, attempts: 0 }] };
+          }
+          return { rowCount: 0, rows: [] };
+        }),
+      };
+      return callback(client as never);
+    });
+
+    const result = await verifyLoginOtp(email, "654321");
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.reason).toBe("invalid_code");
