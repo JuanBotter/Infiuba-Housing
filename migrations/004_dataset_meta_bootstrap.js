@@ -6,4 +6,11 @@ exports.up = (pgm) => {
   pgm.sql(sql);
 };
 
-exports.down = () => {};
+exports.down = (pgm) => {
+  pgm.sql(`
+    DELETE FROM dataset_meta
+    WHERE id = 1
+      AND source_file IS NULL
+      AND COALESCE(total_listings, 0) = 0;
+  `);
+};

@@ -6,4 +6,9 @@ exports.up = (pgm) => {
   pgm.sql(sql);
 };
 
-exports.down = () => {};
+exports.down = (pgm) => {
+  pgm.sql(`
+    ALTER TABLE listing_contacts
+      DROP CONSTRAINT IF EXISTS listing_contacts_contact_max_length_check;
+  `);
+};

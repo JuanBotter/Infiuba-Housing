@@ -6,4 +6,8 @@ exports.up = (pgm) => {
   pgm.sql(sql);
 };
 
-exports.down = () => {};
+exports.down = () => {
+  throw new Error(
+    "001_initial_schema is the irreversible baseline migration. Restore from backup instead of rolling this migration down.",
+  );
+};

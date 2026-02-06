@@ -69,6 +69,7 @@ Do not defer AGENTS updates.
 - `npm run import:data` writes local seed dataset `src/data/accommodations.json` (gitignored).
 - Geocode listings: `npm run geocode:data`
 - Init/migrate DB schema: `npm run db:migrate`
+- Roll back the latest migration (when reversible): `npm run db:migrate:down`
 - `db:migrate` reads `DATABASE_URL` (node-pg-migrate `-d` expects the env var name).
 - Legacy alias: `npm run db:init`
 - Seed DB: `npm run db:seed`
@@ -158,7 +159,7 @@ Seed/import tooling:
 
 ## Database Schema (Current)
 
-Defined in `migrations/001_initial_schema.sql`, `migrations/002_otp_rate_limit_buckets.sql`, `migrations/003_listing_contact_length_limit.sql`, `migrations/004_dataset_meta_bootstrap.sql`, and `migrations/005_drop_legacy_invites.sql` (applied via node-pg-migrate).
+Defined in `migrations/001_initial_schema.sql`, `migrations/002_otp_rate_limit_buckets.sql`, `migrations/003_listing_contact_length_limit.sql`, `migrations/004_dataset_meta_bootstrap.sql`, and `migrations/005_drop_legacy_invites.sql` (applied via node-pg-migrate; rollback behavior documented in `migrations/ROLLBACK_POLICY.md`).
 
 Finite-state fields use PostgreSQL enums:
 
@@ -387,6 +388,7 @@ Must remain true:
 7. Never expose secrets/tokens in client code or logs.
 8. Keep login OTP-only for top-bar auth; only active users already present in `users` should be able to complete sign-in.
 9. Keep OTP login as the only sign-in method unless explicitly changed.
+10. Follow `migrations/ROLLBACK_POLICY.md`: baseline migration is irreversible, incremental migrations should provide reversible downs when safe.
 
 ## Change Checklist (Use Every Task)
 

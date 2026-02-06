@@ -6,4 +6,10 @@ exports.up = (pgm) => {
   pgm.sql(sql);
 };
 
-exports.down = () => {};
+exports.down = (pgm) => {
+  pgm.sql(`
+    DROP INDEX IF EXISTS idx_auth_rate_limit_buckets_scope_key;
+    DROP INDEX IF EXISTS idx_auth_rate_limit_buckets_updated_at;
+    DROP TABLE IF EXISTS auth_rate_limit_buckets;
+  `);
+};
