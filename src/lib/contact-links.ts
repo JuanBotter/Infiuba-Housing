@@ -6,7 +6,7 @@ export type ContactPart =
 
 const EMAIL_REGEX = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
 const URL_REGEX = /\b(?:https?:\/\/|www\.)[^\s]+/gi;
-const PHONE_REGEX = /\+?\d[\d\s().-]{6,}\d/g;
+const PHONE_REGEX = /\+?\d[\d\s().\-–—‑‐−\u00A0\u2009\u202F\u200B]{6,}\d/g;
 
 const TRAILING_PUNCTUATION = /[),.;:!?]+$/;
 
