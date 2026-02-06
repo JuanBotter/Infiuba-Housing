@@ -17,6 +17,7 @@ Multilingual MVP (English, Spanish, French, German, Portuguese, Italian, Norwegi
 - Email OTP login for approved users stored in PostgreSQL (`users` table).
 - Layered OTP abuse throttling (request limits by IP/subnet/global and verify-failure limits by IP and email+IP).
 - Sensitive auth/admin API responses include explicit `Cache-Control: no-store` headers.
+- Production browser hardening headers via `next.config.mjs` (CSP, HSTS, frame/content-type/referrer/permissions policies).
 - Admin reviews and user access UI at `/{lang}/admin/reviews` and `/{lang}/admin/access`.
 
 ## Run locally

@@ -31,6 +31,7 @@ Do not defer AGENTS updates.
 - OTP abuse controls are DB-backed and layered: OTP requests are rate limited by IP/subnet/global windows, and OTP verify failures are rate limited by IP and email+IP windows.
 - Sensitive auth/admin API responses explicitly send `Cache-Control: no-store` headers.
 - Stateful API endpoints enforce same-origin checks (Origin/Referer must match request host) to reduce CSRF risk.
+- In production, app-wide browser hardening headers are configured (`Content-Security-Policy`, `Strict-Transport-Security`, `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`) via `next.config.mjs`.
 - DB migrations are managed with node-pg-migrate (`migrations/` directory).
 - Admin UX: split views for reviews and access management under `/{lang}/admin/*`; access view supports search, role changes, deletion, and bulk user creation.
 - Main listings UI uses a view toggle: `Map` (default), `List`, and (for whitelisted/admin) `Add review`.
@@ -341,6 +342,9 @@ Must remain true:
 - Admin users API: `src/app/api/admin/users/route.ts`
   - `GET` managed users (`active` + `deleted`)
   - `POST` update roles, delete, or bulk upsert users
+- App security headers config: `next.config.mjs`
+- Root layout + theme bootstrap script loader: `src/app/layout.tsx`
+- Theme bootstrap script (static, beforeInteractive): `public/theme-init.js`
 - Role/auth helpers: `src/lib/auth.ts`
 - No-store response helper: `src/lib/http-cache.ts`
 - Request network fingerprint helper: `src/lib/request-network.ts`
