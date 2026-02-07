@@ -125,6 +125,16 @@ export function AddStayReviewForm({ lang, listings, neighborhoods }: AddStayRevi
       return;
     }
 
+    const ratingValue = Number(reviewDraft.rating);
+    const hasRating = Number.isFinite(ratingValue) && ratingValue > 0;
+    const hasRecommendation =
+      reviewDraft.recommended === "yes" || reviewDraft.recommended === "no";
+    if (!hasRating || !hasRecommendation) {
+      setStatus("error");
+      setServerMessage(t.formReviewSelectionError);
+      return;
+    }
+
     setStatus("sending");
     setServerMessage("");
 
@@ -339,43 +349,44 @@ export function AddStayReviewForm({ lang, listings, neighborhoods }: AddStayRevi
           />
         </label>
 
-        <StarRating
-          name="review-rating"
-          value={reviewDraft.rating}
-          onChange={(nextValue) =>
-            setReviewDraft((previous) => ({ ...previous, rating: nextValue }))
-          }
-          label={t.formRating}
-          hint={t.formRatingHint}
-        />
+        <div className="review-rating-row review-rating-row--property property-form__full">
+          <StarRating
+            name="review-rating"
+            value={reviewDraft.rating}
+            onChange={(nextValue) =>
+              setReviewDraft((previous) => ({ ...previous, rating: nextValue }))
+            }
+            label={t.formRating}
+          />
 
-        <fieldset className="review-choice">
-          <legend>{t.formRecommended}</legend>
-          <label className="review-choice__option">
-            <input
-              type="radio"
-              name="review-recommend"
-              value="yes"
-              checked={reviewDraft.recommended === "yes"}
-              onChange={() =>
-                setReviewDraft((previous) => ({ ...previous, recommended: "yes" }))
-              }
-            />
-            <span>{t.yes}</span>
-          </label>
-          <label className="review-choice__option">
-            <input
-              type="radio"
-              name="review-recommend"
-              value="no"
-              checked={reviewDraft.recommended === "no"}
-              onChange={() =>
-                setReviewDraft((previous) => ({ ...previous, recommended: "no" }))
-              }
-            />
-            <span>{t.no}</span>
-          </label>
-        </fieldset>
+          <fieldset className="review-choice">
+            <legend>{t.formRecommended}</legend>
+            <label className="review-choice__option">
+              <input
+                type="radio"
+                name="review-recommend"
+                value="yes"
+                checked={reviewDraft.recommended === "yes"}
+                onChange={() =>
+                  setReviewDraft((previous) => ({ ...previous, recommended: "yes" }))
+                }
+              />
+              <span>{t.yes}</span>
+            </label>
+            <label className="review-choice__option">
+              <input
+                type="radio"
+                name="review-recommend"
+                value="no"
+                checked={reviewDraft.recommended === "no"}
+                onChange={() =>
+                  setReviewDraft((previous) => ({ ...previous, recommended: "no" }))
+                }
+              />
+              <span>{t.no}</span>
+            </label>
+          </fieldset>
+        </div>
 
         <label className="property-form__full">
           <span>{t.formComment}</span>

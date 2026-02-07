@@ -12,7 +12,7 @@ interface StarRatingProps {
 
 export function StarRating({ value, onChange, label, hint, name }: StarRatingProps) {
   const numericValue = Number(value);
-  const clampedValue = Number.isFinite(numericValue) ? Math.max(1, Math.min(5, numericValue)) : 1;
+  const clampedValue = Number.isFinite(numericValue) ? Math.max(0, Math.min(5, numericValue)) : 0;
   const hintId = hint ? `${name}-hint` : undefined;
   const percent = Math.max(0, Math.min(100, (clampedValue / 5) * 100));
   const style = { "--rating-percent": `${percent}%` } as CSSProperties;
@@ -24,14 +24,14 @@ export function StarRating({ value, onChange, label, hint, name }: StarRatingPro
         <input
           className="star-rating__input"
           type="range"
-          min={1}
+          min={0}
           max={5}
           step={1}
           value={clampedValue}
           onChange={(event) => onChange(event.target.value)}
           aria-label={label}
           aria-describedby={hintId}
-          aria-valuemin={1}
+          aria-valuemin={0}
           aria-valuemax={5}
           aria-valuenow={clampedValue}
           aria-valuetext={`${clampedValue} / 5`}

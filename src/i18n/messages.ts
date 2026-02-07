@@ -66,7 +66,7 @@ export const messages = {
     leaveReviewTitle: "Share your own review",
     leaveReviewSubtitle:
       "Your review goes to moderation before appearing on the website.",
-    formRating: "Rating (1 to 5)",
+    formRating: "Rating",
     formRatingHint: "1 is poor, 5 is excellent.",
     formRecommended: "Would you recommend it?",
     formComment: "Comment",
@@ -86,6 +86,8 @@ export const messages = {
       "Thanks! Your review was submitted and is now pending moderation.",
     formError:
       "We could not submit the review. Please try again in a moment.",
+    formReviewSelectionError:
+      "Please select a rating and whether you'd recommend the place.",
     yes: "Yes",
     no: "No",
     adminLabel: "Admin",
@@ -286,7 +288,7 @@ export const messages = {
     leaveReviewTitle: "Compartí tu reseña",
     leaveReviewSubtitle:
       "Tu reseña pasa por moderación antes de aparecer en el sitio.",
-    formRating: "Puntaje (1 a 5)",
+    formRating: "Puntaje",
     formRatingHint: "1 es malo, 5 es excelente.",
     formRecommended: "¿Lo recomendarías?",
     formComment: "Comentario",
@@ -306,6 +308,8 @@ export const messages = {
       "¡Gracias! Tu reseña fue enviada y quedó pendiente de moderación.",
     formError:
       "No pudimos enviar la reseña. Por favor intentá de nuevo en unos minutos.",
+    formReviewSelectionError:
+      "Seleccioná un puntaje y si lo recomendarías.",
     yes: "Sí",
     no: "No",
     adminLabel: "Admin",
@@ -506,7 +510,7 @@ export const messages = {
     leaveReviewTitle: "Partagez votre avis",
     leaveReviewSubtitle:
       "Votre avis passe en modération avant d'apparaître sur le site.",
-    formRating: "Note (1 à 5)",
+    formRating: "Note",
     formRatingHint: "1 = mauvais, 5 = excellent.",
     formRecommended: "Le recommanderiez-vous ?",
     formComment: "Commentaire",
@@ -526,6 +530,8 @@ export const messages = {
       "Merci ! Votre avis a été envoyé et est en attente de modération.",
     formError:
       "Impossible d'envoyer l'avis. Veuillez réessayer dans un instant.",
+    formReviewSelectionError:
+      "Sélectionnez une note et si vous recommanderiez le logement.",
     yes: "Oui",
     no: "Non",
     adminLabel: "Admin",
@@ -730,7 +736,7 @@ export const messages = {
     leaveReviewTitle: "Teile deine Bewertung",
     leaveReviewSubtitle:
       "Deine Bewertung wird moderiert, bevor sie auf der Website erscheint.",
-    formRating: "Bewertung (1 bis 5)",
+    formRating: "Bewertung",
     formRatingHint: "1 = schlecht, 5 = ausgezeichnet.",
     formRecommended: "Würdest du sie empfehlen?",
     formComment: "Kommentar",
@@ -750,6 +756,8 @@ export const messages = {
       "Danke! Deine Bewertung wurde gesendet und wartet auf Moderation.",
     formError:
       "Wir konnten die Bewertung nicht senden. Bitte versuche es gleich erneut.",
+    formReviewSelectionError:
+      "Bitte wähle eine Bewertung und ob du die Unterkunft empfehlen würdest.",
     yes: "Ja",
     no: "Nein",
     adminLabel: "Admin",
@@ -954,7 +962,7 @@ export const messages = {
     leaveReviewTitle: "Compartilhe sua avaliação",
     leaveReviewSubtitle:
       "Sua avaliação passa por moderação antes de aparecer no site.",
-    formRating: "Nota (1 a 5)",
+    formRating: "Nota",
     formRatingHint: "1 é ruim, 5 é excelente.",
     formRecommended: "Você recomendaria?",
     formComment: "Comentário",
@@ -974,6 +982,8 @@ export const messages = {
       "Obrigado! Sua avaliação foi enviada e está pendente de moderação.",
     formError:
       "Não foi possível enviar a avaliação. Tente novamente em instantes.",
+    formReviewSelectionError:
+      "Selecione uma nota e se você recomendaria o lugar.",
     yes: "Sim",
     no: "Não",
     adminLabel: "Admin",
@@ -1177,7 +1187,7 @@ export const messages = {
     leaveReviewTitle: "Condividi la tua recensione",
     leaveReviewSubtitle:
       "La tua recensione passa in moderazione prima di apparire sul sito.",
-    formRating: "Valutazione (da 1 a 5)",
+    formRating: "Valutazione",
     formRatingHint: "1 è scarso, 5 è eccellente.",
     formRecommended: "Lo consiglieresti?",
     formComment: "Commento",
@@ -1197,6 +1207,8 @@ export const messages = {
       "Grazie! La tua recensione è stata inviata ed è in attesa di moderazione.",
     formError:
       "Non siamo riusciti a inviare la recensione. Riprova tra poco.",
+    formReviewSelectionError:
+      "Seleziona una valutazione e se consiglieresti l'alloggio.",
     yes: "Sì",
     no: "No",
     adminLabel: "Admin",
@@ -1400,7 +1412,7 @@ export const messages = {
     leaveReviewTitle: "Del din anmeldelse",
     leaveReviewSubtitle:
       "Anmeldelsen din må godkjennes før den vises på nettstedet.",
-    formRating: "Vurdering (1 til 5)",
+    formRating: "Vurdering",
     formRatingHint: "1 er dårlig, 5 er utmerket.",
     formRecommended: "Vil du anbefale det?",
     formComment: "Kommentar",
@@ -1420,6 +1432,8 @@ export const messages = {
       "Takk! Anmeldelsen din er sendt og venter på moderering.",
     formError:
       "Vi kunne ikke sende anmeldelsen. Prøv igjen om litt.",
+    formReviewSelectionError:
+      "Velg en vurdering og om du vil anbefale stedet.",
     yes: "Ja",
     no: "Nei",
     adminLabel: "Admin",

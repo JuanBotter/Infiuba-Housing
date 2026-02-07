@@ -1,7 +1,7 @@
 export interface ReviewDraft {
   rating: string;
   priceUsd: string;
-  recommended: "yes" | "no";
+  recommended: "yes" | "no" | "";
   comment: string;
   semester: string;
   studentName: string;
@@ -12,9 +12,9 @@ export interface ReviewDraft {
 
 export function createInitialReviewDraft(): ReviewDraft {
   return {
-    rating: "4",
+    rating: "0",
     priceUsd: "",
-    recommended: "yes",
+    recommended: "",
     comment: "",
     semester: "",
     studentName: "",
@@ -25,10 +25,12 @@ export function createInitialReviewDraft(): ReviewDraft {
 }
 
 export function buildReviewPayload(draft: ReviewDraft) {
+  const resolvedRecommendation =
+    draft.recommended === "yes" ? true : draft.recommended === "no" ? false : undefined;
   return {
     rating: Number(draft.rating),
     priceUsd: draft.priceUsd ? Number(draft.priceUsd) : undefined,
-    recommended: draft.recommended === "yes",
+    recommended: resolvedRecommendation,
     comment: draft.comment,
     semester: draft.semester,
     studentName: draft.studentName,
