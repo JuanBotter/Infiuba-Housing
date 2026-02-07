@@ -65,21 +65,33 @@ export function ReviewForm({ lang, listingId }: ReviewFormProps) {
         hint={t.formRatingHint}
       />
 
-      <label>
-        <span>{t.formRecommended}</span>
-        <select
-          value={reviewDraft.recommended}
-          onChange={(event) =>
-            setReviewDraft((previous) => ({
-              ...previous,
-              recommended: event.target.value === "no" ? "no" : "yes",
-            }))
-          }
-        >
-          <option value="yes">{t.yes}</option>
-          <option value="no">{t.no}</option>
-        </select>
-      </label>
+      <fieldset className="review-choice">
+        <legend>{t.formRecommended}</legend>
+        <label className="review-choice__option">
+          <input
+            type="radio"
+            name={`review-recommend-${listingId}`}
+            value="yes"
+            checked={reviewDraft.recommended === "yes"}
+            onChange={() =>
+              setReviewDraft((previous) => ({ ...previous, recommended: "yes" }))
+            }
+          />
+          <span>{t.yes}</span>
+        </label>
+        <label className="review-choice__option">
+          <input
+            type="radio"
+            name={`review-recommend-${listingId}`}
+            value="no"
+            checked={reviewDraft.recommended === "no"}
+            onChange={() =>
+              setReviewDraft((previous) => ({ ...previous, recommended: "no" }))
+            }
+          />
+          <span>{t.no}</span>
+        </label>
+      </fieldset>
 
       <label>
         <span>{t.priceLabel}</span>
@@ -128,56 +140,59 @@ export function ReviewForm({ lang, listingId }: ReviewFormProps) {
         </datalist>
       </label>
 
-      <label>
-        <span>{t.formName}</span>
-        <input
-          type="text"
-          value={reviewDraft.studentName}
-          onChange={(event) =>
-            setReviewDraft((previous) => ({ ...previous, studentName: event.target.value }))
-          }
-          maxLength={80}
-        />
-      </label>
+      <fieldset className="contact-section">
+        <legend>{t.formContactSection}</legend>
+        <label>
+          <span>{t.formName}</span>
+          <input
+            type="text"
+            value={reviewDraft.studentName}
+            onChange={(event) =>
+              setReviewDraft((previous) => ({ ...previous, studentName: event.target.value }))
+            }
+            maxLength={80}
+          />
+        </label>
 
-      <label>
-        <span>{t.formPhone}</span>
-        <input
-          type="text"
-          value={reviewDraft.studentContact}
-          onChange={(event) =>
-            setReviewDraft((previous) => ({ ...previous, studentContact: event.target.value }))
-          }
-          maxLength={120}
-        />
-      </label>
+        <label>
+          <span>{t.formPhone}</span>
+          <input
+            type="text"
+            value={reviewDraft.studentContact}
+            onChange={(event) =>
+              setReviewDraft((previous) => ({ ...previous, studentContact: event.target.value }))
+            }
+            maxLength={120}
+          />
+        </label>
 
-      <label>
-        <span>{t.formEmail}</span>
-        <input
-          type="email"
-          value={reviewDraft.studentEmail}
-          onChange={(event) =>
-            setReviewDraft((previous) => ({ ...previous, studentEmail: event.target.value }))
-          }
-          maxLength={120}
-        />
-      </label>
+        <label>
+          <span>{t.formEmail}</span>
+          <input
+            type="email"
+            value={reviewDraft.studentEmail}
+            onChange={(event) =>
+              setReviewDraft((previous) => ({ ...previous, studentEmail: event.target.value }))
+            }
+            maxLength={120}
+          />
+        </label>
 
-      <label className="consent-checkbox">
-        <input
-          type="checkbox"
-          checked={reviewDraft.shareContactInfo}
-          onChange={(event) =>
-            setReviewDraft((previous) => ({
-              ...previous,
-              shareContactInfo: event.target.checked,
-            }))
-          }
-        />
-        <span>{t.formContactConsentLabel}</span>
-        <small>{t.formContactConsentHint}</small>
-      </label>
+        <label className="consent-checkbox">
+          <input
+            type="checkbox"
+            checked={reviewDraft.shareContactInfo}
+            onChange={(event) =>
+              setReviewDraft((previous) => ({
+                ...previous,
+                shareContactInfo: event.target.checked,
+              }))
+            }
+          />
+          <span>{t.formContactConsentLabel}</span>
+          <small>{t.formContactConsentHint}</small>
+        </label>
+      </fieldset>
 
       <button type="submit" disabled={status === "sending"}>
         {status === "sending" ? t.formSending : t.formSubmit}

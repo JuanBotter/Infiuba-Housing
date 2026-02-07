@@ -1146,6 +1146,46 @@ input[type="number"] {
   color: var(--ink-soft);
 }
 
+.review-choice,
+.contact-section {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--chip-bg);
+  padding: 0.62rem 0.72rem;
+  margin: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.review-choice legend,
+.contact-section legend {
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--ink-soft);
+  padding: 0 0.2rem;
+}
+
+.review-choice__option {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.review-choice__option input[type="radio"] {
+  width: auto;
+  margin: 0;
+  accent-color: var(--primary);
+}
+
+.contact-section label {
+  display: grid;
+  gap: 0.42rem;
+}
+
 .consent-checkbox {
   border: 1px solid var(--line);
   border-radius: 12px;
