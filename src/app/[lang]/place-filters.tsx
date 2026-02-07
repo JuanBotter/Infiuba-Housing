@@ -636,7 +636,7 @@ export function PlaceFilters({
       ) : null}
 
       {isReviewMode ? (
-        <AddStayReviewForm lang={lang} listings={listings} />
+        <AddStayReviewForm lang={lang} listings={listings} neighborhoods={neighborhoods} />
       ) : filteredAndSorted.length === 0 ? (
         <p className="empty-state">{messages.noResults}</p>
       ) : viewMode === "cards" ? (

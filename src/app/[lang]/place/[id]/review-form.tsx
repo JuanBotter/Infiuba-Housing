@@ -9,6 +9,7 @@ import {
   readApiErrorMessage,
 } from "@/lib/review-form";
 import { SEMESTER_OPTIONS } from "@/lib/semester-options";
+import { StarRating } from "@/components/star-rating";
 import type { Lang } from "@/types";
 
 interface ReviewFormProps {
@@ -54,20 +55,15 @@ export function ReviewForm({ lang, listingId }: ReviewFormProps) {
 
   return (
     <form className="review-form" onSubmit={onSubmit}>
-      <label>
-        <span>{t.formRating}</span>
-        <input
-          type="number"
-          min={1}
-          max={5}
-          step={1}
-          value={reviewDraft.rating}
-          onChange={(event) =>
-            setReviewDraft((previous) => ({ ...previous, rating: event.target.value }))
-          }
-          required
-        />
-      </label>
+      <StarRating
+        name={`review-rating-${listingId}`}
+        value={reviewDraft.rating}
+        onChange={(nextValue) =>
+          setReviewDraft((previous) => ({ ...previous, rating: nextValue }))
+        }
+        label={t.formRating}
+        hint={t.formRatingHint}
+      />
 
       <label>
         <span>{t.formRecommended}</span>

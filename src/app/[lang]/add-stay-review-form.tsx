@@ -11,11 +11,13 @@ import {
 } from "@/lib/review-form";
 import { splitContactParts } from "@/lib/contact-links";
 import { SEMESTER_OPTIONS } from "@/lib/semester-options";
+import { StarRating } from "@/components/star-rating";
 import type { Lang, Listing } from "@/types";
 
 interface AddStayReviewFormProps {
   lang: Lang;
   listings: Listing[];
+  neighborhoods: string[];
 }
 
 type MatchDecision = "pending" | "yes" | "no";
@@ -48,7 +50,7 @@ function renderContactValue(contact: string) {
   });
 }
 
-export function AddStayReviewForm({ lang, listings }: AddStayReviewFormProps) {
+export function AddStayReviewForm({ lang, listings, neighborhoods }: AddStayReviewFormProps) {
   const t = useMemo(() => getMessages(lang), [lang]);
   const router = useRouter();
 
@@ -59,9 +61,8 @@ export function AddStayReviewForm({ lang, listings }: AddStayReviewFormProps) {
   const [neighborhood, setNeighborhood] = useState("");
   const [contacts, setContacts] = useState("");
   const [capacity, setCapacity] = useState("");
-  const [latitude, setLatitude] = useState("");
-  const [longitude, setLongitude] = useState("");
   const [reviewDraft, setReviewDraft] = useState(createInitialReviewDraft);
+  const [isNeighborhoodOpen, setIsNeighborhoodOpen] = useState(false);
 
   const [status, setStatus] = useState<SubmitStatus>("idle");
   const [serverMessage, setServerMessage] = useState("");
@@ -70,6 +71,21 @@ export function AddStayReviewForm({ lang, listings }: AddStayReviewFormProps) {
     () => listings.find((listing) => listing.id === selectedListingId) || null,
     [listings, selectedListingId],
   );
+
+  const neighborhoodOptions = useMemo(() => {
+    const normalized = neighborhoods.length ? neighborhoods : listings.map((listing) => listing.neighborhood);
+    return [...new Set(normalized)].filter(Boolean).sort((a, b) => a.localeCompare(b));
+  }, [listings, neighborhoods]);
+
+  const neighborhoodMatches = useMemo(() => {
+    const query = normalizeText(neighborhood);
+    if (!query) {
+      return [];
+    }
+    return neighborhoodOptions
+      .filter((option) => normalizeText(option).includes(query))
+      .slice(0, 8);
+  }, [neighborhood, neighborhoodOptions]);
 
   const matches = useMemo(() => {
     const query = normalizeText(address);
@@ -125,8 +141,6 @@ export function AddStayReviewForm({ lang, listings }: AddStayReviewFormProps) {
       payload.neighborhood = neighborhood;
       payload.contacts = contacts;
       payload.capacity = capacity ? Number(capacity) : undefined;
-      payload.latitude = latitude ? Number(latitude) : undefined;
-      payload.longitude = longitude ? Number(longitude) : undefined;
     }
 
     try {
@@ -153,8 +167,6 @@ export function AddStayReviewForm({ lang, listings }: AddStayReviewFormProps) {
       setReviewDraft(createInitialReviewDraft());
       setContacts("");
       setCapacity("");
-      setLatitude("");
-      setLongitude("");
       if (!useExistingListing) {
         setAddress("");
         setNeighborhood("");
@@ -254,7 +266,7 @@ export function AddStayReviewForm({ lang, listings }: AddStayReviewFormProps) {
 
         {showNewPropertyFields ? (
           <>
-            <label>
+            <label className="input-suggest">
               <span>{t.neighborhoodLabel}</span>
               <input
                 type="text"
@@ -263,8 +275,30 @@ export function AddStayReviewForm({ lang, listings }: AddStayReviewFormProps) {
                 placeholder={t.addPropertyNeighborhoodPlaceholder}
                 minLength={2}
                 maxLength={80}
+                onFocus={() => setIsNeighborhoodOpen(true)}
+                onBlur={() => {
+                  window.setTimeout(() => setIsNeighborhoodOpen(false), 120);
+                }}
                 required
               />
+              {isNeighborhoodOpen && neighborhoodMatches.length > 0 ? (
+                <ul className="input-suggest__list" role="listbox">
+                  {neighborhoodMatches.map((option) => (
+                    <li key={option} role="option">
+                      <button
+                        type="button"
+                        onMouseDown={(event) => {
+                          event.preventDefault();
+                          setNeighborhood(option);
+                          setIsNeighborhoodOpen(false);
+                        }}
+                      >
+                        {option}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
             </label>
 
             <label>
@@ -288,32 +322,6 @@ export function AddStayReviewForm({ lang, listings }: AddStayReviewFormProps) {
                 onChange={(event) => setCapacity(event.target.value)}
               />
             </label>
-
-            <label>
-              <span>{t.addPropertyLatitudeLabel}</span>
-              <input
-                type="number"
-                min={-90}
-                max={90}
-                step="any"
-                value={latitude}
-                onChange={(event) => setLatitude(event.target.value)}
-              />
-            </label>
-
-            <label>
-              <span>{t.addPropertyLongitudeLabel}</span>
-              <input
-                type="number"
-                min={-180}
-                max={180}
-                step="any"
-                value={longitude}
-                onChange={(event) => setLongitude(event.target.value)}
-              />
-            </label>
-
-            <p className="property-form__hint">{t.addPropertyCoordinatesHint}</p>
           </>
         ) : null}
 
@@ -331,20 +339,15 @@ export function AddStayReviewForm({ lang, listings }: AddStayReviewFormProps) {
           />
         </label>
 
-        <label>
-          <span>{t.formRating}</span>
-          <input
-            type="number"
-            min={1}
-            max={5}
-            step={1}
-            value={reviewDraft.rating}
-            onChange={(event) =>
-              setReviewDraft((previous) => ({ ...previous, rating: event.target.value }))
-            }
-            required
-          />
-        </label>
+        <StarRating
+          name="review-rating"
+          value={reviewDraft.rating}
+          onChange={(nextValue) =>
+            setReviewDraft((previous) => ({ ...previous, rating: nextValue }))
+          }
+          label={t.formRating}
+          hint={t.formRatingHint}
+        />
 
         <label>
           <span>{t.formRecommended}</span>
