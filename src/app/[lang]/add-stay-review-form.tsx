@@ -66,6 +66,18 @@ export function AddStayReviewForm({ lang, listings, neighborhoods }: AddStayRevi
 
   const [status, setStatus] = useState<SubmitStatus>("idle");
   const [serverMessage, setServerMessage] = useState("");
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+
+  function clearFormError(key: string) {
+    setFormErrors((previous) => {
+      if (!previous[key]) {
+        return previous;
+      }
+      const next = { ...previous };
+      delete next[key];
+      return next;
+    });
+  }
 
   const selectedListing = useMemo(
     () => listings.find((listing) => listing.id === selectedListingId) || null,
@@ -103,6 +115,7 @@ export function AddStayReviewForm({ lang, listings, neighborhoods }: AddStayRevi
 
   function handleAddressChange(nextAddress: string) {
     setAddress(nextAddress);
+    clearFormError("address");
     if (selectedListing && normalizeText(nextAddress) !== normalizeText(selectedListing.address)) {
       setSelectedListingId(null);
       setMatchDecision("pending");
@@ -113,6 +126,8 @@ export function AddStayReviewForm({ lang, listings, neighborhoods }: AddStayRevi
     setSelectedListingId(listing.id);
     setAddress(listing.address);
     setNeighborhood(listing.neighborhood);
+    clearFormError("address");
+    clearFormError("neighborhood");
     setMatchDecision("pending");
     setStatus("idle");
   }
@@ -125,18 +140,65 @@ export function AddStayReviewForm({ lang, listings, neighborhoods }: AddStayRevi
       return;
     }
 
+    const isNewListing = !selectedListing || matchDecision === "no";
+    const nextErrors: Record<string, string> = {};
     const ratingValue = Number(reviewDraft.rating);
     const hasRating = Number.isFinite(ratingValue) && ratingValue > 0;
     const hasRecommendation =
       reviewDraft.recommended === "yes" || reviewDraft.recommended === "no";
-    if (!hasRating || !hasRecommendation) {
+
+    if (isNewListing) {
+      if (address.trim().length < 6) {
+        nextErrors.address = t.formRequiredField;
+      }
+      if (neighborhood.trim().length < 2) {
+        nextErrors.neighborhood = t.formRequiredField;
+      }
+      if (!contacts.trim()) {
+        nextErrors.contacts = t.formRequiredField;
+      }
+
+      const capacityValue = Number(capacity);
+      if (!Number.isFinite(capacityValue) || capacityValue <= 0) {
+        nextErrors.capacity = t.formRequiredField;
+      }
+    }
+
+    const priceValue = Number(reviewDraft.priceUsd);
+    if (!Number.isFinite(priceValue) || priceValue <= 0) {
+      nextErrors.priceUsd = t.formRequiredField;
+    }
+
+    if (!hasRating) {
+      nextErrors.rating = t.formRequiredField;
+    }
+    if (!hasRecommendation) {
+      nextErrors.recommended = t.formRequiredField;
+    }
+    if (reviewDraft.comment.trim().length < 12) {
+      nextErrors.comment = t.formRequiredField;
+    }
+    if (!reviewDraft.semester.trim()) {
+      nextErrors.semester = t.formRequiredField;
+    }
+    if (
+      reviewDraft.shareContactInfo &&
+      !reviewDraft.studentEmail.trim() &&
+      !reviewDraft.studentContact.trim()
+    ) {
+      nextErrors.contactShare = t.formContactShareError;
+    }
+
+    if (Object.keys(nextErrors).length > 0) {
+      setFormErrors(nextErrors);
       setStatus("error");
-      setServerMessage(t.formReviewSelectionError);
+      setServerMessage(t.formRequiredFieldsError);
       return;
     }
 
     setStatus("sending");
     setServerMessage("");
+    setFormErrors({});
 
     const useExistingListing = Boolean(selectedListing && matchDecision === "yes");
     const payload: Record<string, unknown> = {
@@ -174,6 +236,7 @@ export function AddStayReviewForm({ lang, listings, neighborhoods }: AddStayRevi
 
       setStatus("success");
       setServerMessage("");
+      setFormErrors({});
       setReviewDraft(createInitialReviewDraft());
       setContacts("");
       setCapacity("");
@@ -188,14 +251,28 @@ export function AddStayReviewForm({ lang, listings, neighborhoods }: AddStayRevi
   }
 
   const showNewPropertyFields = !selectedListing || matchDecision === "no";
+  const addressErrorId = formErrors.address ? "review-address-error" : undefined;
+  const neighborhoodErrorId = formErrors.neighborhood ? "review-neighborhood-error" : undefined;
+  const contactsErrorId = formErrors.contacts ? "review-contacts-error" : undefined;
+  const capacityErrorId = formErrors.capacity ? "review-capacity-error" : undefined;
+  const priceErrorId = formErrors.priceUsd ? "review-price-error" : undefined;
+  const ratingErrorId = formErrors.rating ? "review-rating-error" : undefined;
+  const recommendedErrorId = formErrors.recommended ? "review-recommended-error" : undefined;
+  const commentErrorId = formErrors.comment ? "review-comment-error" : undefined;
+  const semesterErrorId = formErrors.semester ? "review-semester-error" : undefined;
+  const contactShareErrorId = formErrors.contactShare
+    ? "review-contact-share-error"
+    : undefined;
 
   return (
     <article className="detail-card property-form-card">
       <h2>{t.addReviewTitle}</h2>
       <p>{t.addReviewSubtitle}</p>
 
-      <form className="property-form" onSubmit={onSubmit}>
-        <label className="property-form__full">
+      <form className="property-form" onSubmit={onSubmit} noValidate>
+        <label
+          className={`property-form__full${formErrors.address ? " is-invalid" : ""}`}
+        >
           <span>{t.addPropertyAddressLabel}</span>
           <input
             type="text"
@@ -205,7 +282,14 @@ export function AddStayReviewForm({ lang, listings, neighborhoods }: AddStayRevi
             minLength={6}
             maxLength={180}
             required
+            aria-invalid={Boolean(formErrors.address)}
+            aria-describedby={addressErrorId}
           />
+          {formErrors.address ? (
+            <p className="field-error" id={addressErrorId}>
+              {formErrors.address}
+            </p>
+          ) : null}
         </label>
 
         {matches.length > 0 ? (
@@ -276,12 +360,17 @@ export function AddStayReviewForm({ lang, listings, neighborhoods }: AddStayRevi
 
         {showNewPropertyFields ? (
           <>
-            <label className="input-suggest">
+            <label
+              className={`input-suggest${formErrors.neighborhood ? " is-invalid" : ""}`}
+            >
               <span>{t.neighborhoodLabel}</span>
               <input
                 type="text"
                 value={neighborhood}
-                onChange={(event) => setNeighborhood(event.target.value)}
+                onChange={(event) => {
+                  setNeighborhood(event.target.value);
+                  clearFormError("neighborhood");
+                }}
                 placeholder={t.addPropertyNeighborhoodPlaceholder}
                 minLength={2}
                 maxLength={80}
@@ -290,7 +379,14 @@ export function AddStayReviewForm({ lang, listings, neighborhoods }: AddStayRevi
                   window.setTimeout(() => setIsNeighborhoodOpen(false), 120);
                 }}
                 required
+                aria-invalid={Boolean(formErrors.neighborhood)}
+                aria-describedby={neighborhoodErrorId}
               />
+              {formErrors.neighborhood ? (
+                <p className="field-error" id={neighborhoodErrorId}>
+                  {formErrors.neighborhood}
+                </p>
+              ) : null}
               {isNeighborhoodOpen && neighborhoodMatches.length > 0 ? (
                 <ul className="input-suggest__list" role="listbox">
                   {neighborhoodMatches.map((option) => (
@@ -300,6 +396,7 @@ export function AddStayReviewForm({ lang, listings, neighborhoods }: AddStayRevi
                         onMouseDown={(event) => {
                           event.preventDefault();
                           setNeighborhood(option);
+                          clearFormError("neighborhood");
                           setIsNeighborhoodOpen(false);
                         }}
                       >
@@ -311,17 +408,28 @@ export function AddStayReviewForm({ lang, listings, neighborhoods }: AddStayRevi
               ) : null}
             </label>
 
-            <label>
+            <label className={formErrors.contacts ? "is-invalid" : ""}>
               <span>{t.addPropertyContactsLabel}</span>
               <textarea
                 value={contacts}
-                onChange={(event) => setContacts(event.target.value)}
+                onChange={(event) => {
+                  setContacts(event.target.value);
+                  clearFormError("contacts");
+                }}
                 maxLength={500}
                 placeholder={t.addPropertyContactsPlaceholder}
+                required
+                aria-invalid={Boolean(formErrors.contacts)}
+                aria-describedby={contactsErrorId}
               />
+              {formErrors.contacts ? (
+                <p className="field-error" id={contactsErrorId}>
+                  {formErrors.contacts}
+                </p>
+              ) : null}
             </label>
 
-            <label>
+            <label className={formErrors.capacity ? "is-invalid" : ""}>
               <span>{t.capacityLabel}</span>
               <input
                 type="number"
@@ -329,13 +437,24 @@ export function AddStayReviewForm({ lang, listings, neighborhoods }: AddStayRevi
                 max={50}
                 step={1}
                 value={capacity}
-                onChange={(event) => setCapacity(event.target.value)}
+                onChange={(event) => {
+                  setCapacity(event.target.value);
+                  clearFormError("capacity");
+                }}
+                required
+                aria-invalid={Boolean(formErrors.capacity)}
+                aria-describedby={capacityErrorId}
               />
+              {formErrors.capacity ? (
+                <p className="field-error" id={capacityErrorId}>
+                  {formErrors.capacity}
+                </p>
+              ) : null}
             </label>
           </>
         ) : null}
 
-        <label>
+        <label className={formErrors.priceUsd ? "is-invalid" : ""}>
           <span>{t.priceLabel}</span>
           <input
             type="number"
@@ -343,23 +462,46 @@ export function AddStayReviewForm({ lang, listings, neighborhoods }: AddStayRevi
             max={20000}
             step="0.01"
             value={reviewDraft.priceUsd}
-            onChange={(event) =>
-              setReviewDraft((previous) => ({ ...previous, priceUsd: event.target.value }))
-            }
+            onChange={(event) => {
+              setReviewDraft((previous) => ({ ...previous, priceUsd: event.target.value }));
+              clearFormError("priceUsd");
+            }}
+            required
+            aria-invalid={Boolean(formErrors.priceUsd)}
+            aria-describedby={priceErrorId}
           />
+          {formErrors.priceUsd ? (
+            <p className="field-error" id={priceErrorId}>
+              {formErrors.priceUsd}
+            </p>
+          ) : null}
         </label>
 
         <div className="review-rating-row review-rating-row--property property-form__full">
-          <StarRating
-            name="review-rating"
-            value={reviewDraft.rating}
-            onChange={(nextValue) =>
-              setReviewDraft((previous) => ({ ...previous, rating: nextValue }))
-            }
-            label={t.formRating}
-          />
+          <div className={`review-rating-field${formErrors.rating ? " is-invalid" : ""}`}>
+            <StarRating
+              name="review-rating"
+              value={reviewDraft.rating}
+              onChange={(nextValue) => {
+                setReviewDraft((previous) => ({ ...previous, rating: nextValue }));
+                clearFormError("rating");
+              }}
+              label={t.formRating}
+              hasError={Boolean(formErrors.rating)}
+              errorId={ratingErrorId}
+            />
+            {formErrors.rating ? (
+              <p className="field-error" id={ratingErrorId}>
+                {formErrors.rating}
+              </p>
+            ) : null}
+          </div>
 
-          <fieldset className="review-choice">
+          <fieldset
+            className={`review-choice${formErrors.recommended ? " is-invalid" : ""}`}
+            aria-invalid={Boolean(formErrors.recommended)}
+            aria-describedby={recommendedErrorId}
+          >
             <legend>{t.formRecommended}</legend>
             <label className="review-choice__option">
               <input
@@ -367,9 +509,10 @@ export function AddStayReviewForm({ lang, listings, neighborhoods }: AddStayRevi
                 name="review-recommend"
                 value="yes"
                 checked={reviewDraft.recommended === "yes"}
-                onChange={() =>
-                  setReviewDraft((previous) => ({ ...previous, recommended: "yes" }))
-                }
+                onChange={() => {
+                  setReviewDraft((previous) => ({ ...previous, recommended: "yes" }));
+                  clearFormError("recommended");
+                }}
               />
               <span>{t.yes}</span>
             </label>
@@ -379,41 +522,65 @@ export function AddStayReviewForm({ lang, listings, neighborhoods }: AddStayRevi
                 name="review-recommend"
                 value="no"
                 checked={reviewDraft.recommended === "no"}
-                onChange={() =>
-                  setReviewDraft((previous) => ({ ...previous, recommended: "no" }))
-                }
+                onChange={() => {
+                  setReviewDraft((previous) => ({ ...previous, recommended: "no" }));
+                  clearFormError("recommended");
+                }}
               />
               <span>{t.no}</span>
             </label>
+            {formErrors.recommended ? (
+              <p className="field-error" id={recommendedErrorId}>
+                {formErrors.recommended}
+              </p>
+            ) : null}
           </fieldset>
         </div>
 
-        <label className="property-form__full">
+        <label
+          className={`property-form__full${formErrors.comment ? " is-invalid" : ""}`}
+        >
           <span>{t.formComment}</span>
           <textarea
             value={reviewDraft.comment}
-            onChange={(event) =>
-              setReviewDraft((previous) => ({ ...previous, comment: event.target.value }))
-            }
+            onChange={(event) => {
+              setReviewDraft((previous) => ({ ...previous, comment: event.target.value }));
+              clearFormError("comment");
+            }}
             minLength={12}
             maxLength={1000}
             required
+            aria-invalid={Boolean(formErrors.comment)}
+            aria-describedby={commentErrorId}
           />
+          {formErrors.comment ? (
+            <p className="field-error" id={commentErrorId}>
+              {formErrors.comment}
+            </p>
+          ) : null}
         </label>
 
-        <label>
+        <label className={formErrors.semester ? "is-invalid" : ""}>
           <span>{t.formSemester}</span>
           <input
             type="text"
             value={reviewDraft.semester}
-            onChange={(event) =>
-              setReviewDraft((previous) => ({ ...previous, semester: event.target.value }))
-            }
+            onChange={(event) => {
+              setReviewDraft((previous) => ({ ...previous, semester: event.target.value }));
+              clearFormError("semester");
+            }}
             placeholder={t.formSemesterPlaceholder}
             list="semester-options"
             required
             maxLength={8}
+            aria-invalid={Boolean(formErrors.semester)}
+            aria-describedby={semesterErrorId}
           />
+          {formErrors.semester ? (
+            <p className="field-error" id={semesterErrorId}>
+              {formErrors.semester}
+            </p>
+          ) : null}
           <datalist id="semester-options">
             {SEMESTER_OPTIONS.map((option) => (
               <option key={option} value={option} />
@@ -421,7 +588,13 @@ export function AddStayReviewForm({ lang, listings, neighborhoods }: AddStayRevi
           </datalist>
         </label>
 
-        <fieldset className="contact-section property-form__full">
+        <fieldset
+          className={`contact-section property-form__full${
+            formErrors.contactShare ? " is-invalid" : ""
+          }`}
+          aria-invalid={Boolean(formErrors.contactShare)}
+          aria-describedby={contactShareErrorId}
+        >
           <legend>{t.formContactSection}</legend>
           <label>
             <span>{t.formName}</span>
@@ -440,12 +613,13 @@ export function AddStayReviewForm({ lang, listings, neighborhoods }: AddStayRevi
             <input
               type="text"
               value={reviewDraft.studentContact}
-              onChange={(event) =>
+              onChange={(event) => {
                 setReviewDraft((previous) => ({
                   ...previous,
                   studentContact: event.target.value,
-                }))
-              }
+                }));
+                clearFormError("contactShare");
+              }}
               maxLength={120}
             />
           </label>
@@ -455,9 +629,10 @@ export function AddStayReviewForm({ lang, listings, neighborhoods }: AddStayRevi
             <input
               type="email"
               value={reviewDraft.studentEmail}
-              onChange={(event) =>
-                setReviewDraft((previous) => ({ ...previous, studentEmail: event.target.value }))
-              }
+              onChange={(event) => {
+                setReviewDraft((previous) => ({ ...previous, studentEmail: event.target.value }));
+                clearFormError("contactShare");
+              }}
               maxLength={120}
             />
           </label>
@@ -466,16 +641,24 @@ export function AddStayReviewForm({ lang, listings, neighborhoods }: AddStayRevi
             <input
               type="checkbox"
               checked={reviewDraft.shareContactInfo}
-              onChange={(event) =>
+              onChange={(event) => {
                 setReviewDraft((previous) => ({
                   ...previous,
                   shareContactInfo: event.target.checked,
-                }))
-              }
+                }));
+                if (!event.target.checked) {
+                  clearFormError("contactShare");
+                }
+              }}
             />
             <span>{t.formContactConsentLabel}</span>
             <small>{t.formContactConsentHint}</small>
           </label>
+          {formErrors.contactShare ? (
+            <p className="field-error" id={contactShareErrorId}>
+              {formErrors.contactShare}
+            </p>
+          ) : null}
         </fieldset>
 
         <button type="submit" disabled={status === "sending"}>

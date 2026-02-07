@@ -7,18 +7,29 @@ interface StarRatingProps {
   onChange: (value: string) => void;
   label: string;
   hint?: string;
+  errorId?: string;
+  hasError?: boolean;
   name: string;
 }
 
-export function StarRating({ value, onChange, label, hint, name }: StarRatingProps) {
+export function StarRating({
+  value,
+  onChange,
+  label,
+  hint,
+  errorId,
+  hasError,
+  name,
+}: StarRatingProps) {
   const numericValue = Number(value);
   const clampedValue = Number.isFinite(numericValue) ? Math.max(0, Math.min(5, numericValue)) : 0;
   const hintId = hint ? `${name}-hint` : undefined;
+  const describedBy = [hintId, errorId].filter(Boolean).join(" ") || undefined;
   const percent = Math.max(0, Math.min(100, (clampedValue / 5) * 100));
   const style = { "--rating-percent": `${percent}%` } as CSSProperties;
 
   return (
-    <div className="star-rating">
+    <div className={`star-rating${hasError ? " is-invalid" : ""}`}>
       <span className="star-rating__label">{label}</span>
       <div className="star-rating__slider" style={style}>
         <input
@@ -30,7 +41,7 @@ export function StarRating({ value, onChange, label, hint, name }: StarRatingPro
           value={clampedValue}
           onChange={(event) => onChange(event.target.value)}
           aria-label={label}
-          aria-describedby={hintId}
+          aria-describedby={describedBy}
           aria-valuemin={0}
           aria-valuemax={5}
           aria-valuenow={clampedValue}

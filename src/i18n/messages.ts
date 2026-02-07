@@ -80,14 +80,16 @@ export const messages = {
       "I'd be happy to let future students contact me about this review.",
     formContactConsentHint:
       "If checked, we'll show your contact information only to students (never to owners/lessors) so they can ask follow-up questions.",
+    formContactShareError:
+      "Add an email or phone number to share contact information.",
     formSubmit: "Send review",
     formSending: "Sending...",
     formSuccess:
       "Thanks! Your review was submitted and is now pending moderation.",
     formError:
       "We could not submit the review. Please try again in a moment.",
-    formReviewSelectionError:
-      "Please select a rating and whether you'd recommend the place.",
+    formRequiredField: "Required",
+    formRequiredFieldsError: "Please fill out the highlighted fields.",
     yes: "Yes",
     no: "No",
     adminLabel: "Admin",
@@ -302,14 +304,16 @@ export const messages = {
       "Me gustaría que futuros estudiantes puedan contactarme por esta reseña.",
     formContactConsentHint:
       "Si lo marcás, mostraremos tu información de contacto solo a estudiantes (nunca a dueños/arrendadores) para que puedan hacerte preguntas.",
+    formContactShareError:
+      "Agregá un email o teléfono para compartir tu contacto.",
     formSubmit: "Enviar reseña",
     formSending: "Enviando...",
     formSuccess:
       "¡Gracias! Tu reseña fue enviada y quedó pendiente de moderación.",
     formError:
       "No pudimos enviar la reseña. Por favor intentá de nuevo en unos minutos.",
-    formReviewSelectionError:
-      "Seleccioná un puntaje y si lo recomendarías.",
+    formRequiredField: "Obligatorio",
+    formRequiredFieldsError: "Completá los campos marcados.",
     yes: "Sí",
     no: "No",
     adminLabel: "Admin",
@@ -524,14 +528,16 @@ export const messages = {
       "Je suis d'accord pour que de futurs étudiants puissent me contacter au sujet de cet avis.",
     formContactConsentHint:
       "Si coché, vos informations de contact seront visibles uniquement par des étudiants (jamais par des propriétaires/bailleurs) pour répondre à d'éventuelles questions.",
+    formContactShareError:
+      "Ajoutez un e-mail ou un téléphone pour partager vos coordonnées.",
     formSubmit: "Envoyer l'avis",
     formSending: "Envoi...",
     formSuccess:
       "Merci ! Votre avis a été envoyé et est en attente de modération.",
     formError:
       "Impossible d'envoyer l'avis. Veuillez réessayer dans un instant.",
-    formReviewSelectionError:
-      "Sélectionnez une note et si vous recommanderiez le logement.",
+    formRequiredField: "Obligatoire",
+    formRequiredFieldsError: "Veuillez compléter les champs en surbrillance.",
     yes: "Oui",
     no: "Non",
     adminLabel: "Admin",
@@ -750,14 +756,16 @@ export const messages = {
       "Ich bin einverstanden, dass zukünftige Studierende mich zu dieser Bewertung kontaktieren können.",
     formContactConsentHint:
       "Wenn aktiviert, zeigen wir deine Kontaktinformationen nur Studierenden (niemals Eigentümern/Vermietern), damit sie Rückfragen stellen können.",
+    formContactShareError:
+      "Füge eine E-Mail oder Telefonnummer hinzu, um Kontaktinformationen zu teilen.",
     formSubmit: "Bewertung senden",
     formSending: "Senden...",
     formSuccess:
       "Danke! Deine Bewertung wurde gesendet und wartet auf Moderation.",
     formError:
       "Wir konnten die Bewertung nicht senden. Bitte versuche es gleich erneut.",
-    formReviewSelectionError:
-      "Bitte wähle eine Bewertung und ob du die Unterkunft empfehlen würdest.",
+    formRequiredField: "Erforderlich",
+    formRequiredFieldsError: "Bitte fülle die markierten Felder aus.",
     yes: "Ja",
     no: "Nein",
     adminLabel: "Admin",
@@ -976,14 +984,16 @@ export const messages = {
       "Tudo bem para mim se futuros estudantes puderem me contatar sobre esta avaliação.",
     formContactConsentHint:
       "Se marcado, mostraremos suas informações de contato apenas para estudantes (nunca para proprietários/locadores) para dúvidas sobre a avaliação.",
+    formContactShareError:
+      "Adicione um e-mail ou telefone para compartilhar o contato.",
     formSubmit: "Enviar avaliação",
     formSending: "Enviando...",
     formSuccess:
       "Obrigado! Sua avaliação foi enviada e está pendente de moderação.",
     formError:
       "Não foi possível enviar a avaliação. Tente novamente em instantes.",
-    formReviewSelectionError:
-      "Selecione uma nota e se você recomendaria o lugar.",
+    formRequiredField: "Obrigatório",
+    formRequiredFieldsError: "Preencha os campos destacados.",
     yes: "Sim",
     no: "Não",
     adminLabel: "Admin",
@@ -1201,14 +1211,16 @@ export const messages = {
       "Mi fa piacere essere contattato da futuri studenti su questa recensione.",
     formContactConsentHint:
       "Se selezionato, mostreremo le tue informazioni di contatto solo agli studenti (mai a proprietari/locatori) per eventuali domande.",
+    formContactShareError:
+      "Aggiungi un'email o un telefono per condividere i contatti.",
     formSubmit: "Invia recensione",
     formSending: "Invio in corso...",
     formSuccess:
       "Grazie! La tua recensione è stata inviata ed è in attesa di moderazione.",
     formError:
       "Non siamo riusciti a inviare la recensione. Riprova tra poco.",
-    formReviewSelectionError:
-      "Seleziona una valutazione e se consiglieresti l'alloggio.",
+    formRequiredField: "Obbligatorio",
+    formRequiredFieldsError: "Compila i campi evidenziati.",
     yes: "Sì",
     no: "No",
     adminLabel: "Admin",
@@ -1426,14 +1438,16 @@ export const messages = {
       "Det er helt greit at fremtidige studenter kan kontakte meg om denne anmeldelsen.",
     formContactConsentHint:
       "Hvis avkrysset, viser vi kontaktinformasjonen din kun til studenter (aldri til eiere/utleiere), slik at de kan stille oppfølgingsspørsmål.",
+    formContactShareError:
+      "Legg til e-post eller telefon for å dele kontaktinformasjon.",
     formSubmit: "Send anmeldelse",
     formSending: "Sender...",
     formSuccess:
       "Takk! Anmeldelsen din er sendt og venter på moderering.",
     formError:
       "Vi kunne ikke sende anmeldelsen. Prøv igjen om litt.",
-    formReviewSelectionError:
-      "Velg en vurdering og om du vil anbefale stedet.",
+    formRequiredField: "Påkrevd",
+    formRequiredFieldsError: "Fyll ut de markerte feltene.",
     yes: "Ja",
     no: "Nei",
     adminLabel: "Admin",

@@ -1104,6 +1104,12 @@ input[type="number"] {
   justify-content: flex-start;
 }
 
+.review-rating-field {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.review-rating-row .review-rating-field,
 .review-rating-row .star-rating {
   flex: 0 0 auto;
 }
@@ -1126,6 +1132,10 @@ input[type="number"] {
 }
 
 .review-rating-row--property .star-rating {
+  grid-column: 1 / 2;
+}
+
+.review-rating-row--property .review-rating-field {
   grid-column: 1 / 2;
 }
 
@@ -1169,6 +1179,14 @@ input[type="number"] {
   gap: 0.42rem;
 }
 
+.property-form label.is-invalid input,
+.property-form label.is-invalid textarea,
+.review-form label.is-invalid input,
+.review-form label.is-invalid textarea {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--danger) 35%, transparent);
+}
+
 .property-form span {
   font-size: 0.75rem;
   letter-spacing: 0.08em;
@@ -1199,6 +1217,12 @@ input[type="number"] {
   align-content: start;
 }
 
+.review-choice.is-invalid,
+.contact-section.is-invalid {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--danger) 35%, transparent);
+}
+
 .review-choice legend,
 .contact-section legend {
   font-size: 0.75rem;
@@ -1227,6 +1251,21 @@ input[type="number"] {
   width: auto;
   margin: 0;
   accent-color: var(--primary);
+}
+
+.star-rating.is-invalid .star-rating__slider {
+  outline: 2px solid color-mix(in srgb, var(--danger) 55%, transparent);
+  outline-offset: 6px;
+  border-radius: 12px;
+}
+
+.field-error {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--danger);
+  text-transform: none;
+  letter-spacing: normal;
 }
 
 

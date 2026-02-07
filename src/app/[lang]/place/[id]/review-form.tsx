@@ -22,21 +22,61 @@ export function ReviewForm({ lang, listingId }: ReviewFormProps) {
   const [reviewDraft, setReviewDraft] = useState(createInitialReviewDraft);
   const [status, setStatus] = useState<"idle" | "sending" | "success" | "error">("idle");
   const [serverMessage, setServerMessage] = useState("");
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+
+  function clearFormError(key: string) {
+    setFormErrors((previous) => {
+      if (!previous[key]) {
+        return previous;
+      }
+      const next = { ...previous };
+      delete next[key];
+      return next;
+    });
+  }
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const nextErrors: Record<string, string> = {};
     const ratingValue = Number(reviewDraft.rating);
     const hasRating = Number.isFinite(ratingValue) && ratingValue > 0;
     const hasRecommendation =
       reviewDraft.recommended === "yes" || reviewDraft.recommended === "no";
-    if (!hasRating || !hasRecommendation) {
+
+    if (!hasRating) {
+      nextErrors.rating = t.formRequiredField;
+    }
+    if (!hasRecommendation) {
+      nextErrors.recommended = t.formRequiredField;
+    }
+    const priceValue = Number(reviewDraft.priceUsd);
+    if (!Number.isFinite(priceValue) || priceValue <= 0) {
+      nextErrors.priceUsd = t.formRequiredField;
+    }
+    if (reviewDraft.comment.trim().length < 12) {
+      nextErrors.comment = t.formRequiredField;
+    }
+    if (!reviewDraft.semester.trim()) {
+      nextErrors.semester = t.formRequiredField;
+    }
+    if (
+      reviewDraft.shareContactInfo &&
+      !reviewDraft.studentEmail.trim() &&
+      !reviewDraft.studentContact.trim()
+    ) {
+      nextErrors.contactShare = t.formContactShareError;
+    }
+
+    if (Object.keys(nextErrors).length > 0) {
+      setFormErrors(nextErrors);
       setStatus("error");
-      setServerMessage(t.formReviewSelectionError);
+      setServerMessage(t.formRequiredFieldsError);
       return;
     }
 
     setStatus("sending");
     setServerMessage("");
+    setFormErrors({});
 
     try {
       const response = await fetch("/api/reviews", {
@@ -57,25 +97,51 @@ export function ReviewForm({ lang, listingId }: ReviewFormProps) {
       }
 
       setStatus("success");
+      setFormErrors({});
       setReviewDraft(createInitialReviewDraft());
     } catch {
       setStatus("error");
     }
   }
 
-  return (
-    <form className="review-form" onSubmit={onSubmit}>
-      <div className="review-rating-row">
-        <StarRating
-          name={`review-rating-${listingId}`}
-          value={reviewDraft.rating}
-          onChange={(nextValue) =>
-            setReviewDraft((previous) => ({ ...previous, rating: nextValue }))
-          }
-          label={t.formRating}
-        />
+  const ratingErrorId = formErrors.rating ? `review-rating-${listingId}-error` : undefined;
+  const recommendedErrorId = formErrors.recommended
+    ? `review-recommended-${listingId}-error`
+    : undefined;
+  const priceErrorId = formErrors.priceUsd ? `review-price-${listingId}-error` : undefined;
+  const commentErrorId = formErrors.comment ? `review-comment-${listingId}-error` : undefined;
+  const semesterErrorId = formErrors.semester ? `review-semester-${listingId}-error` : undefined;
+  const contactShareErrorId = formErrors.contactShare
+    ? `review-contact-share-${listingId}-error`
+    : undefined;
 
-        <fieldset className="review-choice">
+  return (
+    <form className="review-form" onSubmit={onSubmit} noValidate>
+      <div className="review-rating-row">
+        <div className={`review-rating-field${formErrors.rating ? " is-invalid" : ""}`}>
+          <StarRating
+            name={`review-rating-${listingId}`}
+            value={reviewDraft.rating}
+            onChange={(nextValue) => {
+              setReviewDraft((previous) => ({ ...previous, rating: nextValue }));
+              clearFormError("rating");
+            }}
+            label={t.formRating}
+            hasError={Boolean(formErrors.rating)}
+            errorId={ratingErrorId}
+          />
+          {formErrors.rating ? (
+            <p className="field-error" id={ratingErrorId}>
+              {formErrors.rating}
+            </p>
+          ) : null}
+        </div>
+
+        <fieldset
+          className={`review-choice${formErrors.recommended ? " is-invalid" : ""}`}
+          aria-invalid={Boolean(formErrors.recommended)}
+          aria-describedby={recommendedErrorId}
+        >
           <legend>{t.formRecommended}</legend>
           <label className="review-choice__option">
             <input
@@ -83,9 +149,10 @@ export function ReviewForm({ lang, listingId }: ReviewFormProps) {
               name={`review-recommend-${listingId}`}
               value="yes"
               checked={reviewDraft.recommended === "yes"}
-              onChange={() =>
-                setReviewDraft((previous) => ({ ...previous, recommended: "yes" }))
-              }
+              onChange={() => {
+                setReviewDraft((previous) => ({ ...previous, recommended: "yes" }));
+                clearFormError("recommended");
+              }}
             />
             <span>{t.yes}</span>
           </label>
@@ -95,16 +162,22 @@ export function ReviewForm({ lang, listingId }: ReviewFormProps) {
               name={`review-recommend-${listingId}`}
               value="no"
               checked={reviewDraft.recommended === "no"}
-              onChange={() =>
-                setReviewDraft((previous) => ({ ...previous, recommended: "no" }))
-              }
+              onChange={() => {
+                setReviewDraft((previous) => ({ ...previous, recommended: "no" }));
+                clearFormError("recommended");
+              }}
             />
             <span>{t.no}</span>
           </label>
+          {formErrors.recommended ? (
+            <p className="field-error" id={recommendedErrorId}>
+              {formErrors.recommended}
+            </p>
+          ) : null}
         </fieldset>
       </div>
 
-      <label>
+      <label className={formErrors.priceUsd ? "is-invalid" : ""}>
         <span>{t.priceLabel}</span>
         <input
           type="number"
@@ -112,38 +185,63 @@ export function ReviewForm({ lang, listingId }: ReviewFormProps) {
           max={20000}
           step="0.01"
           value={reviewDraft.priceUsd}
-          onChange={(event) =>
-            setReviewDraft((previous) => ({ ...previous, priceUsd: event.target.value }))
-          }
+          onChange={(event) => {
+            setReviewDraft((previous) => ({ ...previous, priceUsd: event.target.value }));
+            clearFormError("priceUsd");
+          }}
+          required
+          aria-invalid={Boolean(formErrors.priceUsd)}
+          aria-describedby={priceErrorId}
         />
+        {formErrors.priceUsd ? (
+          <p className="field-error" id={priceErrorId}>
+            {formErrors.priceUsd}
+          </p>
+        ) : null}
       </label>
 
-      <label>
+      <label className={formErrors.comment ? "is-invalid" : ""}>
         <span>{t.formComment}</span>
         <textarea
           value={reviewDraft.comment}
-          onChange={(event) =>
-            setReviewDraft((previous) => ({ ...previous, comment: event.target.value }))
-          }
+          onChange={(event) => {
+            setReviewDraft((previous) => ({ ...previous, comment: event.target.value }));
+            clearFormError("comment");
+          }}
           minLength={12}
           maxLength={1000}
           required
+          aria-invalid={Boolean(formErrors.comment)}
+          aria-describedby={commentErrorId}
         />
+        {formErrors.comment ? (
+          <p className="field-error" id={commentErrorId}>
+            {formErrors.comment}
+          </p>
+        ) : null}
       </label>
 
-      <label>
+      <label className={formErrors.semester ? "is-invalid" : ""}>
         <span>{t.formSemester}</span>
         <input
           type="text"
           value={reviewDraft.semester}
-          onChange={(event) =>
-            setReviewDraft((previous) => ({ ...previous, semester: event.target.value }))
-          }
+          onChange={(event) => {
+            setReviewDraft((previous) => ({ ...previous, semester: event.target.value }));
+            clearFormError("semester");
+          }}
           placeholder={t.formSemesterPlaceholder}
           list="semester-options"
           required
           maxLength={8}
+          aria-invalid={Boolean(formErrors.semester)}
+          aria-describedby={semesterErrorId}
         />
+        {formErrors.semester ? (
+          <p className="field-error" id={semesterErrorId}>
+            {formErrors.semester}
+          </p>
+        ) : null}
         <datalist id="semester-options">
           {SEMESTER_OPTIONS.map((option) => (
             <option key={option} value={option} />
@@ -151,7 +249,11 @@ export function ReviewForm({ lang, listingId }: ReviewFormProps) {
         </datalist>
       </label>
 
-      <fieldset className="contact-section">
+      <fieldset
+        className={`contact-section${formErrors.contactShare ? " is-invalid" : ""}`}
+        aria-invalid={Boolean(formErrors.contactShare)}
+        aria-describedby={contactShareErrorId}
+      >
         <legend>{t.formContactSection}</legend>
         <label>
           <span>{t.formName}</span>
@@ -170,9 +272,10 @@ export function ReviewForm({ lang, listingId }: ReviewFormProps) {
           <input
             type="text"
             value={reviewDraft.studentContact}
-            onChange={(event) =>
-              setReviewDraft((previous) => ({ ...previous, studentContact: event.target.value }))
-            }
+            onChange={(event) => {
+              setReviewDraft((previous) => ({ ...previous, studentContact: event.target.value }));
+              clearFormError("contactShare");
+            }}
             maxLength={120}
           />
         </label>
@@ -182,9 +285,10 @@ export function ReviewForm({ lang, listingId }: ReviewFormProps) {
           <input
             type="email"
             value={reviewDraft.studentEmail}
-            onChange={(event) =>
-              setReviewDraft((previous) => ({ ...previous, studentEmail: event.target.value }))
-            }
+            onChange={(event) => {
+              setReviewDraft((previous) => ({ ...previous, studentEmail: event.target.value }));
+              clearFormError("contactShare");
+            }}
             maxLength={120}
           />
         </label>
@@ -193,16 +297,24 @@ export function ReviewForm({ lang, listingId }: ReviewFormProps) {
           <input
             type="checkbox"
             checked={reviewDraft.shareContactInfo}
-            onChange={(event) =>
+            onChange={(event) => {
               setReviewDraft((previous) => ({
                 ...previous,
                 shareContactInfo: event.target.checked,
-              }))
-            }
+              }));
+              if (!event.target.checked) {
+                clearFormError("contactShare");
+              }
+            }}
           />
           <span>{t.formContactConsentLabel}</span>
           <small>{t.formContactConsentHint}</small>
         </label>
+        {formErrors.contactShare ? (
+          <p className="field-error" id={contactShareErrorId}>
+            {formErrors.contactShare}
+          </p>
+        ) : null}
       </fieldset>
 
       <button type="submit" disabled={status === "sending"}>

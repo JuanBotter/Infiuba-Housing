@@ -56,6 +56,7 @@ const baseReviewPayload = {
   recommended: true,
   comment: "Great stay with good location.",
   semester: "1C-2026",
+  priceUsd: 420,
 };
 
 describe("/api/reviews", () => {
@@ -91,9 +92,8 @@ describe("/api/reviews", () => {
     const request = buildReviewRequest({
       listingId: "listing-1",
       confirmExistingDetails: true,
+      ...baseReviewPayload,
       rating: 10,
-      recommended: true,
-      comment: "This place was comfortable and clean.",
     });
 
     const response = await POST(request);
@@ -108,8 +108,7 @@ describe("/api/reviews", () => {
       buildReviewRequest({
         listingId: "listing-1",
         confirmExistingDetails: true,
-        rating: 4,
-        recommended: true,
+        ...baseReviewPayload,
         comment: "Too short",
       }),
     );
@@ -184,10 +183,7 @@ describe("/api/reviews", () => {
     const request = buildReviewRequest({
       listingId: "listing-1",
       confirmExistingDetails: true,
-      rating: 4,
-      recommended: true,
-      comment: "This place was comfortable and clean.",
-      semester: "1C-2026",
+      ...baseReviewPayload,
     });
 
     const response = await POST(request);
@@ -204,10 +200,8 @@ describe("/api/reviews", () => {
     const response = await POST(
       buildReviewRequest({
         listingId: "listing-legacy",
-        rating: 4,
-        recommended: true,
+        ...baseReviewPayload,
         comment: "Legacy payload still works.",
-        semester: "1C-2026",
       }),
     );
     expect(response.status).toBe(201);
@@ -221,10 +215,8 @@ describe("/api/reviews", () => {
     const request = buildReviewRequest({
       listingId: "listing-2",
       confirmExistingDetails: false,
-      rating: 4,
-      recommended: true,
+      ...baseReviewPayload,
       comment: "Good spot, but confirm details.",
-      semester: "1C-2026",
     });
 
     const response = await POST(request);
@@ -241,6 +233,7 @@ describe("/api/reviews", () => {
         address: "Calle Falsa 123",
         neighborhood: "Palermo",
         contacts: "+54 9 11 5555-5555",
+        capacity: 3,
         latitude: -34.6,
       }),
     );
@@ -258,6 +251,7 @@ describe("/api/reviews", () => {
         address: "Calle Falsa 123",
         neighborhood: "Palermo",
         contacts: longContact,
+        capacity: 3,
       }),
     );
     expect(response.status).toBe(400);

@@ -66,7 +66,10 @@ export async function POST(request: Request) {
     if (!isValidSemester(semester)) {
       return NextResponse.json({ error: "Invalid semester" }, { status: 400 });
     }
-    if (submittedPriceUsd !== undefined && (submittedPriceUsd <= 0 || submittedPriceUsd > 20000)) {
+    if (submittedPriceUsd === undefined) {
+      return NextResponse.json({ error: "Rent is required" }, { status: 400 });
+    }
+    if (submittedPriceUsd <= 0 || submittedPriceUsd > 20000) {
       return NextResponse.json({ error: "Invalid rent value" }, { status: 400 });
     }
     if (studentEmail) {
@@ -122,6 +125,9 @@ export async function POST(request: Request) {
       if (neighborhood.length < 2) {
         return NextResponse.json({ error: "Invalid neighborhood" }, { status: 400 });
       }
+      if (contacts.length === 0) {
+        return NextResponse.json({ error: "Owner contact is required" }, { status: 400 });
+      }
       if (hasContactTooLong) {
         return NextResponse.json(
           {
@@ -130,7 +136,10 @@ export async function POST(request: Request) {
           { status: 400 },
         );
       }
-      if (capacity !== undefined && (capacity <= 0 || capacity > 50)) {
+      if (capacity === undefined) {
+        return NextResponse.json({ error: "Capacity is required" }, { status: 400 });
+      }
+      if (capacity <= 0 || capacity > 50) {
         return NextResponse.json({ error: "Invalid capacity value" }, { status: 400 });
       }
 
