@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { ReviewComment } from "@/app/[lang]/place/[id]/review-comment";
 import { ReviewForm } from "@/app/[lang]/place/[id]/review-form";
+import { ContactEditRequestForm } from "@/components/contact-edit-request-form";
 import {
   canSubmitReviews,
   canViewContactInfo,
@@ -157,6 +158,13 @@ export default async function PlaceDetailPage({ params }: PlaceDetailPageProps) 
         ) : (
           <p className="contact-lock-hint">{messages.ownerContactsLoginHint}</p>
         )}
+        {canWriteReviews ? (
+          <ContactEditRequestForm
+            listingId={listing.id}
+            currentContacts={listing.contacts}
+            messages={messages}
+          />
+        ) : null}
       </article>
 
       <article className="detail-card detail-card--reviews">

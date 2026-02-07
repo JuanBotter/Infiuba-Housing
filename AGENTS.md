@@ -31,7 +31,7 @@ Do not defer AGENTS updates.
 - Testing: Vitest unit tests mock DB/email/Next cache for API routes and auth helpers.
 - OTP request/verify API responses are intentionally enumeration-safe: request responses are generic for allowed/not-allowed/rate-limited outcomes, and verify failures return a generic invalid-code response for auth failures.
 - OTP abuse controls are DB-backed and layered: OTP requests are rate limited by IP/subnet/global windows, and OTP verify failures are rate limited by IP and email+IP windows.
-- Structured security audit events are recorded for OTP request/verify and admin-sensitive actions (user access changes and review moderation).
+- Structured security audit events are recorded for OTP request/verify and admin-sensitive actions (user access changes, review moderation, contact edit moderation, and contact edit submissions).
 - Sensitive auth/admin API responses explicitly send `Cache-Control: no-store` headers.
 - Stateful API endpoints enforce same-origin checks (Origin/Referer must match request host) to reduce CSRF risk.
 - API request parsing/normalization is centralized in `src/lib/request-validation.ts` and reused across session/reviews/admin endpoints.
@@ -39,7 +39,7 @@ Do not defer AGENTS updates.
 - Reviewer contact email handling is hardened: `/api/reviews` validates strict email format for `studentEmail` and email-like `studentContact`, and listing detail renders `mailto:` only for strict emails using URI-encoded hrefs.
 - DB migrations are managed with node-pg-migrate (`migrations/` directory).
 - Survey import tooling now generates deterministic/stable survey review IDs from review content (instead of row order).
-- Admin UX: split views for reviews, access management, and security telemetry under `/{lang}/admin/*`; access view supports search, role changes, deletion, and bulk user creation.
+- Admin UX: split views for reviews, contact edit requests, access management, and security telemetry under `/{lang}/admin/*`; access view supports search, role changes, deletion, and bulk user creation.
 - Admin bulk user upsert uses set-based SQL (`DELETE ... WHERE email = ANY(...)` + `INSERT ... SELECT FROM UNNEST(...)`) in one transaction.
 - Add-review and detail-review flows share common review payload/state helpers in `src/lib/review-form.ts`.
 - New listing fields in the add-review flow omit coordinates; latitude/longitude are not collected from users.
@@ -58,6 +58,7 @@ Do not defer AGENTS updates.
 - Map view includes full selected-listing details (stats, owner contacts when visible by role, details link); historical reviews render before the inline per-listing review form for whitelisted/admin users.
 - When owner contacts are hidden by permissions, listing detail and map-selected panels show a small colored hint prompting login to view contact info.
 - Owner contact strings are linkified in UI (email/phone/url detection) for detail pages, map view, and review form context.
+- Whitelisted/admin users can request owner-contact updates from listing views; requests are reviewed in the admin contact edits view before applying changes.
 - Reviewer contact info is shown under map comments when available/consented, linkifying each email and phone separately (phones open WhatsApp; emails use mailto).
 - Review rating inputs use a 5-star control with whole-star increments and start unselected (0) until the user picks a value; recommendation radio buttons also start unselected and must be chosen. Review forms use client-side validation (no native browser validation) and highlight missing required fields with inline error text plus a shared error summary. Estimated rent is required for all reviews; new listings also require owner contact info and max students. Contact fields are grouped under a contact section in review forms.
 - On mobile/narrow layouts (`<=1100px`), map mode is map-first: a horizontal property rail sits under the map, and the full results list opens as a bottom-sheet drawer with backdrop.
@@ -181,7 +182,7 @@ Seed/import tooling:
 
 ## Database Schema (Current)
 
-Defined in `migrations/20260206090000000_initial_schema.sql`, `migrations/20260206090100000_otp_rate_limit_buckets.sql`, `migrations/20260206090200000_listing_contact_length_limit.sql`, `migrations/20260206090300000_dataset_meta_bootstrap.sql`, `migrations/20260206090400000_drop_legacy_invites.sql`, and `migrations/20260206090500000_security_audit_events.sql` (applied via node-pg-migrate; rollback behavior documented in `migrations/ROLLBACK_POLICY.md`).
+Defined in `migrations/20260206090000000_initial_schema.sql`, `migrations/20260206090100000_otp_rate_limit_buckets.sql`, `migrations/20260206090200000_listing_contact_length_limit.sql`, `migrations/20260206090300000_dataset_meta_bootstrap.sql`, `migrations/20260206090400000_drop_legacy_invites.sql`, `migrations/20260206090500000_security_audit_events.sql`, and `migrations/20260207090000000_contact_edit_requests.sql` (applied via node-pg-migrate; rollback behavior documented in `migrations/ROLLBACK_POLICY.md`).
 
 Finite-state fields use PostgreSQL enums:
 
@@ -189,6 +190,7 @@ Finite-state fields use PostgreSQL enums:
 - `review_source_enum`: `survey`, `web`
 - `review_status_enum`: `pending`, `approved`, `rejected`
 - `otp_consumed_reason_enum`: `verified`, `replaced`, `too_many_attempts`
+- `contact_edit_status_enum`: `pending`, `approved`, `rejected`
 
 ### `dataset_meta`
 
@@ -221,6 +223,18 @@ Finite-state fields use PostgreSQL enums:
 - `contact TEXT NOT NULL`
 - `contact` length is capped at 180 characters for new/updated rows.
 - `UNIQUE (listing_id, contact)`
+
+### `listing_contact_edit_requests`
+
+- `id BIGSERIAL PRIMARY KEY`
+- `listing_id TEXT NOT NULL REFERENCES listings(id) ON DELETE CASCADE`
+- `requester_email TEXT NOT NULL`
+- `requested_contacts TEXT[] NOT NULL`
+- `current_contacts TEXT[] NOT NULL`
+- `status contact_edit_status_enum NOT NULL DEFAULT 'pending'`
+- `created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`
+- `reviewed_at TIMESTAMPTZ`
+- `reviewed_by_email TEXT`
 
 ### `reviews`
 
@@ -313,13 +327,17 @@ Indexes:
 - `idx_auth_email_otps_email_lower ON auth_email_otps(lower(email))`
 - `idx_auth_rate_limit_buckets_updated_at ON auth_rate_limit_buckets(updated_at DESC)`
 - `idx_auth_rate_limit_buckets_scope_key ON auth_rate_limit_buckets(scope, bucket_key_hash, updated_at DESC)`
+- `idx_contact_edit_requests_status_created ON listing_contact_edit_requests(status, created_at DESC)`
+- `idx_contact_edit_requests_listing_id ON listing_contact_edit_requests(listing_id)`
+- `idx_contact_edit_requests_requester_email ON listing_contact_edit_requests(lower(requester_email))`
+- `idx_contact_edit_requests_reviewed_at ON listing_contact_edit_requests(reviewed_at DESC)`
 - `idx_security_audit_events_created_at ON security_audit_events(created_at DESC)`
 - `idx_security_audit_events_event_type_created ON security_audit_events(event_type, created_at DESC)`
 - `idx_security_audit_events_outcome_created ON security_audit_events(outcome, created_at DESC)`
 - `idx_reviews_listing_status ON reviews(listing_id, status, source)`
 - `idx_reviews_status_created ON reviews(status, created_at DESC)`
 
-Integrity hardening (enforced in `migrations/20260206090000000_initial_schema.sql`, `migrations/20260206090100000_otp_rate_limit_buckets.sql`, `migrations/20260206090200000_listing_contact_length_limit.sql`, `migrations/20260206090300000_dataset_meta_bootstrap.sql`, `migrations/20260206090400000_drop_legacy_invites.sql`, and `migrations/20260206090500000_security_audit_events.sql`):
+Integrity hardening (enforced in `migrations/20260206090000000_initial_schema.sql`, `migrations/20260206090100000_otp_rate_limit_buckets.sql`, `migrations/20260206090200000_listing_contact_length_limit.sql`, `migrations/20260206090300000_dataset_meta_bootstrap.sql`, `migrations/20260206090400000_drop_legacy_invites.sql`, `migrations/20260206090500000_security_audit_events.sql`, and `migrations/20260207090000000_contact_edit_requests.sql`):
 
 - Non-empty checks for core text identifiers (`users.email`, `deleted_users.email`, `auth_email_otps.email`, listing address/neighborhood, listing contact).
 - Numeric range checks for ratings, recommendation rates, coordinates, and year fields.
@@ -329,6 +347,7 @@ Integrity hardening (enforced in `migrations/20260206090000000_initial_schema.sq
 - Rate-limit bucket consistency (`scope`/`bucket_key_hash` non-empty, `window_seconds > 0`, `hits >= 0`).
 - Security audit event consistency (`event_type`/`outcome` non-empty).
 - Listing contact length control (`listing_contacts.contact` <= 180 for new/updated rows).
+- Contact edit requests enforce non-empty requester emails and at least one requested contact.
 - `dataset_meta` bootstrap row (`id=1`) is created if missing via migration.
 - Legacy invite DB artifacts (`auth_invites`, `invite_consumed_reason_enum`) are dropped by migration.
 - Legacy-row normalization before constraints are applied (trim/canonicalize emails, null-out invalid ranges, dedupe users by case-insensitive email).
@@ -395,18 +414,23 @@ Must remain true:
 - Detail review form: `src/app/[lang]/place/[id]/review-form.tsx`
 - Admin layout + navigation: `src/app/[lang]/admin/layout.tsx`, `src/app/[lang]/admin/admin-nav.tsx`
 - Admin reviews page: `src/app/[lang]/admin/reviews/page.tsx`
+- Admin contact edits page: `src/app/[lang]/admin/contact-edits/page.tsx`
+- Admin contact edits panel: `src/app/[lang]/admin/contact-edits/contact-edits-panel.tsx`
 - Admin access page: `src/app/[lang]/admin/access/page.tsx`
 - Admin security telemetry page: `src/app/[lang]/admin/security/page.tsx`
 - Legacy moderation path redirect: `src/app/[lang]/admin/moderation/page.tsx` -> `/{lang}/admin/reviews`
 - Admin users API: `src/app/api/admin/users/route.ts`
   - `GET` managed users (`active` + `deleted`)
   - `POST` update roles, delete, or bulk upsert users
+- Contact edit request API: `src/app/api/contact-edits/route.ts`
+- Admin contact edits API: `src/app/api/admin/contact-edits/route.ts`
 - Admin security telemetry API: `src/app/api/admin/security/route.ts`
 - App security headers config: `next.config.mjs`
 - Root layout + theme bootstrap script loader: `src/app/layout.tsx`
 - Theme bootstrap script (static, beforeInteractive): `public/theme-init.js`
 - Request validation helpers: `src/lib/request-validation.ts`
 - Shared review payload helpers: `src/lib/review-form.ts`
+- Contact edit request UI: `src/components/contact-edit-request-form.tsx`
 - Role/auth helpers: `src/lib/auth.ts`
 - Email/contact helpers: `src/lib/email.ts`
 - No-store response helper: `src/lib/http-cache.ts`

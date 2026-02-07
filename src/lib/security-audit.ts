@@ -6,6 +6,8 @@ import { dbQuery, isDatabaseEnabled } from "@/lib/db";
 export type SecurityAuditEventType =
   | "auth.otp.request"
   | "auth.otp.verify"
+  | "contact_edit.request"
+  | "contact_edit.moderate"
   | "admin.user.update_role"
   | "admin.user.delete"
   | "admin.user.upsert"

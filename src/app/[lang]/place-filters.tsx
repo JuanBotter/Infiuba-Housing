@@ -12,6 +12,7 @@ import {
 } from "@/app/[lang]/place-filters-price";
 import { ReviewComment } from "@/app/[lang]/place/[id]/review-comment";
 import { ReviewForm } from "@/app/[lang]/place/[id]/review-form";
+import { ContactEditRequestForm } from "@/components/contact-edit-request-form";
 import { splitContactParts } from "@/lib/contact-links";
 import { formatDecimal, formatPercent, formatUsd, formatUsdRange } from "@/lib/format";
 import { splitReviewerContactParts } from "@/lib/reviewer-contact";
@@ -856,6 +857,14 @@ export function PlaceFilters({
                   ) : (
                     <p className="contact-lock-hint">{messages.ownerContactsLoginHint}</p>
                   )}
+                  {canWriteReviews ? (
+                    <ContactEditRequestForm
+                      listingId={selectedMapListing.id}
+                      currentContacts={selectedMapListing.contacts}
+                      messages={messages}
+                      compact
+                    />
+                  ) : null}
                   <Link href={`/${lang}/place/${selectedMapListing.id}`} className="inline-link">
                     {messages.viewDetails}
                   </Link>

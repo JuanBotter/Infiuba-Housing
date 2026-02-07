@@ -65,3 +65,19 @@ export interface PendingWebReview {
 export interface ApprovedWebReview extends PendingWebReview {
   approvedAt: string;
 }
+
+export type ContactEditStatus = "pending" | "approved" | "rejected";
+
+export interface ContactEditRequest {
+  id: string;
+  listingId: string;
+  listingAddress: string;
+  listingNeighborhood: string;
+  requesterEmail: string;
+  currentContacts: string[];
+  requestedContacts: string[];
+  status: ContactEditStatus;
+  createdAt: string;
+  reviewedAt?: string;
+  reviewedByEmail?: string;
+}

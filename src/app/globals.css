@@ -1274,6 +1274,140 @@ input[type="number"] {
   gap: 0.42rem;
 }
 
+.contact-edit {
+  margin-top: 0.6rem;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.contact-edit__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.28rem 0.7rem;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--chip-bg);
+  color: var(--ink);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+}
+
+.contact-edit__icon {
+  width: 1rem;
+  height: 1rem;
+  display: inline-flex;
+}
+
+.contact-edit__icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.contact-edit__panel {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--chip-bg);
+  padding: 0.8rem;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.contact-edit__panel h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.contact-edit__subtitle {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 0.85rem;
+}
+
+.contact-edit__label {
+  margin: 0;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
+.contact-edit__input {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.contact-edit__input textarea {
+  min-height: 90px;
+}
+
+.contact-edit__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.contact-edit__current .contact-list {
+  margin: 0;
+}
+
+.contact-edit__empty {
+  margin: 0;
+  color: var(--ink-soft);
+}
+
+.contact-edit__list li {
+  overflow-wrap: anywhere;
+}
+
+.contact-edit--compact .contact-edit__panel {
+  padding: 0.65rem;
+}
+
+.contact-edit--compact .contact-edit__subtitle {
+  display: none;
+}
+
+.contact-edit--compact .contact-edit__panel h3 {
+  font-size: 0.95rem;
+}
+
+.contact-edit--compact .contact-edit__input textarea {
+  min-height: 70px;
+}
+
+.contact-edit-list {
+  margin-top: 0.35rem;
+}
+
+.contact-edit-item {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.contact-edit-item ul {
+  margin: 0;
+  padding-left: 1.1rem;
+}
+
+.contact-edit-block {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.contact-edit-block__label {
+  margin: 0;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
 @media (max-width: 720px) {
   .review-rating-row {
     flex-direction: column;
