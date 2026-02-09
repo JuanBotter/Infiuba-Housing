@@ -858,12 +858,13 @@ export function PlaceFilters({
                     <p className="contact-lock-hint">{messages.ownerContactsLoginHint}</p>
                   )}
                   {canWriteReviews ? (
-                    <ContactEditRequestForm
-                      listingId={selectedMapListing.id}
-                      currentContacts={selectedMapListing.contacts}
-                      messages={messages}
-                      compact
-                    />
+                  <ContactEditRequestForm
+                    listingId={selectedMapListing.id}
+                    currentContacts={selectedMapListing.contacts}
+                    currentCapacity={selectedMapListing.capacity}
+                    messages={messages}
+                    compact
+                  />
                   ) : null}
                   <Link href={`/${lang}/place/${selectedMapListing.id}`} className="inline-link">
                     {messages.viewDetails}

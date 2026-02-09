@@ -2,12 +2,18 @@ import { NextResponse } from "next/server";
 
 import { canSubmitReviews, getAuthSessionFromRequest, getRoleFromRequestAsync } from "@/lib/auth";
 import { dbQuery, isDatabaseEnabled } from "@/lib/db";
-import { asObject, parseDelimitedList, parseString } from "@/lib/request-validation";
+import {
+  asObject,
+  parseDelimitedList,
+  parseOptionalNumber,
+  parseString,
+} from "@/lib/request-validation";
 import { validateSameOriginRequest } from "@/lib/request-origin";
 import { recordSecurityAuditEvent } from "@/lib/security-audit";
 
 const MAX_CONTACTS = 20;
 const MAX_CONTACT_LENGTH = 180;
+const MAX_CAPACITY = 50;
 
 function parseContacts(value: unknown) {
   const parsedContacts = parseDelimitedList(value, { maxItems: MAX_CONTACTS });
@@ -42,24 +48,33 @@ export async function POST(request: Request) {
     const payload = asObject(await request.json().catch(() => null));
     const listingId = parseString(payload?.listingId, { maxLength: 200 });
     const rawContacts = parseString(payload?.contacts, { maxLength: 2000 });
+    const capacityValue = parseOptionalNumber(payload?.capacity);
 
     if (!listingId) {
       return NextResponse.json({ error: "Missing listing" }, { status: 400 });
     }
 
-    const { contacts, hasContactTooLong } = parseContacts(rawContacts);
-    if (contacts.length === 0) {
-      return NextResponse.json({ error: "Contact info is required" }, { status: 400 });
+    if (capacityValue !== undefined && (capacityValue <= 0 || capacityValue > MAX_CAPACITY)) {
+      return NextResponse.json({ error: "Invalid capacity value" }, { status: 400 });
     }
-    if (hasContactTooLong) {
+
+    const { contacts, hasContactTooLong } = parseContacts(rawContacts);
+    if (contacts.length === 0 && capacityValue === undefined) {
+      return NextResponse.json({ error: "Contact info or capacity is required" }, { status: 400 });
+    }
+    if (contacts.length > 0 && hasContactTooLong) {
       return NextResponse.json(
         { error: `Each contact must be at most ${MAX_CONTACT_LENGTH} characters` },
         { status: 400 },
       );
     }
 
-    const listingResult = await dbQuery<{ address: string; neighborhood: string }>(
-      `SELECT address, neighborhood FROM listings WHERE id = $1`,
+    const listingResult = await dbQuery<{
+      address: string;
+      neighborhood: string;
+      capacity: number | null;
+    }>(
+      `SELECT address, neighborhood, capacity FROM listings WHERE id = $1`,
       [listingId],
     );
     if (listingResult.rowCount === 0) {
@@ -71,6 +86,7 @@ export async function POST(request: Request) {
       [listingId],
     );
     const currentContacts = currentContactsResult.rows.map((row) => row.contact);
+    const currentCapacity = listingResult.rows[0]?.capacity ?? null;
 
     await dbQuery(
       `
@@ -79,11 +95,13 @@ export async function POST(request: Request) {
           requester_email,
           requested_contacts,
           current_contacts,
+          requested_capacity,
+          current_capacity,
           status
         )
-        VALUES ($1, $2, $3::text[], $4::text[], 'pending')
+        VALUES ($1, $2, $3::text[], $4::text[], $5, $6, 'pending')
       `,
-      [listingId, session.email, contacts, currentContacts],
+      [listingId, session.email, contacts, currentContacts, capacityValue ?? null, currentCapacity],
     );
 
     await recordSecurityAuditEvent({
@@ -93,6 +111,7 @@ export async function POST(request: Request) {
       metadata: {
         listingId,
         requestedContactsCount: contacts.length,
+        requestedCapacity: capacityValue ?? null,
       },
     });
 

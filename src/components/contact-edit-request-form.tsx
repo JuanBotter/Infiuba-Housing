@@ -8,6 +8,7 @@ import type { Messages } from "@/i18n/messages";
 interface ContactEditRequestFormProps {
   listingId: string;
   currentContacts: string[];
+  currentCapacity?: number;
   messages: Messages;
   compact?: boolean;
 }
@@ -34,14 +35,17 @@ function renderContactValue(contact: string) {
 export function ContactEditRequestForm({
   listingId,
   currentContacts,
+  currentCapacity,
   messages,
   compact,
 }: ContactEditRequestFormProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [contactsDraft, setContactsDraft] = useState("");
+  const [capacityDraft, setCapacityDraft] = useState("");
   const [status, setStatus] = useState<"idle" | "sending" | "success" | "error">("idle");
   const [error, setError] = useState("");
-  const [fieldError, setFieldError] = useState("");
+  const [contactError, setContactError] = useState("");
+  const [capacityError, setCapacityError] = useState("");
 
   const initialValue = useMemo(
     () => currentContacts.filter(Boolean).join("\n"),
@@ -53,21 +57,36 @@ export function ContactEditRequestForm({
       return;
     }
     setContactsDraft(initialValue);
+    setCapacityDraft("");
     setStatus("idle");
     setError("");
-    setFieldError("");
+    setContactError("");
+    setCapacityError("");
   }, [initialValue, isOpen]);
 
   async function submitRequest() {
-    if (!contactsDraft.trim()) {
+    const capacityValue =
+      capacityDraft.trim() === "" ? undefined : Number(capacityDraft.trim());
+    if (
+      capacityValue !== undefined &&
+      (!Number.isFinite(capacityValue) || capacityValue <= 0 || capacityValue > 50)
+    ) {
       setStatus("error");
       setError(messages.formRequiredFieldsError);
-      setFieldError(messages.formRequiredField);
+      setCapacityError(messages.formRequiredField);
       return;
     }
     setStatus("sending");
     setError("");
-    setFieldError("");
+    setContactError("");
+    setCapacityError("");
+    if (!contactsDraft.trim() && capacityValue === undefined) {
+      setStatus("error");
+      setError(messages.formRequiredFieldsError);
+      setContactError(messages.formRequiredField);
+      setCapacityError(messages.formRequiredField);
+      return;
+    }
     try {
       const response = await fetch("/api/contact-edits", {
         method: "POST",
@@ -75,6 +94,7 @@ export function ContactEditRequestForm({
         body: JSON.stringify({
           listingId,
           contacts: contactsDraft,
+          capacity: capacityDraft,
         }),
       });
 
@@ -136,6 +156,14 @@ export function ContactEditRequestForm({
               <p className="contact-edit__empty">-</p>
             )}
           </div>
+          <div className="contact-edit__current">
+            <p className="contact-edit__label">{messages.contactEditCurrentCapacityLabel}</p>
+            <p className={typeof currentCapacity === "number" ? "" : "contact-edit__empty"}>
+              {typeof currentCapacity === "number"
+                ? `${Math.round(currentCapacity)} ${messages.studentsSuffix}`
+                : "-"}
+            </p>
+          </div>
 
           <label className="contact-edit__input">
             <span>{messages.contactEditNewLabel}</span>
@@ -143,13 +171,29 @@ export function ContactEditRequestForm({
               value={contactsDraft}
               onChange={(event) => {
                 setContactsDraft(event.target.value);
-                setFieldError("");
+                setContactError("");
               }}
               placeholder={messages.contactEditPlaceholder}
               rows={4}
-              required
             />
-            {fieldError ? <p className="field-error">{fieldError}</p> : null}
+            {contactError ? <p className="field-error">{contactError}</p> : null}
+          </label>
+
+          <label className="contact-edit__input">
+            <span>{messages.contactEditCapacityLabel}</span>
+            <input
+              type="number"
+              min={1}
+              max={50}
+              step={1}
+              value={capacityDraft}
+              onChange={(event) => {
+                setCapacityDraft(event.target.value);
+                setCapacityError("");
+              }}
+              placeholder={messages.contactEditCapacityPlaceholder}
+            />
+            {capacityError ? <p className="field-error">{capacityError}</p> : null}
           </label>
 
           <div className="contact-edit__actions">

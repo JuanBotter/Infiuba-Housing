@@ -23,6 +23,13 @@ function formatDate(value: string, lang: Lang) {
   }).format(new Date(value));
 }
 
+function formatCapacity(value: number | undefined, messages: Messages) {
+  if (typeof value !== "number") {
+    return "-";
+  }
+  return `${Math.round(value)} ${messages.studentsSuffix}`;
+}
+
 export function ContactEditsPanel({ lang, messages }: ContactEditsPanelProps) {
   const [pendingRequests, setPendingRequests] = useState<ContactEditRequest[]>([]);
   const [historyRequests, setHistoryRequests] = useState<ContactEditRequest[]>([]);
@@ -131,12 +138,28 @@ export function ContactEditsPanel({ lang, messages }: ContactEditsPanelProps) {
                   )}
                 </div>
                 <div className="contact-edit-block">
+                  <p className="contact-edit-block__label">
+                    {messages.adminContactEditsCurrentCapacity}
+                  </p>
+                  <p>{formatCapacity(request.currentCapacity, messages)}</p>
+                </div>
+                <div className="contact-edit-block">
                   <p className="contact-edit-block__label">{messages.adminContactEditsRequested}</p>
-                  <ul>
-                    {request.requestedContacts.map((contact) => (
-                      <li key={contact}>{contact}</li>
-                    ))}
-                  </ul>
+                  {request.requestedContacts.length > 0 ? (
+                    <ul>
+                      {request.requestedContacts.map((contact) => (
+                        <li key={contact}>{contact}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p>-</p>
+                  )}
+                </div>
+                <div className="contact-edit-block">
+                  <p className="contact-edit-block__label">
+                    {messages.adminContactEditsRequestedCapacity}
+                  </p>
+                  <p>{formatCapacity(request.requestedCapacity, messages)}</p>
                 </div>
                 <div className="moderation-actions">
                   <button
@@ -184,11 +207,21 @@ export function ContactEditsPanel({ lang, messages }: ContactEditsPanelProps) {
                 </p>
                 <div className="contact-edit-block">
                   <p className="contact-edit-block__label">{messages.adminContactEditsRequested}</p>
-                  <ul>
-                    {request.requestedContacts.map((contact) => (
-                      <li key={contact}>{contact}</li>
-                    ))}
-                  </ul>
+                  {request.requestedContacts.length > 0 ? (
+                    <ul>
+                      {request.requestedContacts.map((contact) => (
+                        <li key={contact}>{contact}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p>-</p>
+                  )}
+                </div>
+                <div className="contact-edit-block">
+                  <p className="contact-edit-block__label">
+                    {messages.adminContactEditsRequestedCapacity}
+                  </p>
+                  <p>{formatCapacity(request.requestedCapacity, messages)}</p>
                 </div>
               </li>
             ))}

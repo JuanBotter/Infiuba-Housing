@@ -19,6 +19,8 @@ interface ContactEditRow {
   requester_email: string;
   requested_contacts: string[];
   current_contacts: string[];
+  requested_capacity: number | null;
+  current_capacity: number | null;
   status: "pending" | "approved" | "rejected";
   created_at: string;
   reviewed_at: string | null;
@@ -34,6 +36,9 @@ function mapRow(row: ContactEditRow) {
     requesterEmail: row.requester_email,
     requestedContacts: row.requested_contacts ?? [],
     currentContacts: row.current_contacts ?? [],
+    requestedCapacity:
+      typeof row.requested_capacity === "number" ? row.requested_capacity : undefined,
+    currentCapacity: typeof row.current_capacity === "number" ? row.current_capacity : undefined,
     status: row.status,
     createdAt: row.created_at,
     reviewedAt: row.reviewed_at ?? undefined,
@@ -58,6 +63,8 @@ export async function GET(request: Request) {
         req.requester_email,
         req.requested_contacts,
         req.current_contacts,
+        req.requested_capacity,
+        req.current_capacity,
         req.status,
         req.created_at,
         req.reviewed_at,
@@ -123,6 +130,8 @@ export async function POST(request: Request) {
             requester_email,
             requested_contacts,
             current_contacts,
+            requested_capacity,
+            current_capacity,
             status,
             created_at,
             reviewed_at,
@@ -145,6 +154,10 @@ export async function POST(request: Request) {
       }
 
       if (action === "approve") {
+        const shouldUpdateContacts = requestItem.requested_contacts.length > 0;
+        const shouldUpdateCapacity = requestItem.requested_capacity !== null;
+
+        if (shouldUpdateContacts) {
         await client.query(`DELETE FROM listing_contacts WHERE listing_id = $1`, [
           requestItem.listing_id,
         ]);
@@ -156,9 +169,18 @@ export async function POST(request: Request) {
           `,
           [requestItem.listing_id, requestItem.requested_contacts],
         );
-        await client.query(`UPDATE listings SET updated_at = NOW() WHERE id = $1`, [
-          requestItem.listing_id,
-        ]);
+        }
+
+        if (shouldUpdateCapacity) {
+          await client.query(
+            `UPDATE listings SET capacity = $2, updated_at = NOW() WHERE id = $1`,
+            [requestItem.listing_id, requestItem.requested_capacity],
+          );
+        } else if (shouldUpdateContacts) {
+          await client.query(`UPDATE listings SET updated_at = NOW() WHERE id = $1`, [
+            requestItem.listing_id,
+          ]);
+        }
       }
 
       await client.query(
