@@ -89,7 +89,7 @@ export function RoleSwitcher({ lang, role, email }: RoleSwitcherProps) {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ action: "requestOtp", email: loginEmail }),
+        body: JSON.stringify({ action: "requestOtp", email: loginEmail, lang }),
       });
 
       if (response.status === 400) {

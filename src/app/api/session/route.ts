@@ -6,6 +6,7 @@ import {
   verifyLoginOtp,
 } from "@/lib/auth";
 import { jsonNoStore, withNoStore } from "@/lib/http-cache";
+import { supportedLanguages } from "@/lib/i18n";
 import { getRequestNetworkFingerprint } from "@/lib/request-network";
 import { validateSameOriginRequest } from "@/lib/request-origin";
 import { asObject, parseBoolean, parseEnum, parseString } from "@/lib/request-validation";
@@ -34,6 +35,7 @@ export async function POST(request: Request) {
   const payload = asObject(await request.json().catch(() => null));
   const action = parseEnum(payload?.action, ["requestOtp", "verifyOtp"] as const);
   const email = parseString(payload?.email, { lowercase: true, maxLength: 180 });
+  const lang = parseEnum(payload?.lang, supportedLanguages);
   const otpCode = parseString(payload?.otpCode, { stripInnerWhitespace: true, maxLength: 24 });
   const trustDevice = parseBoolean(payload?.trustDevice);
 
@@ -54,7 +56,10 @@ export async function POST(request: Request) {
       return jsonNoStore({ error: "Missing email" }, { status: 400 });
     }
 
-    const requested = await requestLoginOtp(email, networkFingerprint);
+    const requested = await requestLoginOtp(email, networkFingerprint, {
+      lang,
+      appOrigin: new URL(request.url).origin,
+    });
     if (!requested.ok) {
       await recordSecurityAuditEvent({
         eventType: "auth.otp.request",

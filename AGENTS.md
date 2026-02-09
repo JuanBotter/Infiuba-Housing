@@ -31,9 +31,10 @@ Do not defer AGENTS updates.
 - Testing: Vitest unit tests mock DB/email/Next cache for API routes and auth helpers.
 - OTP request/verify API responses are intentionally enumeration-safe: request responses are generic for allowed/not-allowed/rate-limited outcomes, and verify failures return a generic invalid-code response for auth failures.
 - OTP abuse controls are DB-backed and layered: OTP requests are rate limited by IP/subnet/global windows, and OTP verify failures are rate limited by IP and email+IP windows.
+- OTP emails are localized using the user-selected UI language (`requestOtp` payload `lang`) and include branded HTML (two-column layout with logo panel + styled content), a one-click magic login link, and the numeric OTP code as fallback.
 - Structured security audit events are recorded for OTP request/verify and admin-sensitive actions (user access changes, review moderation, contact edit moderation, and contact edit submissions).
 - Sensitive auth/admin API responses explicitly send `Cache-Control: no-store` headers.
-- Stateful API endpoints enforce same-origin checks (Origin/Referer must match request host) to reduce CSRF risk.
+- Stateful `POST`/`DELETE` API endpoints enforce same-origin checks (Origin/Referer must match request host) to reduce CSRF risk; `GET /api/session/magic` is a token-authenticated email-link exception.
 - API request parsing/normalization is centralized in `src/lib/request-validation.ts` and reused across session/reviews/admin endpoints.
 - In production, app-wide browser hardening headers are configured (`Content-Security-Policy`, `Strict-Transport-Security`, `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`) via `next.config.mjs`.
 - Reviewer contact email handling is hardened: `/api/reviews` validates strict email format for `studentEmail` and email-like `studentContact`, and listing detail renders `mailto:` only for strict emails using URI-encoded hrefs.
@@ -58,7 +59,7 @@ Do not defer AGENTS updates.
 - Map view includes full selected-listing details (stats, owner contacts when visible by role, details link); historical reviews render before the inline per-listing review form for whitelisted/admin users.
 - When owner contacts are hidden by permissions, listing detail and map-selected panels show a small colored hint prompting login to view contact info.
 - Owner contact strings are linkified in UI (email/phone/url detection) for detail pages, map view, and review form context.
-- Whitelisted/admin users can request owner-contact updates from listing views; requests are reviewed in the admin contact edits view before applying changes.
+- Whitelisted/admin users can request owner-contact and max-students updates from listing views; requests are reviewed in the admin contact edits view before applying changes.
 - Reviewer contact info is shown under map comments when available/consented, linkifying each email and phone separately (phones open WhatsApp; emails use mailto).
 - Review rating inputs use a 5-star control with whole-star increments and start unselected (0) until the user picks a value; recommendation radio buttons also start unselected and must be chosen. Review forms use client-side validation (no native browser validation) and highlight missing required fields with inline error text plus a shared error summary. Estimated rent is required for all reviews; new listings also require owner contact info and max students. Contact fields are grouped under a contact section in review forms.
 - On mobile/narrow layouts (`<=1100px`), map mode is map-first: a horizontal property rail sits under the map, and the full results list opens as a bottom-sheet drawer with backdrop.
@@ -107,6 +108,7 @@ Do not defer AGENTS updates.
 - `OTP_EMAIL_PROVIDER`: OTP delivery provider (`brevo`, `resend`, or `console`; defaults to `console` in non-production when unset).
 - `OTP_CONSOLE_ONLY_EMAIL`: optional single email forced to console OTP delivery (skips provider send); defaults to `mock@email.com` in non-production when unset.
 - `OTP_FROM_EMAIL`: optional provider-agnostic sender identity fallback (`Name <email@domain>`).
+- `OTP_LOGO_URL`: optional absolute public URL for OTP email logo rendering (recommended when using deployment protection/proxies); if unset, app uses `${origin}/infiuba-logo.png`.
 - `BREVO_API_KEY`: required when `OTP_EMAIL_PROVIDER=brevo`.
 - `BREVO_FROM_EMAIL`: sender identity for Brevo OTP emails.
 - `RESEND_API_KEY`: required when `OTP_EMAIL_PROVIDER=resend`.
@@ -143,7 +145,7 @@ Implementation:
 - For `otp` sessions, role is revalidated against `users` on read; missing users resolve to `visitor`.
 - Session API:
   - `POST /api/session` with:
-    - `{ action: "requestOtp", email }` to send OTP, then
+    - `{ action: "requestOtp", email, lang? }` to send OTP, then
     - `{ action: "verifyOtp", email, otpCode, trustDevice }` to sign in.
     - Verify path sets signed role cookie.
     - `requestOtp` intentionally returns a generic success payload for most auth-related outcomes to reduce account enumeration.
@@ -151,9 +153,10 @@ Implementation:
     - OTP abuse throttling uses request network fingerprints derived from proxy headers (`x-forwarded-for`, `cf-connecting-ip`, `x-real-ip`, `forwarded`).
     - OTP request/verify outcomes are logged to `security_audit_events` (with redacted email display and hashed network keys).
     - Session API responses are returned with `Cache-Control: no-store`.
+  - `GET /api/session/magic?token=<otp-link-token>&lang=<lang>` verifies one-click OTP link tokens, sets the signed role cookie on success, records OTP verify audit events, and redirects to `/{lang}`.
   - `DELETE /api/session` -> logout (clears cookie).
   - `GET /api/session` -> current resolved role (DB-validated for cookie-backed sessions).
-  - `POST /api/session` is the only sign-in path (OTP).
+  - Sign-in paths are OTP-only: `POST /api/session` (`verifyOtp`) and one-click OTP magic links via `GET /api/session/magic`.
 
 User access management:
 
@@ -182,7 +185,7 @@ Seed/import tooling:
 
 ## Database Schema (Current)
 
-Defined in `migrations/20260206090000000_initial_schema.sql`, `migrations/20260206090100000_otp_rate_limit_buckets.sql`, `migrations/20260206090200000_listing_contact_length_limit.sql`, `migrations/20260206090300000_dataset_meta_bootstrap.sql`, `migrations/20260206090400000_drop_legacy_invites.sql`, `migrations/20260206090500000_security_audit_events.sql`, and `migrations/20260207090000000_contact_edit_requests.sql` (applied via node-pg-migrate; rollback behavior documented in `migrations/ROLLBACK_POLICY.md`).
+Defined in `migrations/20260206090000000_initial_schema.sql`, `migrations/20260206090100000_otp_rate_limit_buckets.sql`, `migrations/20260206090200000_listing_contact_length_limit.sql`, `migrations/20260206090300000_dataset_meta_bootstrap.sql`, `migrations/20260206090400000_drop_legacy_invites.sql`, `migrations/20260206090500000_security_audit_events.sql`, `migrations/20260207090000000_contact_edit_requests.sql`, and `migrations/20260208090000000_contact_edit_capacity.sql` (applied via node-pg-migrate; rollback behavior documented in `migrations/ROLLBACK_POLICY.md`).
 
 Finite-state fields use PostgreSQL enums:
 
@@ -231,6 +234,8 @@ Finite-state fields use PostgreSQL enums:
 - `requester_email TEXT NOT NULL`
 - `requested_contacts TEXT[] NOT NULL`
 - `current_contacts TEXT[] NOT NULL`
+- `requested_capacity NUMERIC`
+- `current_capacity NUMERIC`
 - `status contact_edit_status_enum NOT NULL DEFAULT 'pending'`
 - `created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`
 - `reviewed_at TIMESTAMPTZ`
@@ -337,7 +342,7 @@ Indexes:
 - `idx_reviews_listing_status ON reviews(listing_id, status, source)`
 - `idx_reviews_status_created ON reviews(status, created_at DESC)`
 
-Integrity hardening (enforced in `migrations/20260206090000000_initial_schema.sql`, `migrations/20260206090100000_otp_rate_limit_buckets.sql`, `migrations/20260206090200000_listing_contact_length_limit.sql`, `migrations/20260206090300000_dataset_meta_bootstrap.sql`, `migrations/20260206090400000_drop_legacy_invites.sql`, `migrations/20260206090500000_security_audit_events.sql`, and `migrations/20260207090000000_contact_edit_requests.sql`):
+Integrity hardening (enforced in `migrations/20260206090000000_initial_schema.sql`, `migrations/20260206090100000_otp_rate_limit_buckets.sql`, `migrations/20260206090200000_listing_contact_length_limit.sql`, `migrations/20260206090300000_dataset_meta_bootstrap.sql`, `migrations/20260206090400000_drop_legacy_invites.sql`, `migrations/20260206090500000_security_audit_events.sql`, `migrations/20260207090000000_contact_edit_requests.sql`, and `migrations/20260208090000000_contact_edit_capacity.sql`):
 
 - Non-empty checks for core text identifiers (`users.email`, `deleted_users.email`, `auth_email_otps.email`, listing address/neighborhood, listing contact).
 - Numeric range checks for ratings, recommendation rates, coordinates, and year fields.
@@ -347,7 +352,7 @@ Integrity hardening (enforced in `migrations/20260206090000000_initial_schema.sq
 - Rate-limit bucket consistency (`scope`/`bucket_key_hash` non-empty, `window_seconds > 0`, `hits >= 0`).
 - Security audit event consistency (`event_type`/`outcome` non-empty).
 - Listing contact length control (`listing_contacts.contact` <= 180 for new/updated rows).
-- Contact edit requests enforce non-empty requester emails and at least one requested contact.
+- Contact edit requests enforce non-empty requester emails and at least one requested field (contacts or max students); requested/current capacity values must be null or > 0.
 - `dataset_meta` bootstrap row (`id=1`) is created if missing via migration.
 - Legacy invite DB artifacts (`auth_invites`, `invite_consumed_reason_enum`) are dropped by migration.
 - Legacy-row normalization before constraints are applied (trim/canonicalize emails, null-out invalid ranges, dedupe users by case-insensitive email).
@@ -438,6 +443,8 @@ Must remain true:
 - Security audit event writer: `src/lib/security-audit.ts`
 - Security telemetry snapshot builder: `src/lib/security-telemetry.ts`
 - OTP mail delivery helper: `src/lib/otp-mailer.ts`
+- OTP magic-link verifier route: `src/app/api/session/magic/route.ts`
+- OTP email logo asset: `public/infiuba-logo.png` (sourced from `assets/infiuba color 1.png`; PNG is used for broad email-client compatibility). OTP logo URL can be overridden with `OTP_LOGO_URL`.
 - Data access: `src/lib/data.ts`
 - Reviews store: `src/lib/reviews-store.ts`
 - Messages/i18n: `src/i18n/messages.ts`

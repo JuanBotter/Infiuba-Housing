@@ -1,3 +1,5 @@
+import type { Lang } from "@/types";
+
 const RESEND_API_URL = "https://api.resend.com/emails";
 const BREVO_API_URL = "https://api.brevo.com/v3/smtp/email";
 const DEFAULT_DEV_CONSOLE_ONLY_EMAIL = "mock@email.com";
@@ -8,6 +10,9 @@ export interface SendLoginOtpInput {
   email: string;
   code: string;
   expiresMinutes: number;
+  lang?: Lang;
+  magicLinkUrl?: string;
+  logoUrl?: string;
 }
 
 export type SendLoginOtpResult =
@@ -54,26 +59,171 @@ function shouldForceConsoleDelivery(email: string) {
   return normalizeEmail(email) === consoleOnlyEmail;
 }
 
+function escapeHtml(value: string) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+interface OtpEmailCopy {
+  subjectPrefix: string;
+  heading: string;
+  magicLinkCta: string;
+  magicLinkHint: string;
+  codeLabel: string;
+  expiresText: string;
+  ignoreText: string;
+  signature: string;
+}
+
+function buildOtpEmailCopy(lang: Lang | undefined, expiresMinutes: number): OtpEmailCopy {
+  switch (lang) {
+    case "es":
+      return {
+        subjectPrefix: "Tu código de acceso de Infiuba Housing",
+        heading: "Usá este link para iniciar sesión con un clic:",
+        magicLinkCta: "Entrar ahora",
+        magicLinkHint: "Este link es válido una sola vez.",
+        codeLabel: "Si el link no funciona, usá este código:",
+        expiresText: `Este código vence en ${expiresMinutes} minutos.`,
+        ignoreText: "Si no solicitaste este código, podés ignorar este email.",
+        signature: "Infiuba Housing Hub",
+      };
+    case "fr":
+      return {
+        subjectPrefix: "Votre code d'accès Infiuba Housing",
+        heading: "Utilisez ce lien pour vous connecter en un clic :",
+        magicLinkCta: "Se connecter",
+        magicLinkHint: "Ce lien est valable une seule fois.",
+        codeLabel: "Si le lien ne fonctionne pas, utilisez ce code :",
+        expiresText: `Ce code expire dans ${expiresMinutes} minutes.`,
+        ignoreText: "Si vous n'avez pas demandé ce code, vous pouvez ignorer cet e-mail.",
+        signature: "Infiuba Housing Hub",
+      };
+    case "de":
+      return {
+        subjectPrefix: "Dein Infiuba Housing Zugangscode",
+        heading: "Verwende diesen Link für die Anmeldung mit einem Klick:",
+        magicLinkCta: "Jetzt anmelden",
+        magicLinkHint: "Dieser Link ist nur einmal gültig.",
+        codeLabel: "Wenn der Link nicht funktioniert, nutze diesen Code:",
+        expiresText: `Dieser Code läuft in ${expiresMinutes} Minuten ab.`,
+        ignoreText: "Wenn du diesen Code nicht angefordert hast, kannst du diese E-Mail ignorieren.",
+        signature: "Infiuba Housing Hub",
+      };
+    case "pt":
+      return {
+        subjectPrefix: "Seu código de acesso do Infiuba Housing",
+        heading: "Use este link para entrar com um clique:",
+        magicLinkCta: "Entrar agora",
+        magicLinkHint: "Este link é válido apenas uma vez.",
+        codeLabel: "Se o link não funcionar, use este código:",
+        expiresText: `Este código expira em ${expiresMinutes} minutos.`,
+        ignoreText: "Se você não solicitou este código, pode ignorar este e-mail.",
+        signature: "Infiuba Housing Hub",
+      };
+    case "it":
+      return {
+        subjectPrefix: "Il tuo codice di accesso Infiuba Housing",
+        heading: "Usa questo link per accedere con un clic:",
+        magicLinkCta: "Accedi ora",
+        magicLinkHint: "Questo link è valido una sola volta.",
+        codeLabel: "Se il link non funziona, usa questo codice:",
+        expiresText: `Questo codice scade tra ${expiresMinutes} minuti.`,
+        ignoreText: "Se non hai richiesto questo codice, puoi ignorare questa email.",
+        signature: "Infiuba Housing Hub",
+      };
+    case "no":
+      return {
+        subjectPrefix: "Din tilgangskode for Infiuba Housing",
+        heading: "Bruk denne lenken for å logge inn med ett klikk:",
+        magicLinkCta: "Logg inn nå",
+        magicLinkHint: "Denne lenken kan bare brukes én gang.",
+        codeLabel: "Hvis lenken ikke fungerer, bruk denne koden:",
+        expiresText: `Denne koden utløper om ${expiresMinutes} minutter.`,
+        ignoreText: "Hvis du ikke ba om denne koden, kan du ignorere denne e-posten.",
+        signature: "Infiuba Housing Hub",
+      };
+    case "en":
+    default:
+      return {
+        subjectPrefix: "Your Infiuba Housing access code",
+        heading: "Use this link to sign in with one click:",
+        magicLinkCta: "Sign in now",
+        magicLinkHint: "This link can only be used once.",
+        codeLabel: "If the link does not work, use this code:",
+        expiresText: `This code expires in ${expiresMinutes} minutes.`,
+        ignoreText: "If you did not request this code, you can safely ignore this email.",
+        signature: "Infiuba Housing Hub",
+      };
+  }
+}
+
 function buildOtpEmailContent(input: SendLoginOtpInput) {
-  const subject = `Your Infiuba Housing access code: ${input.code}`;
+  const copy = buildOtpEmailCopy(input.lang, input.expiresMinutes);
+  const subject = `${copy.subjectPrefix}: ${input.code}`;
+  const code = escapeHtml(input.code);
+  const magicLink = input.magicLinkUrl ? escapeHtml(input.magicLinkUrl) : "";
+  const logoUrl = input.logoUrl ? escapeHtml(input.logoUrl) : "";
+
+  const textParts = [
+    `${copy.codeLabel} ${input.code}`,
+    copy.expiresText,
+  ];
+
+  if (input.magicLinkUrl) {
+    textParts.unshift(copy.magicLinkHint);
+    textParts.unshift(input.magicLinkUrl);
+    textParts.unshift(copy.heading);
+  }
+
   const text = [
-    `Your one-time access code is: ${input.code}`,
-    `This code expires in ${input.expiresMinutes} minutes.`,
+    ...textParts,
     "",
-    "If you did not request this code, you can safely ignore this email.",
+    copy.ignoreText,
     "",
-    "Infiuba Housing Hub",
+    copy.signature,
   ].join("\n");
 
+  const contentColumnOpen = logoUrl
+    ? "      <td style=\"width:62%;vertical-align:top;padding:0 16px 0 0;\">"
+    : "      <td style=\"vertical-align:top;padding:0;\">";
+  const logoColumn = logoUrl
+    ? `      <td style="width:38%;vertical-align:top;padding:0 0 0 16px;text-align:right;">
+        <img src="${logoUrl}" alt="Infiuba Housing Hub" width="220" style="display:block;width:100%;max-width:220px;height:auto;max-height:220px;border:0;outline:none;text-decoration:none;margin-left:auto;" />
+      </td>`
+    : "";
+
   const html = [
-    "<div style=\"font-family:Arial,sans-serif;line-height:1.6;color:#0f172a;\">",
-    "  <p>Your one-time access code is:</p>",
-    `  <p style=\"font-size:28px;font-weight:700;letter-spacing:0.22em;margin:8px 0 14px;\">${input.code}</p>`,
-    `  <p>This code expires in <strong>${input.expiresMinutes} minutes</strong>.</p>`,
-    "  <p>If you did not request this code, you can safely ignore this email.</p>",
-    "  <p style=\"margin-top:18px;\">Infiuba Housing Hub</p>",
+    "<div style=\"font-family:'Avenir Next',Avenir,'Segoe UI',Arial,sans-serif;line-height:1.6;color:#0f172a;max-width:560px;margin:0 auto;padding:20px 18px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;\">",
+    "  <table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"border-collapse:collapse;table-layout:fixed;\">",
+    "    <tr>",
+    contentColumnOpen,
+    logoUrl ? "" : `  <p style="margin:0 0 16px;font-size:18px;font-weight:700;color:#0f172a;">${copy.signature}</p>`,
+    input.magicLinkUrl
+      ? `  <p style="margin:0 0 10px;">${escapeHtml(copy.heading)}</p>`
+      : "",
+    input.magicLinkUrl
+      ? `  <p style="margin:0 0 10px;"><a href="${magicLink}" style="display:inline-block;padding:10px 16px;background:#0f172a;color:#ffffff;text-decoration:none;border-radius:10px;font-weight:600;">${escapeHtml(copy.magicLinkCta)}</a></p>`
+      : "",
+    input.magicLinkUrl
+      ? `  <p style="margin:0 0 16px;color:#475569;font-size:13px;">${escapeHtml(copy.magicLinkHint)}</p>`
+      : "",
+    `  <p style="margin:0 0 4px;">${escapeHtml(copy.codeLabel)}</p>`,
+    `  <p style="font-size:28px;font-weight:700;letter-spacing:0.24em;margin:8px 0 12px;">${code}</p>`,
+    `  <p style="margin:0 0 12px;">${escapeHtml(copy.expiresText)}</p>`,
+    `  <p style="margin:0 0 6px;color:#64748b;font-size:13px;">${escapeHtml(copy.ignoreText)}</p>`,
+    "      </td>",
+    logoColumn,
+    "    </tr>",
+    "  </table>",
     "</div>",
-  ].join("\n");
+  ]
+    .filter(Boolean)
+    .join("\n");
 
   return { subject, text, html };
 }

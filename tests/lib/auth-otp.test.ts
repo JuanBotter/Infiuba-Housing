@@ -13,6 +13,7 @@ vi.mock("@/lib/otp-mailer", () => ({
 
 let requestLoginOtp: typeof import("@/lib/auth").requestLoginOtp;
 let verifyLoginOtp: typeof import("@/lib/auth").verifyLoginOtp;
+let resolveOtpMagicLinkToken: typeof import("@/lib/auth").resolveOtpMagicLinkToken;
 let mockedDb: typeof import("@/lib/db");
 let mockedMailer: typeof import("@/lib/otp-mailer");
 
@@ -20,6 +21,7 @@ beforeAll(async () => {
   const auth = await import("@/lib/auth");
   requestLoginOtp = auth.requestLoginOtp;
   verifyLoginOtp = auth.verifyLoginOtp;
+  resolveOtpMagicLinkToken = auth.resolveOtpMagicLinkToken;
   mockedDb = vi.mocked(await import("@/lib/db"));
   mockedMailer = vi.mocked(await import("@/lib/otp-mailer"));
 });
@@ -403,5 +405,47 @@ describe("auth OTP flow", () => {
     if (result.ok) {
       expect(result.role).toBe("admin");
     }
+  });
+
+  it("resolves valid OTP magic-link token", () => {
+    const secret = process.env.AUTH_SECRET || "test-secret";
+    const payload = Buffer.from(
+      JSON.stringify({
+        v: "v1",
+        email: "Student@Example.com",
+        code: "123456",
+        exp: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
+      }),
+      "utf8",
+    ).toString("base64url");
+    const signature = createHmac("sha256", secret)
+      .update(`otp_magic_link|${payload}`)
+      .digest("hex");
+
+    const result = resolveOtpMagicLinkToken(`${payload}.${signature}`);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.email).toBe("student@example.com");
+      expect(result.otpCode).toBe("123456");
+    }
+  });
+
+  it("rejects expired OTP magic-link token", () => {
+    const secret = process.env.AUTH_SECRET || "test-secret";
+    const payload = Buffer.from(
+      JSON.stringify({
+        v: "v1",
+        email: "student@example.com",
+        code: "123456",
+        exp: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
+      }),
+      "utf8",
+    ).toString("base64url");
+    const signature = createHmac("sha256", secret)
+      .update(`otp_magic_link|${payload}`)
+      .digest("hex");
+
+    const result = resolveOtpMagicLinkToken(`${payload}.${signature}`);
+    expect(result.ok).toBe(false);
   });
 });

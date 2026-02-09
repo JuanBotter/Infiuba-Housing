@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 
 import { dbQuery, isDatabaseEnabled, withTransaction } from "@/lib/db";
 import { sendLoginOtp } from "@/lib/otp-mailer";
-import type { AuthMethod, UserRole } from "@/types";
+import type { AuthMethod, Lang, UserRole } from "@/types";
 
 export const ROLE_COOKIE_NAME = "infiuba_role";
 
@@ -30,6 +30,9 @@ const OTP_RATE_LIMIT_SCOPE_REQUEST_SUBNET = "otp_request_subnet";
 const OTP_RATE_LIMIT_SCOPE_REQUEST_GLOBAL = "otp_request_global";
 const OTP_RATE_LIMIT_SCOPE_VERIFY_FAILURE_IP = "otp_verify_failure_ip";
 const OTP_RATE_LIMIT_SCOPE_VERIFY_FAILURE_EMAIL_IP = "otp_verify_failure_email_ip";
+const OTP_MAGIC_LINK_VERSION = "v1";
+const OTP_MAGIC_LINK_SIGNING_CONTEXT = "otp_magic_link";
+const OTP_LOGO_CACHE_BUST_VERSION = "20260209";
 const AUTH_SECRET_MIN_LENGTH = 32;
 const AUTH_SECRET_WEAK_VALUES = new Set([
   "replace-with-a-long-random-secret",
@@ -127,6 +130,11 @@ export interface OtpRateLimitContext {
   subnetKey?: string;
 }
 
+export interface RequestLoginOtpOptions {
+  lang?: Lang;
+  appOrigin?: string;
+}
+
 export interface AuthSession {
   role: UserRole;
   authMethod?: AuthMethod;
@@ -184,6 +192,120 @@ function normalizeOtpCode(value: string) {
 
 function isValidOtpCode(value: string) {
   return new RegExp(`^[0-9]{${OTP_CODE_LENGTH}}$`).test(value);
+}
+
+function resolveAppOrigin(value: string | undefined) {
+  const candidate = value?.trim();
+  if (!candidate) {
+    return "";
+  }
+
+  try {
+    const parsed = new URL(candidate);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      return "";
+    }
+    return parsed.origin;
+  } catch {
+    return "";
+  }
+}
+
+function createOtpMagicLinkToken(email: string, code: string, expiresAt: string) {
+  const payload = JSON.stringify({
+    v: OTP_MAGIC_LINK_VERSION,
+    email: normalizeEmail(email),
+    code: normalizeOtpCode(code),
+    exp: expiresAt,
+  });
+  const encodedPayload = Buffer.from(payload, "utf8").toString("base64url");
+  const signature = sign(`${OTP_MAGIC_LINK_SIGNING_CONTEXT}|${encodedPayload}`);
+  return `${encodedPayload}.${signature}`;
+}
+
+function appendVersionQuery(rawUrl: string, version: string) {
+  try {
+    const parsed = new URL(rawUrl);
+    if (!parsed.searchParams.has("v")) {
+      parsed.searchParams.set("v", version);
+    }
+    return parsed.toString();
+  } catch {
+    return rawUrl;
+  }
+}
+
+function resolveOtpLogoUrl(appOrigin: string) {
+  const configured = process.env.OTP_LOGO_URL?.trim();
+  if (configured) {
+    try {
+      const parsed = new URL(configured);
+      if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+        return appendVersionQuery(parsed.toString(), OTP_LOGO_CACHE_BUST_VERSION);
+      }
+    } catch {
+      // Ignore invalid configured logo URL and fall back to app-hosted public asset.
+    }
+  }
+
+  if (!appOrigin) {
+    return undefined;
+  }
+
+  return appendVersionQuery(`${appOrigin}/infiuba-logo.png`, OTP_LOGO_CACHE_BUST_VERSION);
+}
+
+export function resolveOtpMagicLinkToken(
+  token: string,
+): { ok: true; email: string; otpCode: string } | { ok: false } {
+  const trimmed = token.trim();
+  const separatorIndex = trimmed.lastIndexOf(".");
+  if (!trimmed || separatorIndex < 0) {
+    return { ok: false };
+  }
+
+  const encodedPayload = trimmed.slice(0, separatorIndex);
+  const providedSignature = trimmed.slice(separatorIndex + 1);
+  if (!encodedPayload || !providedSignature) {
+    return { ok: false };
+  }
+
+  const expectedSignature = sign(`${OTP_MAGIC_LINK_SIGNING_CONTEXT}|${encodedPayload}`);
+  if (!safeEqual(expectedSignature, providedSignature)) {
+    return { ok: false };
+  }
+
+  try {
+    const parsed = JSON.parse(Buffer.from(encodedPayload, "base64url").toString("utf8")) as {
+      v?: unknown;
+      email?: unknown;
+      code?: unknown;
+      exp?: unknown;
+    };
+
+    if (parsed.v !== OTP_MAGIC_LINK_VERSION) {
+      return { ok: false };
+    }
+
+    const email = typeof parsed.email === "string" ? normalizeEmail(parsed.email) : "";
+    const otpCode = typeof parsed.code === "string" ? normalizeOtpCode(parsed.code) : "";
+    const expiresAt = typeof parsed.exp === "string" ? new Date(parsed.exp).getTime() : Number.NaN;
+
+    if (!isLikelyEmail(email) || !isValidOtpCode(otpCode) || Number.isNaN(expiresAt)) {
+      return { ok: false };
+    }
+    if (expiresAt <= Date.now()) {
+      return { ok: false };
+    }
+
+    return {
+      ok: true,
+      email,
+      otpCode,
+    };
+  } catch {
+    return { ok: false };
+  }
 }
 
 function normalizeDateToIsoString(value: string | Date) {
@@ -608,6 +730,7 @@ export async function getRoleFromRequestAsync(request: Request) {
 export async function requestLoginOtp(
   email: string,
   rateLimitContext?: OtpRateLimitContext,
+  options?: RequestLoginOtpOptions,
 ): Promise<
   | { ok: true; email: string; expiresAt: string }
   | {
@@ -729,10 +852,22 @@ export async function requestLoginOtp(
       return inserted.rows[0];
     });
 
+    const expiresAt = normalizeDateToIsoString(createdOtp.expires_at);
+    const preferredLang = options?.lang || "es";
+    const appOrigin = resolveAppOrigin(options?.appOrigin);
+    const magicLinkToken = createOtpMagicLinkToken(normalizedEmail, code, expiresAt);
+    const magicLinkUrl = appOrigin
+      ? `${appOrigin}/api/session/magic?token=${encodeURIComponent(magicLinkToken)}&lang=${preferredLang}`
+      : undefined;
+    const logoUrl = resolveOtpLogoUrl(appOrigin);
+
     const delivery = await sendLoginOtp({
       email: normalizedEmail,
       code,
       expiresMinutes: OTP_EXPIRY_MINUTES,
+      lang: preferredLang,
+      magicLinkUrl,
+      logoUrl,
     });
 
     if (!delivery.ok) {
@@ -757,7 +892,7 @@ export async function requestLoginOtp(
     return {
       ok: true,
       email: normalizedEmail,
-      expiresAt: normalizeDateToIsoString(createdOtp.expires_at),
+      expiresAt,
     };
   } catch (error) {
     if (isMissingOtpStorageError(error)) {

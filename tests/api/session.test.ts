@@ -106,6 +106,27 @@ describe("/api/session", () => {
     expect(payload.email).toBe("student@example.com");
   });
 
+  it("passes requestOtp language and origin context", async () => {
+    mockedAuth.requestLoginOtp.mockResolvedValueOnce({
+      ok: true,
+      email: "student@example.com",
+      expiresAt: "2026-02-01T00:00:00.000Z",
+    });
+
+    const response = await POST(
+      buildRequest({ action: "requestOtp", email: "student@example.com", lang: "fr" }),
+    );
+    expect(response.status).toBe(200);
+    expect(mockedAuth.requestLoginOtp).toHaveBeenCalledWith(
+      "student@example.com",
+      expect.any(Object),
+      {
+        lang: "fr",
+        appOrigin: "http://localhost",
+      },
+    );
+  });
+
   it("returns 200 when verifyOtp succeeds", async () => {
     mockedAuth.verifyLoginOtp.mockResolvedValueOnce({
       ok: true,
