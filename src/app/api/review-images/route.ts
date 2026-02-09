@@ -14,6 +14,29 @@ import {
 
 export const runtime = "nodejs";
 
+function resolveBlobUploadPrefix() {
+  const raw = process.env.BLOB_UPLOAD_PREFIX;
+  if (typeof raw !== "string") {
+    return "";
+  }
+
+  const normalized = raw
+    .trim()
+    .split("/")
+    .map((segment) =>
+      segment
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9_-]/g, "-")
+        .replace(/-+/g, "-")
+        .replace(/^-+|-+$/g, ""),
+    )
+    .filter(Boolean)
+    .join("/");
+
+  return normalized;
+}
+
 function parseUploadFiles(formData: FormData) {
   const all = formData.getAll("files");
   const files: File[] = [];
@@ -82,10 +105,13 @@ export async function POST(request: Request) {
   }
 
   try {
+    const uploadPrefix = resolveBlobUploadPrefix();
+    const storageRoot = uploadPrefix ? `${uploadPrefix}/reviews` : "reviews";
+
     const uploaded = await Promise.all(
       files.map(async (file) => {
         const safeName = sanitizeImageFileName(file.name);
-        const pathname = `reviews/${new Date().toISOString().slice(0, 10)}/${randomUUID()}-${safeName}`;
+        const pathname = `${storageRoot}/${new Date().toISOString().slice(0, 10)}/${randomUUID()}-${safeName}`;
         const result = await put(pathname, file, {
           access: "public",
           addRandomSuffix: false,

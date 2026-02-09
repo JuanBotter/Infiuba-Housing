@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
+import { ImageGalleryViewer } from "@/components/image-gallery-viewer";
 import { getLocaleForLang } from "@/lib/format";
 import { getMessages } from "@/lib/i18n";
 import type { ApprovedWebReview, Lang, PendingWebReview } from "@/types";
@@ -117,13 +118,11 @@ export function ReviewsPanel({ lang, listingMap }: ReviewsPanelProps) {
                 </p>
                 <p>{review.comment}</p>
                 {review.imageUrls?.length ? (
-                  <div className="review-image-grid">
-                    {review.imageUrls.map((url, index) => (
-                      <a key={`${review.id}-${url}-${index}`} href={url} target="_blank" rel="noreferrer">
-                        <img src={url} alt={`Pending review image ${index + 1}`} loading="lazy" />
-                      </a>
-                    ))}
-                  </div>
+                  <ImageGalleryViewer
+                    images={review.imageUrls}
+                    altBase="Pending review image"
+                    ariaLabel="Pending review photos"
+                  />
                 ) : null}
                 <div className="moderation-actions">
                   <button
@@ -163,13 +162,11 @@ export function ReviewsPanel({ lang, listingMap }: ReviewsPanelProps) {
                 </p>
                 <p>{review.comment}</p>
                 {review.imageUrls?.length ? (
-                  <div className="review-image-grid">
-                    {review.imageUrls.map((url, index) => (
-                      <a key={`${review.id}-${url}-${index}`} href={url} target="_blank" rel="noreferrer">
-                        <img src={url} alt={`Approved review image ${index + 1}`} loading="lazy" />
-                      </a>
-                    ))}
-                  </div>
+                  <ImageGalleryViewer
+                    images={review.imageUrls}
+                    altBase="Approved review image"
+                    ariaLabel="Approved review photos"
+                  />
                 ) : null}
               </li>
             ))}

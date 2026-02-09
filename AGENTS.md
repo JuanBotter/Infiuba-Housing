@@ -23,6 +23,7 @@ Do not defer AGENTS updates.
 - Typography: unified sans-serif stack for headings and body (`Avenir Next` fallback stack).
 - Core domain: listings, owner contacts, survey reviews, web reviews with moderation, multilingual review text, and review-level rent history.
 - Listings and reviews support photo galleries backed by Vercel Blob uploads (`image_urls` arrays in DB). Review submission supports image upload with server-side MIME/size/count validation.
+- Listing detail/admin galleries and review-form upload previews use an in-page image viewer (body-portal modal/lightbox with keyboard + thumbnail navigation) instead of opening images in a new tab; property galleries use a uniform same-size tile layout, and gallery/viewer frames use fixed-size layouts so image display size is consistent regardless of source resolution.
 - Auth/login: email OTP in top-bar access menu; only active users present in `users` can sign in; login email field is required (label does not say optional).
 - Review submission requires a semester string in the format `1C-YYYY`/`2C-YYYY` from 2022–2030. UI uses a required text input with suggestions; API validates against the fixed list.
 - `AUTH_SECRET` is required in production for auth signing; production rejects missing/weak values (minimum length and non-placeholder).
@@ -111,6 +112,7 @@ Do not defer AGENTS updates.
 - `OTP_FROM_EMAIL`: optional provider-agnostic sender identity fallback (`Name <email@domain>`).
 - `OTP_LOGO_URL`: optional absolute public URL for OTP email logo rendering (recommended when using deployment protection/proxies); if unset, app uses `${origin}/infiuba-logo.png`.
 - `BLOB_READ_WRITE_TOKEN`: required for `@vercel/blob` server uploads used by `/api/review-images`.
+- `BLOB_UPLOAD_PREFIX`: optional path prefix for Blob uploads (sanitized lowercase slug path). When set, uploads are stored under `${BLOB_UPLOAD_PREFIX}/reviews/...`; when unset, uploads use `reviews/...`.
 - `BREVO_API_KEY`: required when `OTP_EMAIL_PROVIDER=brevo`.
 - `BREVO_FROM_EMAIL`: sender identity for Brevo OTP emails.
 - `RESEND_API_KEY`: required when `OTP_EMAIL_PROVIDER=resend`.
@@ -384,9 +386,10 @@ Integrity hardening (enforced in `migrations/20260206090000000_initial_schema.sq
 - Listing-level gallery images are stored in `listings.image_urls` (up to 12 URLs).
 - Review-level images are stored in `reviews.image_urls` (up to 6 URLs).
 - Upload endpoint `POST /api/review-images` is role-gated to `whitelisted`/`admin`, same-origin protected, and accepts only `jpeg`/`png`/`webp`/`gif`/`avif` with a per-file 5MB limit and max 6 files per request.
+- Blob upload path supports environment separation via optional `BLOB_UPLOAD_PREFIX` (for example `prod`, `preview`, `local`).
 - Review submit payload supports:
   - `reviewImageUrls` for all review submissions.
-  - `listingImageUrls` only when creating a new listing (rejected for existing-listing reviews).
+  - `listingImageUrls` when creating a new listing and also when reviewing an existing listing (appends to listing gallery, capped at 12 total images).
 
 ## Review and Moderation Flow
 
@@ -398,9 +401,11 @@ Submission:
 - Endpoint: `POST /api/reviews`
 - New reviews are inserted as `source='web'`, `status='pending'`
 - New-listing contact ingestion (`contacts`) enforces at most 20 entries and rejects any item longer than 180 characters.
-- New review payload supports optional `reviewImageUrls`; new listing flow additionally supports optional `listingImageUrls`.
-- Existing-listing review submissions reject `listingImageUrls`.
+- New review payload supports optional `reviewImageUrls`.
+- `listingImageUrls` is optional for both new-listing and existing-listing review submissions.
+- For existing listings, submitted `listingImageUrls` are merged into `listings.image_urls` before saving the pending review; requests are rejected if the merged listing gallery would exceed 12 images.
 - Creating a new listing through review submission revalidates public listing/dataset cache tags.
+- Existing-listing image updates through review submissions revalidate public listing cache tags.
 - Review submission validates `studentEmail` and any email-like `studentContact` with strict email rules; invalid email input is rejected.
 - Permission enforced server-side: only `whitelisted` and `admin`
 
@@ -453,6 +458,7 @@ Must remain true:
 - Request validation helpers: `src/lib/request-validation.ts`
 - Shared review payload helpers: `src/lib/review-form.ts`
 - Contact edit request UI: `src/components/contact-edit-request-form.tsx`
+- Shared image gallery/lightbox UI: `src/components/image-gallery-viewer.tsx`
 - Role/auth helpers: `src/lib/auth.ts`
 - Email/contact helpers: `src/lib/email.ts`
 - No-store response helper: `src/lib/http-cache.ts`

@@ -1,4 +1,4 @@
-import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/auth", () => ({
   canSubmitReviews: vi.fn(),
@@ -17,6 +17,7 @@ let POST: typeof import("@/app/api/review-images/route").POST;
 let mockedAuth: typeof import("@/lib/auth");
 let mockedOrigin: typeof import("@/lib/request-origin");
 let mockedBlob: typeof import("@vercel/blob");
+const previousBlobUploadPrefix = process.env.BLOB_UPLOAD_PREFIX;
 
 beforeAll(async () => {
   POST = (await import("@/app/api/review-images/route")).POST;
@@ -27,9 +28,18 @@ beforeAll(async () => {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  delete process.env.BLOB_UPLOAD_PREFIX;
   mockedOrigin.validateSameOriginRequest.mockReturnValue({ ok: true });
   mockedAuth.getRoleFromRequestAsync.mockResolvedValue("whitelisted");
   mockedAuth.canSubmitReviews.mockReturnValue(true);
+});
+
+afterAll(() => {
+  if (previousBlobUploadPrefix === undefined) {
+    delete process.env.BLOB_UPLOAD_PREFIX;
+    return;
+  }
+  process.env.BLOB_UPLOAD_PREFIX = previousBlobUploadPrefix;
 });
 
 function buildUploadRequest(files: File[]) {
@@ -102,5 +112,28 @@ describe("/api/review-images", () => {
       ],
     });
     expect(mockedBlob.put).toHaveBeenCalledTimes(2);
+    expect(mockedBlob.put).toHaveBeenCalledWith(
+      expect.stringMatching(/^reviews\/\d{4}-\d{2}-\d{2}\//),
+      expect.any(File),
+      expect.any(Object),
+    );
+  });
+
+  it("applies BLOB_UPLOAD_PREFIX to uploaded file paths", async () => {
+    process.env.BLOB_UPLOAD_PREFIX = "/Preview Stage//Infiuba/";
+    mockedBlob.put.mockResolvedValueOnce({
+      url: "https://example-blob.vercel-storage.com/reviews/img-prefixed.jpg",
+    } as never);
+
+    const response = await POST(
+      buildUploadRequest([new File(["one"], "first.jpg", { type: "image/jpeg" })]),
+    );
+
+    expect(response.status).toBe(201);
+    expect(mockedBlob.put).toHaveBeenCalledWith(
+      expect.stringMatching(/^preview-stage\/infiuba\/reviews\/\d{4}-\d{2}-\d{2}\//),
+      expect.any(File),
+      expect.any(Object),
+    );
   });
 });

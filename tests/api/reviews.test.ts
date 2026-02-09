@@ -6,6 +6,7 @@ vi.mock("@/lib/auth", () => ({
 }));
 
 vi.mock("@/lib/data", () => ({
+  appendListingImages: vi.fn(),
   createListing: vi.fn(),
   getListingById: vi.fn(),
 }));
@@ -41,6 +42,11 @@ beforeAll(async () => {
 beforeEach(() => {
   vi.clearAllMocks();
   mockedOrigin.validateSameOriginRequest.mockReturnValue({ ok: true });
+  mockedData.appendListingImages.mockResolvedValue({
+    ok: true,
+    addedCount: 0,
+    imageUrls: [],
+  } as never);
 });
 
 function buildReviewRequest(body: Record<string, unknown>) {
@@ -223,10 +229,15 @@ describe("/api/reviews", () => {
     expect(response.status).toBe(400);
   });
 
-  it("rejects listing images for existing listing reviews", async () => {
+  it("allows listing images for existing listing reviews", async () => {
     mockedAuth.getRoleFromRequestAsync.mockResolvedValueOnce("whitelisted");
     mockedAuth.canSubmitReviews.mockReturnValueOnce(true);
     mockedData.getListingById.mockResolvedValueOnce({ id: "listing-3" } as never);
+    mockedData.appendListingImages.mockResolvedValueOnce({
+      ok: true,
+      addedCount: 1,
+      imageUrls: ["https://example.com/property.jpg"],
+    } as never);
 
     const response = await POST(
       buildReviewRequest({
@@ -237,7 +248,35 @@ describe("/api/reviews", () => {
       }),
     );
 
+    expect(response.status).toBe(201);
+    expect(mockedData.appendListingImages).toHaveBeenCalledWith("listing-3", [
+      "https://example.com/property.jpg",
+    ]);
+    expect(mockedCache.revalidateTag).toHaveBeenCalledWith("public-listings", "max");
+    expect(mockedCache.revalidateTag).toHaveBeenCalledWith("public-listing:listing-3", "max");
+  });
+
+  it("rejects listing image updates that would exceed max count", async () => {
+    mockedAuth.getRoleFromRequestAsync.mockResolvedValueOnce("whitelisted");
+    mockedAuth.canSubmitReviews.mockReturnValueOnce(true);
+    mockedData.getListingById.mockResolvedValueOnce({ id: "listing-cap" } as never);
+    mockedData.appendListingImages.mockResolvedValueOnce({
+      ok: false,
+      reason: "too_many",
+      maxAllowed: 12,
+    } as never);
+
+    const response = await POST(
+      buildReviewRequest({
+        listingId: "listing-cap",
+        confirmExistingDetails: true,
+        ...baseReviewPayload,
+        listingImageUrls: ["https://example.com/photo.jpg"],
+      }),
+    );
+
     expect(response.status).toBe(400);
+    expect(mockedReviews.appendPendingReview).not.toHaveBeenCalled();
   });
 
   it("rejects mismatched latitude/longitude for new listing", async () => {

@@ -2,11 +2,11 @@ import { NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 
 import { canSubmitReviews, getRoleFromRequestAsync } from "@/lib/auth";
-import { createListing, getListingById } from "@/lib/data";
+import { appendListingImages, createListing, getListingById } from "@/lib/data";
 import { isStrictEmail, normalizeEmailInput } from "@/lib/email";
 import { asObject, parseDelimitedList, parseOptionalNumber, parseString } from "@/lib/request-validation";
 import { validateSameOriginRequest } from "@/lib/request-origin";
-import { parseListingImageUrls, parseReviewImageUrls } from "@/lib/review-images";
+import { MAX_LISTING_IMAGE_COUNT, parseListingImageUrls, parseReviewImageUrls } from "@/lib/review-images";
 import { appendPendingReview } from "@/lib/reviews-store";
 import { isValidSemester } from "@/lib/semester-options";
 
@@ -102,6 +102,7 @@ export async function POST(request: Request) {
 
     let resolvedListingId = listingId;
     let createdNewListing = false;
+    let updatedExistingListingImages = false;
     if (listingId) {
       const listing = await getListingById(listingId);
       if (!listing) {
@@ -121,10 +122,17 @@ export async function POST(request: Request) {
         );
       }
       if (parsedListingImageUrls.urls.length > 0) {
-        return NextResponse.json(
-          { error: "Listing images can only be submitted when creating a new listing" },
-          { status: 400 },
-        );
+        const imageAppendResult = await appendListingImages(listingId, parsedListingImageUrls.urls);
+        if (!imageAppendResult.ok) {
+          if (imageAppendResult.reason === "too_many") {
+            return NextResponse.json(
+              { error: `A listing can include at most ${MAX_LISTING_IMAGE_COUNT} images` },
+              { status: 400 },
+            );
+          }
+          return NextResponse.json({ error: "Invalid listingId" }, { status: 400 });
+        }
+        updatedExistingListingImages = imageAppendResult.addedCount > 0;
       }
     } else {
       const address = parseString(payload?.address, { maxLength: 180 });
@@ -204,6 +212,9 @@ export async function POST(request: Request) {
       revalidateTag("public-listings", "max");
       revalidateTag("public-neighborhoods", "max");
       revalidateTag("public-dataset-meta", "max");
+    } else if (updatedExistingListingImages) {
+      revalidateTag("public-listings", "max");
+      revalidateTag(`public-listing:${resolvedListingId}`, "max");
     }
 
     return NextResponse.json({ ok: true, listingId: resolvedListingId }, { status: 201 });

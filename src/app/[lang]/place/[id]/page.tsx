@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { ReviewComment } from "@/app/[lang]/place/[id]/review-comment";
 import { ReviewForm } from "@/app/[lang]/place/[id]/review-form";
 import { ContactEditRequestForm } from "@/components/contact-edit-request-form";
+import { ImageGalleryViewer } from "@/components/image-gallery-viewer";
 import {
   canSubmitReviews,
   canViewContactInfo,
@@ -112,13 +113,12 @@ export default async function PlaceDetailPage({ params }: PlaceDetailPageProps) 
         <p className="detail-card__eyebrow">{listing.neighborhood}</p>
         <h1>{listing.address}</h1>
         {listing.imageUrls?.length ? (
-          <div className="review-image-grid" aria-label="Property photos">
-            {listing.imageUrls.map((url, index) => (
-              <a key={`${url}-${index}`} href={url} target="_blank" rel="noreferrer">
-                <img src={url} alt={`${listing.address} photo ${index + 1}`} loading="lazy" />
-              </a>
-            ))}
-          </div>
+          <ImageGalleryViewer
+            images={listing.imageUrls}
+            altBase={`${listing.address} photo`}
+            ariaLabel="Property photos"
+            variant="property"
+          />
         ) : null}
 
         <div className="detail-card__stats">
@@ -169,12 +169,12 @@ export default async function PlaceDetailPage({ params }: PlaceDetailPageProps) 
           <p className="contact-lock-hint">{messages.ownerContactsLoginHint}</p>
         )}
         {canWriteReviews ? (
-                  <ContactEditRequestForm
-                    listingId={listing.id}
-                    currentContacts={listing.contacts}
-                    currentCapacity={listing.capacity}
-                    messages={messages}
-                  />
+          <ContactEditRequestForm
+            listingId={listing.id}
+            currentContacts={listing.contacts}
+            currentCapacity={listing.capacity}
+            messages={messages}
+          />
         ) : null}
       </article>
 
@@ -218,13 +218,11 @@ export default async function PlaceDetailPage({ params }: PlaceDetailPageProps) 
                     showTranslationLabel={messages.reviewShowTranslation}
                   />
                   {review.imageUrls?.length ? (
-                    <div className="review-image-grid">
-                      {review.imageUrls.map((url, index) => (
-                        <a key={`${review.id}-${url}-${index}`} href={url} target="_blank" rel="noreferrer">
-                          <img src={url} alt={`Review image ${index + 1}`} loading="lazy" />
-                        </a>
-                      ))}
-                    </div>
+                    <ImageGalleryViewer
+                      images={review.imageUrls}
+                      altBase="Review image"
+                      ariaLabel="Review photos"
+                    />
                   ) : null}
                   {canViewReviewerInfo && review.studentContact ? (
                     <p className="review-item__contact">

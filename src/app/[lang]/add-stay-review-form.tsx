@@ -14,6 +14,7 @@ import { MAX_LISTING_IMAGE_COUNT, MAX_REVIEW_IMAGE_COUNT } from "@/lib/review-im
 import { splitContactParts } from "@/lib/contact-links";
 import { SEMESTER_OPTIONS } from "@/lib/semester-options";
 import { StarRating } from "@/components/star-rating";
+import { ImageGalleryViewer } from "@/components/image-gallery-viewer";
 import type { Lang, Listing } from "@/types";
 
 interface AddStayReviewFormProps {
@@ -287,6 +288,9 @@ export function AddStayReviewForm({ lang, listings, neighborhoods }: AddStayRevi
       payload.neighborhood = neighborhood;
       payload.contacts = contacts;
       payload.capacity = capacity ? Number(capacity) : undefined;
+    }
+
+    if (listingImageUrls.length > 0) {
       payload.listingImageUrls = listingImageUrls;
     }
 
@@ -528,48 +532,6 @@ export function AddStayReviewForm({ lang, listings, neighborhoods }: AddStayRevi
               ) : null}
             </label>
 
-            <fieldset className="review-images property-form__full">
-              <legend>{t.formListingPhotosLabel}</legend>
-              <p className="review-images__hint">
-                {t.formPhotosHint.replace("{count}", String(MAX_LISTING_IMAGE_COUNT))}
-              </p>
-              <label className="button-link review-images__upload">
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
-                  multiple
-                  onChange={(event) => void onUploadListingImages(event)}
-                  disabled={
-                    uploadingListingImages || listingImageUrls.length >= MAX_LISTING_IMAGE_COUNT
-                  }
-                />
-                <span>
-                  {uploadingListingImages ? t.formPhotosUploading : t.formPhotosUploadButton}
-                </span>
-              </label>
-              {listingImageUrls.length > 0 ? (
-                <div className="review-image-grid">
-                  {listingImageUrls.map((url, index) => (
-                    <div key={`${url}-${index}`} className="review-image-grid__item">
-                      <a href={url} target="_blank" rel="noreferrer">
-                        <img src={url} alt={`Listing image ${index + 1}`} loading="lazy" />
-                      </a>
-                      <button
-                        type="button"
-                        className="button-link button-link--danger"
-                        onClick={() =>
-                          setListingImageUrls((previous) =>
-                            previous.filter((_, imageIndex) => imageIndex !== index),
-                          )
-                        }
-                      >
-                        {t.formPhotosRemoveButton}
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              ) : null}
-            </fieldset>
           </>
         ) : null}
 
@@ -708,6 +670,38 @@ export function AddStayReviewForm({ lang, listings, neighborhoods }: AddStayRevi
         </label>
 
         <fieldset className="review-images property-form__full">
+          <legend>{t.formListingPhotosLabel}</legend>
+          <p className="review-images__hint">
+            {t.formPhotosHint.replace("{count}", String(MAX_LISTING_IMAGE_COUNT))}
+          </p>
+          <label className="button-link review-images__upload">
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
+              multiple
+              onChange={(event) => void onUploadListingImages(event)}
+              disabled={uploadingListingImages || listingImageUrls.length >= MAX_LISTING_IMAGE_COUNT}
+            />
+            <span>
+              {uploadingListingImages ? t.formPhotosUploading : t.formPhotosUploadButton}
+            </span>
+          </label>
+          {listingImageUrls.length > 0 ? (
+            <ImageGalleryViewer
+              images={listingImageUrls}
+              altBase="Listing image"
+              ariaLabel="Selected listing images"
+              onRemoveImage={(index) =>
+                setListingImageUrls((previous) =>
+                  previous.filter((_, imageIndex) => imageIndex !== index),
+                )
+              }
+              removeLabel={t.formPhotosRemoveButton}
+            />
+          ) : null}
+        </fieldset>
+
+        <fieldset className="review-images property-form__full">
           <legend>{t.formReviewPhotosLabel}</legend>
           <p className="review-images__hint">
             {t.formPhotosHint.replace("{count}", String(MAX_REVIEW_IMAGE_COUNT))}
@@ -725,29 +719,20 @@ export function AddStayReviewForm({ lang, listings, neighborhoods }: AddStayRevi
             <span>{uploadingReviewImages ? t.formPhotosUploading : t.formPhotosUploadButton}</span>
           </label>
           {reviewDraft.imageUrls.length > 0 ? (
-            <div className="review-image-grid">
-              {reviewDraft.imageUrls.map((url, index) => (
-                <div key={`${url}-${index}`} className="review-image-grid__item">
-                  <a href={url} target="_blank" rel="noreferrer">
-                    <img src={url} alt={`Review image ${index + 1}`} loading="lazy" />
-                  </a>
-                  <button
-                    type="button"
-                    className="button-link button-link--danger"
-                    onClick={() =>
-                      setReviewDraft((previous) => ({
-                        ...previous,
-                        imageUrls: previous.imageUrls.filter(
-                          (_, imageIndex) => imageIndex !== index,
-                        ),
-                      }))
-                    }
-                  >
-                    {t.formPhotosRemoveButton}
-                  </button>
-                </div>
-              ))}
-            </div>
+            <ImageGalleryViewer
+              images={reviewDraft.imageUrls}
+              altBase="Review image"
+              ariaLabel="Selected review images"
+              onRemoveImage={(index) =>
+                setReviewDraft((previous) => ({
+                  ...previous,
+                  imageUrls: previous.imageUrls.filter(
+                    (_, imageIndex) => imageIndex !== index,
+                  ),
+                }))
+              }
+              removeLabel={t.formPhotosRemoveButton}
+            />
           ) : null}
         </fieldset>
 

@@ -3,6 +3,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { unstable_cache } from "next/cache";
 
 import { dbQuery, withTransaction } from "@/lib/db";
+import { MAX_LISTING_IMAGE_COUNT } from "@/lib/review-images";
 import { getTranslatedCommentForLanguage } from "@/lib/review-translations";
 import type { Lang, Listing, Review } from "@/types";
 
@@ -455,6 +456,77 @@ export async function createListing(input: NewListingInput) {
     );
 
     return { ok: true as const, listingId };
+  });
+}
+
+function normalizeListingImageUrls(value: unknown) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value
+    .filter((item): item is string => typeof item === "string")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+export async function appendListingImages(listingId: string, imageUrls: string[]) {
+  const normalizedIncoming = Array.from(
+    new Set(
+      imageUrls
+        .map((item) => item.trim())
+        .filter(Boolean),
+    ),
+  );
+
+  if (normalizedIncoming.length === 0) {
+    return { ok: true as const, addedCount: 0, imageUrls: [] as string[] };
+  }
+
+  return withTransaction(async (client) => {
+    const existingResult = await client.query<{ image_urls: string[] | null }>(
+      `
+        SELECT image_urls
+        FROM listings
+        WHERE id = $1
+        FOR UPDATE
+      `,
+      [listingId],
+    );
+
+    if (existingResult.rowCount === 0) {
+      return { ok: false as const, reason: "not_found" as const };
+    }
+
+    const current = normalizeListingImageUrls(existingResult.rows[0]?.image_urls);
+    const merged = [...current];
+    for (const url of normalizedIncoming) {
+      if (!merged.includes(url)) {
+        merged.push(url);
+      }
+    }
+
+    if (merged.length > MAX_LISTING_IMAGE_COUNT) {
+      return {
+        ok: false as const,
+        reason: "too_many" as const,
+        maxAllowed: MAX_LISTING_IMAGE_COUNT,
+      };
+    }
+
+    const addedCount = merged.length - current.length;
+    if (addedCount > 0) {
+      await client.query(
+        `
+          UPDATE listings
+          SET image_urls = $2::text[],
+              updated_at = NOW()
+          WHERE id = $1
+        `,
+        [listingId, merged],
+      );
+    }
+
+    return { ok: true as const, addedCount, imageUrls: merged };
   });
 }
 
