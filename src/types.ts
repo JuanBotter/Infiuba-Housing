@@ -17,6 +17,7 @@ export interface Review {
   studentContact?: string;
   studentName?: string;
   semester?: string;
+  imageUrls?: string[];
   createdAt: string;
 }
 
@@ -35,6 +36,7 @@ export interface Listing {
   recommendationRate?: number;
   totalReviews: number;
   recentYear?: number;
+  imageUrls?: string[];
   reviews: Review[];
 }
 
@@ -59,6 +61,7 @@ export interface PendingWebReview {
   studentContact?: string;
   studentEmail?: string;
   shareContactInfo?: boolean;
+  imageUrls?: string[];
   createdAt: string;
 }
 
@@ -76,6 +79,8 @@ export interface ContactEditRequest {
   requesterEmail: string;
   currentContacts: string[];
   requestedContacts: string[];
+  currentCapacity?: number;
+  requestedCapacity?: number;
   status: ContactEditStatus;
   createdAt: string;
   reviewedAt?: string;

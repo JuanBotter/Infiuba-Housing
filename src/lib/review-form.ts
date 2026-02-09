@@ -8,6 +8,7 @@ export interface ReviewDraft {
   studentContact: string;
   studentEmail: string;
   shareContactInfo: boolean;
+  imageUrls: string[];
 }
 
 export function createInitialReviewDraft(): ReviewDraft {
@@ -21,6 +22,7 @@ export function createInitialReviewDraft(): ReviewDraft {
     studentContact: "",
     studentEmail: "",
     shareContactInfo: false,
+    imageUrls: [],
   };
 }
 
@@ -37,6 +39,7 @@ export function buildReviewPayload(draft: ReviewDraft) {
     studentContact: draft.studentContact,
     studentEmail: draft.studentEmail,
     shareContactInfo: draft.shareContactInfo,
+    reviewImageUrls: draft.imageUrls,
   };
 }
 

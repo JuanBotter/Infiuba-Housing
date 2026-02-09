@@ -22,6 +22,7 @@ Do not defer AGENTS updates.
 - Theme: light/dark with persisted browser preference.
 - Typography: unified sans-serif stack for headings and body (`Avenir Next` fallback stack).
 - Core domain: listings, owner contacts, survey reviews, web reviews with moderation, multilingual review text, and review-level rent history.
+- Listings and reviews support photo galleries backed by Vercel Blob uploads (`image_urls` arrays in DB). Review submission supports image upload with server-side MIME/size/count validation.
 - Auth/login: email OTP in top-bar access menu; only active users present in `users` can sign in; login email field is required (label does not say optional).
 - Review submission requires a semester string in the format `1C-YYYY`/`2C-YYYY` from 2022–2030. UI uses a required text input with suggestions; API validates against the fixed list.
 - `AUTH_SECRET` is required in production for auth signing; production rejects missing/weak values (minimum length and non-placeholder).
@@ -109,6 +110,7 @@ Do not defer AGENTS updates.
 - `OTP_CONSOLE_ONLY_EMAIL`: optional single email forced to console OTP delivery (skips provider send); defaults to `mock@email.com` in non-production when unset.
 - `OTP_FROM_EMAIL`: optional provider-agnostic sender identity fallback (`Name <email@domain>`).
 - `OTP_LOGO_URL`: optional absolute public URL for OTP email logo rendering (recommended when using deployment protection/proxies); if unset, app uses `${origin}/infiuba-logo.png`.
+- `BLOB_READ_WRITE_TOKEN`: required for `@vercel/blob` server uploads used by `/api/review-images`.
 - `BREVO_API_KEY`: required when `OTP_EMAIL_PROVIDER=brevo`.
 - `BREVO_FROM_EMAIL`: sender identity for Brevo OTP emails.
 - `RESEND_API_KEY`: required when `OTP_EMAIL_PROVIDER=resend`.
@@ -185,7 +187,7 @@ Seed/import tooling:
 
 ## Database Schema (Current)
 
-Defined in `migrations/20260206090000000_initial_schema.sql`, `migrations/20260206090100000_otp_rate_limit_buckets.sql`, `migrations/20260206090200000_listing_contact_length_limit.sql`, `migrations/20260206090300000_dataset_meta_bootstrap.sql`, `migrations/20260206090400000_drop_legacy_invites.sql`, `migrations/20260206090500000_security_audit_events.sql`, `migrations/20260207090000000_contact_edit_requests.sql`, and `migrations/20260208090000000_contact_edit_capacity.sql` (applied via node-pg-migrate; rollback behavior documented in `migrations/ROLLBACK_POLICY.md`).
+Defined in `migrations/20260206090000000_initial_schema.sql`, `migrations/20260206090100000_otp_rate_limit_buckets.sql`, `migrations/20260206090200000_listing_contact_length_limit.sql`, `migrations/20260206090300000_dataset_meta_bootstrap.sql`, `migrations/20260206090400000_drop_legacy_invites.sql`, `migrations/20260206090500000_security_audit_events.sql`, `migrations/20260207090000000_contact_edit_requests.sql`, `migrations/20260208090000000_contact_edit_capacity.sql`, and `migrations/20260209100000000_listing_review_images.sql` (applied via node-pg-migrate; rollback behavior documented in `migrations/ROLLBACK_POLICY.md`).
 
 Finite-state fields use PostgreSQL enums:
 
@@ -216,6 +218,7 @@ Finite-state fields use PostgreSQL enums:
 - `recommendation_rate NUMERIC`
 - `total_reviews INTEGER NOT NULL DEFAULT 0`
 - `recent_year INTEGER`
+- `image_urls TEXT[] NOT NULL DEFAULT '{}'::text[]` (max 12)
 - `created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`
 - `updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`
 
@@ -264,6 +267,7 @@ Finite-state fields use PostgreSQL enums:
 - `student_email TEXT`
 - `allow_contact_sharing BOOLEAN NOT NULL DEFAULT FALSE`
 - `semester TEXT`
+- `image_urls TEXT[] NOT NULL DEFAULT '{}'::text[]` (max 6)
 - `created_at TIMESTAMPTZ NOT NULL`
 - `approved_at TIMESTAMPTZ`
 
@@ -342,7 +346,7 @@ Indexes:
 - `idx_reviews_listing_status ON reviews(listing_id, status, source)`
 - `idx_reviews_status_created ON reviews(status, created_at DESC)`
 
-Integrity hardening (enforced in `migrations/20260206090000000_initial_schema.sql`, `migrations/20260206090100000_otp_rate_limit_buckets.sql`, `migrations/20260206090200000_listing_contact_length_limit.sql`, `migrations/20260206090300000_dataset_meta_bootstrap.sql`, `migrations/20260206090400000_drop_legacy_invites.sql`, `migrations/20260206090500000_security_audit_events.sql`, `migrations/20260207090000000_contact_edit_requests.sql`, and `migrations/20260208090000000_contact_edit_capacity.sql`):
+Integrity hardening (enforced in `migrations/20260206090000000_initial_schema.sql`, `migrations/20260206090100000_otp_rate_limit_buckets.sql`, `migrations/20260206090200000_listing_contact_length_limit.sql`, `migrations/20260206090300000_dataset_meta_bootstrap.sql`, `migrations/20260206090400000_drop_legacy_invites.sql`, `migrations/20260206090500000_security_audit_events.sql`, `migrations/20260207090000000_contact_edit_requests.sql`, `migrations/20260208090000000_contact_edit_capacity.sql`, and `migrations/20260209100000000_listing_review_images.sql`):
 
 - Non-empty checks for core text identifiers (`users.email`, `deleted_users.email`, `auth_email_otps.email`, listing address/neighborhood, listing contact).
 - Numeric range checks for ratings, recommendation rates, coordinates, and year fields.
@@ -353,6 +357,7 @@ Integrity hardening (enforced in `migrations/20260206090000000_initial_schema.sq
 - Security audit event consistency (`event_type`/`outcome` non-empty).
 - Listing contact length control (`listing_contacts.contact` <= 180 for new/updated rows).
 - Contact edit requests enforce non-empty requester emails and at least one requested field (contacts or max students); requested/current capacity values must be null or > 0.
+- Listing/review image arrays enforce count caps (`listings.image_urls <= 12`, `reviews.image_urls <= 6`).
 - `dataset_meta` bootstrap row (`id=1`) is created if missing via migration.
 - Legacy invite DB artifacts (`auth_invites`, `invite_consumed_reason_enum`) are dropped by migration.
 - Legacy-row normalization before constraints are applied (trim/canonicalize emails, null-out invalid ranges, dedupe users by case-insensitive email).
@@ -374,6 +379,15 @@ Integrity hardening (enforced in `migrations/20260206090000000_initial_schema.sq
 - Seed path now writes `listings.price_usd` as `NULL` for imported listings.
 - Per-review rent remains visible in review metadata when present.
 
+## Image Data Model
+
+- Listing-level gallery images are stored in `listings.image_urls` (up to 12 URLs).
+- Review-level images are stored in `reviews.image_urls` (up to 6 URLs).
+- Upload endpoint `POST /api/review-images` is role-gated to `whitelisted`/`admin`, same-origin protected, and accepts only `jpeg`/`png`/`webp`/`gif`/`avif` with a per-file 5MB limit and max 6 files per request.
+- Review submit payload supports:
+  - `reviewImageUrls` for all review submissions.
+  - `listingImageUrls` only when creating a new listing (rejected for existing-listing reviews).
+
 ## Review and Moderation Flow
 
 Submission:
@@ -384,6 +398,8 @@ Submission:
 - Endpoint: `POST /api/reviews`
 - New reviews are inserted as `source='web'`, `status='pending'`
 - New-listing contact ingestion (`contacts`) enforces at most 20 entries and rejects any item longer than 180 characters.
+- New review payload supports optional `reviewImageUrls`; new listing flow additionally supports optional `listingImageUrls`.
+- Existing-listing review submissions reject `listingImageUrls`.
 - Creating a new listing through review submission revalidates public listing/dataset cache tags.
 - Review submission validates `studentEmail` and any email-like `studentContact` with strict email rules; invalid email input is rejected.
 - Permission enforced server-side: only `whitelisted` and `admin`
@@ -430,6 +446,7 @@ Must remain true:
 - Contact edit request API: `src/app/api/contact-edits/route.ts`
 - Admin contact edits API: `src/app/api/admin/contact-edits/route.ts`
 - Admin security telemetry API: `src/app/api/admin/security/route.ts`
+- Review image upload API: `src/app/api/review-images/route.ts`
 - App security headers config: `next.config.mjs`
 - Root layout + theme bootstrap script loader: `src/app/layout.tsx`
 - Theme bootstrap script (static, beforeInteractive): `public/theme-init.js`
@@ -445,6 +462,7 @@ Must remain true:
 - OTP mail delivery helper: `src/lib/otp-mailer.ts`
 - OTP magic-link verifier route: `src/app/api/session/magic/route.ts`
 - OTP email logo asset: `public/infiuba-logo.png` (sourced from `assets/infiuba color 1.png`; PNG is used for broad email-client compatibility). OTP logo URL can be overridden with `OTP_LOGO_URL`.
+- Review image helpers: `src/lib/review-images.ts`, `src/lib/review-image-upload.ts`
 - Data access: `src/lib/data.ts`
 - Reviews store: `src/lib/reviews-store.ts`
 - Messages/i18n: `src/i18n/messages.ts`

@@ -6,6 +6,7 @@ import { createListing, getListingById } from "@/lib/data";
 import { isStrictEmail, normalizeEmailInput } from "@/lib/email";
 import { asObject, parseDelimitedList, parseOptionalNumber, parseString } from "@/lib/request-validation";
 import { validateSameOriginRequest } from "@/lib/request-origin";
+import { parseListingImageUrls, parseReviewImageUrls } from "@/lib/review-images";
 import { appendPendingReview } from "@/lib/reviews-store";
 import { isValidSemester } from "@/lib/semester-options";
 
@@ -46,6 +47,8 @@ export async function POST(request: Request) {
     let studentEmail = parseString(payload?.studentEmail, { maxLength: 120 });
     const shareContactInfo = payload?.shareContactInfo === true;
     const submittedPriceUsd = parseOptionalNumber(payload?.priceUsd);
+    const parsedReviewImageUrls = parseReviewImageUrls(payload?.reviewImageUrls);
+    const parsedListingImageUrls = parseListingImageUrls(payload?.listingImageUrls);
 
     const rating = Number(payload?.rating);
     const recommended = payload?.recommended;
@@ -90,6 +93,12 @@ export async function POST(request: Request) {
         { status: 400 },
       );
     }
+    if (!parsedReviewImageUrls.ok) {
+      return NextResponse.json({ error: parsedReviewImageUrls.error }, { status: 400 });
+    }
+    if (!parsedListingImageUrls.ok) {
+      return NextResponse.json({ error: parsedListingImageUrls.error }, { status: 400 });
+    }
 
     let resolvedListingId = listingId;
     let createdNewListing = false;
@@ -108,6 +117,12 @@ export async function POST(request: Request) {
       if (!isLegacyPayload && confirmExistingDetails !== true) {
         return NextResponse.json(
           { error: "Please confirm property details for existing listings" },
+          { status: 400 },
+        );
+      }
+      if (parsedListingImageUrls.urls.length > 0) {
+        return NextResponse.json(
+          { error: "Listing images can only be submitted when creating a new listing" },
           { status: 400 },
         );
       }
@@ -165,6 +180,7 @@ export async function POST(request: Request) {
         capacity,
         latitude,
         longitude,
+        imageUrls: parsedListingImageUrls.urls,
       });
       resolvedListingId = created.listingId;
       createdNewListing = true;
@@ -181,6 +197,7 @@ export async function POST(request: Request) {
       studentContact: studentContact || undefined,
       studentEmail: studentEmail || undefined,
       shareContactInfo,
+      imageUrls: parsedReviewImageUrls.urls,
     });
 
     if (createdNewListing) {

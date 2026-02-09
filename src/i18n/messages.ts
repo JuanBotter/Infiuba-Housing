@@ -96,6 +96,14 @@ export const messages = {
       "If checked, we'll show your contact information only to students (never to owners/lessors) so they can ask follow-up questions.",
     formContactShareError:
       "Add an email or phone number to share contact information.",
+    formPhotosLabel: "Photos",
+    formReviewPhotosLabel: "Review photos",
+    formListingPhotosLabel: "Property photos",
+    formPhotosHint: "Upload up to {count} images.",
+    formPhotosUploadButton: "Upload photos",
+    formPhotosUploading: "Uploading...",
+    formPhotosRemoveButton: "Remove",
+    formPhotosMaxError: "You can upload up to {count} images.",
     formSubmit: "Send review",
     formSending: "Sending...",
     formSuccess:
@@ -347,6 +355,14 @@ export const messages = {
       "Si lo marcás, mostraremos tu información de contacto solo a estudiantes (nunca a dueños/arrendadores) para que puedan hacerte preguntas.",
     formContactShareError:
       "Agregá un email o teléfono para compartir tu contacto.",
+    formPhotosLabel: "Fotos",
+    formReviewPhotosLabel: "Fotos de la reseña",
+    formListingPhotosLabel: "Fotos del alojamiento",
+    formPhotosHint: "Subí hasta {count} imágenes.",
+    formPhotosUploadButton: "Subir fotos",
+    formPhotosUploading: "Subiendo...",
+    formPhotosRemoveButton: "Quitar",
+    formPhotosMaxError: "Podés subir hasta {count} imágenes.",
     formSubmit: "Enviar reseña",
     formSending: "Enviando...",
     formSuccess:
@@ -598,6 +614,14 @@ export const messages = {
       "Si coché, vos informations de contact seront visibles uniquement par des étudiants (jamais par des propriétaires/bailleurs) pour répondre à d'éventuelles questions.",
     formContactShareError:
       "Ajoutez un e-mail ou un téléphone pour partager vos coordonnées.",
+    formPhotosLabel: "Photos",
+    formReviewPhotosLabel: "Photos de l'avis",
+    formListingPhotosLabel: "Photos du logement",
+    formPhotosHint: "Ajoutez jusqu'à {count} images.",
+    formPhotosUploadButton: "Ajouter des photos",
+    formPhotosUploading: "Téléversement...",
+    formPhotosRemoveButton: "Retirer",
+    formPhotosMaxError: "Vous pouvez ajouter jusqu'à {count} images.",
     formSubmit: "Envoyer l'avis",
     formSending: "Envoi...",
     formSuccess:
@@ -853,6 +877,14 @@ export const messages = {
       "Wenn aktiviert, zeigen wir deine Kontaktinformationen nur Studierenden (niemals Eigentümern/Vermietern), damit sie Rückfragen stellen können.",
     formContactShareError:
       "Füge eine E-Mail oder Telefonnummer hinzu, um Kontaktinformationen zu teilen.",
+    formPhotosLabel: "Fotos",
+    formReviewPhotosLabel: "Fotos der Bewertung",
+    formListingPhotosLabel: "Fotos der Unterkunft",
+    formPhotosHint: "Lade bis zu {count} Bilder hoch.",
+    formPhotosUploadButton: "Fotos hochladen",
+    formPhotosUploading: "Wird hochgeladen...",
+    formPhotosRemoveButton: "Entfernen",
+    formPhotosMaxError: "Du kannst bis zu {count} Bilder hochladen.",
     formSubmit: "Bewertung senden",
     formSending: "Senden...",
     formSuccess:
@@ -1108,6 +1140,14 @@ export const messages = {
       "Se marcado, mostraremos suas informações de contato apenas para estudantes (nunca para proprietários/locadores) para dúvidas sobre a avaliação.",
     formContactShareError:
       "Adicione um e-mail ou telefone para compartilhar o contato.",
+    formPhotosLabel: "Fotos",
+    formReviewPhotosLabel: "Fotos da avaliação",
+    formListingPhotosLabel: "Fotos do alojamento",
+    formPhotosHint: "Envie até {count} imagens.",
+    formPhotosUploadButton: "Enviar fotos",
+    formPhotosUploading: "Enviando...",
+    formPhotosRemoveButton: "Remover",
+    formPhotosMaxError: "Você pode enviar até {count} imagens.",
     formSubmit: "Enviar avaliação",
     formSending: "Enviando...",
     formSuccess:
@@ -1362,6 +1402,14 @@ export const messages = {
       "Se selezionato, mostreremo le tue informazioni di contatto solo agli studenti (mai a proprietari/locatori) per eventuali domande.",
     formContactShareError:
       "Aggiungi un'email o un telefono per condividere i contatti.",
+    formPhotosLabel: "Foto",
+    formReviewPhotosLabel: "Foto della recensione",
+    formListingPhotosLabel: "Foto dell'alloggio",
+    formPhotosHint: "Carica fino a {count} immagini.",
+    formPhotosUploadButton: "Carica foto",
+    formPhotosUploading: "Caricamento...",
+    formPhotosRemoveButton: "Rimuovi",
+    formPhotosMaxError: "Puoi caricare fino a {count} immagini.",
     formSubmit: "Invia recensione",
     formSending: "Invio in corso...",
     formSuccess:
@@ -1616,6 +1664,14 @@ export const messages = {
       "Hvis avkrysset, viser vi kontaktinformasjonen din kun til studenter (aldri til eiere/utleiere), slik at de kan stille oppfølgingsspørsmål.",
     formContactShareError:
       "Legg til e-post eller telefon for å dele kontaktinformasjon.",
+    formPhotosLabel: "Bilder",
+    formReviewPhotosLabel: "Bilder av anmeldelsen",
+    formListingPhotosLabel: "Bilder av boligen",
+    formPhotosHint: "Last opp opptil {count} bilder.",
+    formPhotosUploadButton: "Last opp bilder",
+    formPhotosUploading: "Laster opp...",
+    formPhotosRemoveButton: "Fjern",
+    formPhotosMaxError: "Du kan laste opp opptil {count} bilder.",
     formSubmit: "Send anmeldelse",
     formSending: "Sender...",
     formSuccess:

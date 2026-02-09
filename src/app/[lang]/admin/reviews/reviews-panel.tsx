@@ -116,6 +116,15 @@ export function ReviewsPanel({ lang, listingMap }: ReviewsPanelProps) {
                   {review.recommended ? messages.yes : messages.no}
                 </p>
                 <p>{review.comment}</p>
+                {review.imageUrls?.length ? (
+                  <div className="review-image-grid">
+                    {review.imageUrls.map((url, index) => (
+                      <a key={`${review.id}-${url}-${index}`} href={url} target="_blank" rel="noreferrer">
+                        <img src={url} alt={`Pending review image ${index + 1}`} loading="lazy" />
+                      </a>
+                    ))}
+                  </div>
+                ) : null}
                 <div className="moderation-actions">
                   <button
                     type="button"
@@ -153,6 +162,15 @@ export function ReviewsPanel({ lang, listingMap }: ReviewsPanelProps) {
                   {review.recommended ? messages.yes : messages.no}
                 </p>
                 <p>{review.comment}</p>
+                {review.imageUrls?.length ? (
+                  <div className="review-image-grid">
+                    {review.imageUrls.map((url, index) => (
+                      <a key={`${review.id}-${url}-${index}`} href={url} target="_blank" rel="noreferrer">
+                        <img src={url} alt={`Approved review image ${index + 1}`} loading="lazy" />
+                      </a>
+                    ))}
+                  </div>
+                ) : null}
               </li>
             ))}
           </ul>

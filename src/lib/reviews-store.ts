@@ -22,6 +22,17 @@ function toOptionalNumber(value: string | number | null) {
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 
+function toOptionalStringArray(value: unknown) {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+  const normalized = value
+    .filter((item): item is string => typeof item === "string")
+    .map((item) => item.trim())
+    .filter(Boolean);
+  return normalized.length ? normalized : undefined;
+}
+
 interface ReviewRow {
   id: string;
   listing_id: string;
@@ -41,6 +52,7 @@ interface ReviewRow {
   student_name: string | null;
   student_email: string | null;
   allow_contact_sharing: boolean | null;
+  image_urls: string[] | null;
   created_at: string | Date;
   approved_at: string | Date | null;
 }
@@ -58,6 +70,7 @@ function mapPendingReviewRow(row: ReviewRow): PendingWebReview {
     studentContact: toOptionalText(row.student_contact),
     studentEmail: toOptionalText(row.student_email),
     shareContactInfo: Boolean(row.allow_contact_sharing),
+    imageUrls: toOptionalStringArray(row.image_urls),
     createdAt: toIsoString(row.created_at),
   };
 }
@@ -126,6 +139,7 @@ export async function getApprovedReviewsForListing(
         student_name,
         student_email,
         allow_contact_sharing,
+        image_urls,
         created_at,
         approved_at
       FROM reviews
@@ -181,6 +195,7 @@ export async function getPendingReviews() {
         student_name,
         student_email,
         allow_contact_sharing,
+        image_urls,
         created_at,
         approved_at
       FROM reviews
@@ -214,6 +229,7 @@ export async function getApprovedReviews() {
         student_name,
         student_email,
         allow_contact_sharing,
+        image_urls,
         created_at,
         approved_at
       FROM reviews
@@ -236,6 +252,7 @@ export interface NewReviewInput {
   studentContact?: string;
   studentEmail?: string;
   shareContactInfo?: boolean;
+  imageUrls?: string[];
 }
 
 export async function appendPendingReview(input: NewReviewInput) {
@@ -251,6 +268,7 @@ export async function appendPendingReview(input: NewReviewInput) {
     studentContact: input.studentContact || undefined,
     studentEmail: input.studentEmail || undefined,
     shareContactInfo: input.shareContactInfo || false,
+    imageUrls: input.imageUrls?.length ? [...input.imageUrls] : undefined,
     createdAt: new Date().toISOString(),
   };
 
@@ -270,8 +288,9 @@ export async function appendPendingReview(input: NewReviewInput) {
         student_name,
         student_email,
         allow_contact_sharing,
+        image_urls,
         created_at
-      ) VALUES ($1, $2, 'web', 'pending', $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      ) VALUES ($1, $2, 'web', 'pending', $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
     `,
     [
       review.id,
@@ -285,6 +304,7 @@ export async function appendPendingReview(input: NewReviewInput) {
       review.studentName || null,
       review.studentEmail || null,
       review.shareContactInfo || false,
+      review.imageUrls || [],
       review.createdAt,
     ],
   );
@@ -317,6 +337,7 @@ export async function moderatePendingReview(
           student_name,
           student_email,
           allow_contact_sharing,
+          image_urls,
           created_at,
           approved_at
         FROM reviews
@@ -407,6 +428,7 @@ export async function moderatePendingReview(
             student_name,
             student_email,
             allow_contact_sharing,
+            image_urls,
             created_at,
             approved_at
           FROM reviews

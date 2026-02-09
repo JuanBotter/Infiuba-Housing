@@ -41,6 +41,7 @@ interface ListingRow {
   recommendation_rate: string | number | null;
   total_reviews: number;
   recent_year: number | null;
+  image_urls: string[] | null;
   min_price_usd: string | number | null;
   max_price_usd: string | number | null;
   review_prices: (string | number)[] | null;
@@ -87,6 +88,7 @@ function mapListingRow(row: ListingRow): Listing {
     recommendationRate: toOptionalNumber(row.recommendation_rate),
     totalReviews: Number(row.total_reviews || 0),
     recentYear: row.recent_year || undefined,
+    imageUrls: Array.isArray(row.image_urls) ? row.image_urls.filter(Boolean) : undefined,
     reviews: [],
   };
 }
@@ -110,6 +112,7 @@ interface ReviewRow {
   student_contact: string | null;
   student_name: string | null;
   semester: string | null;
+  image_urls: string[] | null;
   created_at: string | Date;
 }
 
@@ -140,6 +143,7 @@ function mapReviewRow(
         : undefined,
     studentName: row.student_name || undefined,
     semester: row.semester || undefined,
+    imageUrls: Array.isArray(row.image_urls) ? row.image_urls.filter(Boolean) : undefined,
     createdAt:
       typeof row.created_at === "string"
         ? row.created_at
@@ -188,6 +192,7 @@ export async function getListings(options: ListingPrivacyOptions = {}) {
         l.recommendation_rate,
         l.total_reviews,
         l.recent_year,
+        l.image_urls,
         rp.min_price_usd,
         rp.max_price_usd,
         rp.review_prices
@@ -236,6 +241,7 @@ export async function getListings(options: ListingPrivacyOptions = {}) {
             student_contact,
             student_name,
             semester,
+            image_urls,
             created_at,
             ROW_NUMBER() OVER (
               PARTITION BY listing_id
@@ -267,6 +273,7 @@ export async function getListings(options: ListingPrivacyOptions = {}) {
           student_contact,
           student_name,
           semester,
+          image_urls,
           created_at
         FROM ranked_reviews
         WHERE review_rank <= 3
@@ -311,6 +318,7 @@ export async function getListingById(
         l.recommendation_rate,
         l.total_reviews,
         l.recent_year,
+        l.image_urls,
         rp.min_price_usd,
         rp.max_price_usd,
         rp.review_prices
@@ -358,6 +366,7 @@ export async function getListingById(
         student_contact,
         student_name,
         semester,
+        image_urls,
         created_at
       FROM reviews
       WHERE listing_id = $1
@@ -382,6 +391,7 @@ export interface NewListingInput {
   capacity?: number;
   latitude?: number;
   longitude?: number;
+  imageUrls?: string[];
 }
 
 export async function createListing(input: NewListingInput) {
@@ -402,11 +412,12 @@ export async function createListing(input: NewListingInput) {
           latitude,
           longitude,
           capacity,
+          image_urls,
           average_rating,
           recommendation_rate,
           total_reviews,
           recent_year
-        ) VALUES ($1, $2, $3, $4, $5, $6, NULL, NULL, 0, NULL)
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, NULL, NULL, 0, NULL)
       `,
       [
         listingId,
@@ -415,6 +426,7 @@ export async function createListing(input: NewListingInput) {
         input.latitude ?? null,
         input.longitude ?? null,
         input.capacity ?? null,
+        input.imageUrls ?? [],
       ],
     );
 

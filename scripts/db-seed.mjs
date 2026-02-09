@@ -66,6 +66,18 @@ function normalizeTranslations(value) {
   return normalized;
 }
 
+function normalizeImageUrls(value, maxCount) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .filter((item) => typeof item === "string")
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .slice(0, maxCount);
+}
+
 async function run() {
   const dataset = await readJson(DATASET_FILE, null);
   if (!dataset || !Array.isArray(dataset.listings)) {
@@ -130,11 +142,12 @@ async function run() {
             longitude,
             price_usd,
             capacity,
+            image_urls,
             average_rating,
             recommendation_rate,
             total_reviews,
             recent_year
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
         `,
         [
           listing.id,
@@ -144,6 +157,7 @@ async function run() {
           listing.longitude ?? null,
           null,
           listing.capacity ?? null,
+          normalizeImageUrls(listing.imageUrls, 12),
           listing.averageRating ?? null,
           listing.recommendationRate ?? null,
           listing.totalReviews ?? 0,
@@ -193,9 +207,10 @@ async function run() {
               comment_pt,
               comment_it,
               comment_no,
+              image_urls,
               created_at,
               approved_at
-            ) VALUES ($1, $2, 'survey', 'approved', $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $19)
+            ) VALUES ($1, $2, 'survey', 'approved', $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $20)
             ON CONFLICT (id) DO NOTHING
           `,
           [
@@ -217,6 +232,7 @@ async function run() {
             translations.comment_pt,
             translations.comment_it,
             translations.comment_no,
+            normalizeImageUrls(review.imageUrls, 6),
             normalizeCreatedAt(review.createdAt),
           ],
         );
@@ -251,9 +267,10 @@ async function run() {
             comment_pt,
             comment_it,
             comment_no,
+            image_urls,
             created_at,
             approved_at
-          ) VALUES ($1, $2, 'web', 'approved', $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+          ) VALUES ($1, $2, 'web', 'approved', $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
           ON CONFLICT (id) DO NOTHING
         `,
         [
@@ -275,6 +292,7 @@ async function run() {
           translations.comment_pt,
           translations.comment_it,
           translations.comment_no,
+          normalizeImageUrls(review.imageUrls, 6),
           normalizeCreatedAt(review.createdAt),
           normalizeCreatedAt(review.approvedAt, normalizeCreatedAt(review.createdAt)),
         ],
@@ -309,8 +327,9 @@ async function run() {
             comment_pt,
             comment_it,
             comment_no,
+            image_urls,
             created_at
-          ) VALUES ($1, $2, 'web', 'pending', $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+          ) VALUES ($1, $2, 'web', 'pending', $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
           ON CONFLICT (id) DO NOTHING
         `,
         [
@@ -332,6 +351,7 @@ async function run() {
           translations.comment_pt,
           translations.comment_it,
           translations.comment_no,
+          normalizeImageUrls(review.imageUrls, 6),
           normalizeCreatedAt(review.createdAt),
         ],
       );

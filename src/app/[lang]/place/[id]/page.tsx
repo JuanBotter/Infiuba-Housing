@@ -90,6 +90,7 @@ export default async function PlaceDetailPage({ params }: PlaceDetailPageProps) 
       semester: review.semester,
       studentName: review.studentName,
       studentContact: review.studentContact,
+      imageUrls: review.imageUrls,
       createdAt: review.createdAt,
     })),
   ].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
@@ -110,6 +111,15 @@ export default async function PlaceDetailPage({ params }: PlaceDetailPageProps) 
       <article className="detail-card detail-card--primary">
         <p className="detail-card__eyebrow">{listing.neighborhood}</p>
         <h1>{listing.address}</h1>
+        {listing.imageUrls?.length ? (
+          <div className="review-image-grid" aria-label="Property photos">
+            {listing.imageUrls.map((url, index) => (
+              <a key={`${url}-${index}`} href={url} target="_blank" rel="noreferrer">
+                <img src={url} alt={`${listing.address} photo ${index + 1}`} loading="lazy" />
+              </a>
+            ))}
+          </div>
+        ) : null}
 
         <div className="detail-card__stats">
           <p>
@@ -159,11 +169,12 @@ export default async function PlaceDetailPage({ params }: PlaceDetailPageProps) 
           <p className="contact-lock-hint">{messages.ownerContactsLoginHint}</p>
         )}
         {canWriteReviews ? (
-          <ContactEditRequestForm
-            listingId={listing.id}
-            currentContacts={listing.contacts}
-            messages={messages}
-          />
+                  <ContactEditRequestForm
+                    listingId={listing.id}
+                    currentContacts={listing.contacts}
+                    currentCapacity={listing.capacity}
+                    messages={messages}
+                  />
         ) : null}
       </article>
 
@@ -206,6 +217,15 @@ export default async function PlaceDetailPage({ params }: PlaceDetailPageProps) 
                     showOriginalLabel={messages.reviewShowOriginal}
                     showTranslationLabel={messages.reviewShowTranslation}
                   />
+                  {review.imageUrls?.length ? (
+                    <div className="review-image-grid">
+                      {review.imageUrls.map((url, index) => (
+                        <a key={`${review.id}-${url}-${index}`} href={url} target="_blank" rel="noreferrer">
+                          <img src={url} alt={`Review image ${index + 1}`} loading="lazy" />
+                        </a>
+                      ))}
+                    </div>
+                  ) : null}
                   {canViewReviewerInfo && review.studentContact ? (
                     <p className="review-item__contact">
                       {messages.reviewContactLabel}:{" "}

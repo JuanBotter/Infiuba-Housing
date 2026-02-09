@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { ChangeEvent, FormEvent, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { getMessages } from "@/lib/i18n";
@@ -9,6 +9,8 @@ import {
   createInitialReviewDraft,
   readApiErrorMessage,
 } from "@/lib/review-form";
+import { uploadReviewImageFiles } from "@/lib/review-image-upload";
+import { MAX_LISTING_IMAGE_COUNT, MAX_REVIEW_IMAGE_COUNT } from "@/lib/review-images";
 import { splitContactParts } from "@/lib/contact-links";
 import { SEMESTER_OPTIONS } from "@/lib/semester-options";
 import { StarRating } from "@/components/star-rating";
@@ -61,8 +63,11 @@ export function AddStayReviewForm({ lang, listings, neighborhoods }: AddStayRevi
   const [neighborhood, setNeighborhood] = useState("");
   const [contacts, setContacts] = useState("");
   const [capacity, setCapacity] = useState("");
+  const [listingImageUrls, setListingImageUrls] = useState<string[]>([]);
   const [reviewDraft, setReviewDraft] = useState(createInitialReviewDraft);
   const [isNeighborhoodOpen, setIsNeighborhoodOpen] = useState(false);
+  const [uploadingListingImages, setUploadingListingImages] = useState(false);
+  const [uploadingReviewImages, setUploadingReviewImages] = useState(false);
 
   const [status, setStatus] = useState<SubmitStatus>("idle");
   const [serverMessage, setServerMessage] = useState("");
@@ -126,10 +131,79 @@ export function AddStayReviewForm({ lang, listings, neighborhoods }: AddStayRevi
     setSelectedListingId(listing.id);
     setAddress(listing.address);
     setNeighborhood(listing.neighborhood);
+    setListingImageUrls([]);
     clearFormError("address");
     clearFormError("neighborhood");
     setMatchDecision("pending");
     setStatus("idle");
+  }
+
+  async function uploadSelectedImages(
+    files: File[],
+    remainingSlots: number,
+    maxCount: number,
+    onSuccess: (urls: string[]) => void,
+    setUploading: (value: boolean) => void,
+  ) {
+    if (remainingSlots <= 0) {
+      setStatus("error");
+      setServerMessage(t.formPhotosMaxError.replace("{count}", String(maxCount)));
+      return;
+    }
+
+    setUploading(true);
+    const uploaded = await uploadReviewImageFiles(files.slice(0, remainingSlots));
+    setUploading(false);
+
+    if (!uploaded.ok) {
+      setStatus("error");
+      setServerMessage(uploaded.error);
+      return;
+    }
+
+    onSuccess(uploaded.urls);
+    setStatus("idle");
+    setServerMessage("");
+  }
+
+  async function onUploadReviewImages(event: ChangeEvent<HTMLInputElement>) {
+    const input = event.currentTarget;
+    const selectedFiles = Array.from(input.files || []);
+    input.value = "";
+    if (selectedFiles.length === 0) {
+      return;
+    }
+
+    const remainingSlots = MAX_REVIEW_IMAGE_COUNT - reviewDraft.imageUrls.length;
+    await uploadSelectedImages(
+      selectedFiles,
+      remainingSlots,
+      MAX_REVIEW_IMAGE_COUNT,
+      (urls) =>
+        setReviewDraft((previous) => ({
+          ...previous,
+          imageUrls: [...previous.imageUrls, ...urls].slice(0, MAX_REVIEW_IMAGE_COUNT),
+        })),
+      setUploadingReviewImages,
+    );
+  }
+
+  async function onUploadListingImages(event: ChangeEvent<HTMLInputElement>) {
+    const input = event.currentTarget;
+    const selectedFiles = Array.from(input.files || []);
+    input.value = "";
+    if (selectedFiles.length === 0) {
+      return;
+    }
+
+    const remainingSlots = MAX_LISTING_IMAGE_COUNT - listingImageUrls.length;
+    await uploadSelectedImages(
+      selectedFiles,
+      remainingSlots,
+      MAX_LISTING_IMAGE_COUNT,
+      (urls) => setListingImageUrls((previous) => [...previous, ...urls].slice(0, MAX_LISTING_IMAGE_COUNT)),
+      setUploadingListingImages,
+    );
   }
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
@@ -213,6 +287,7 @@ export function AddStayReviewForm({ lang, listings, neighborhoods }: AddStayRevi
       payload.neighborhood = neighborhood;
       payload.contacts = contacts;
       payload.capacity = capacity ? Number(capacity) : undefined;
+      payload.listingImageUrls = listingImageUrls;
     }
 
     try {
@@ -240,6 +315,7 @@ export function AddStayReviewForm({ lang, listings, neighborhoods }: AddStayRevi
       setReviewDraft(createInitialReviewDraft());
       setContacts("");
       setCapacity("");
+      setListingImageUrls([]);
       if (!useExistingListing) {
         setAddress("");
         setNeighborhood("");
@@ -451,6 +527,49 @@ export function AddStayReviewForm({ lang, listings, neighborhoods }: AddStayRevi
                 </p>
               ) : null}
             </label>
+
+            <fieldset className="review-images property-form__full">
+              <legend>{t.formListingPhotosLabel}</legend>
+              <p className="review-images__hint">
+                {t.formPhotosHint.replace("{count}", String(MAX_LISTING_IMAGE_COUNT))}
+              </p>
+              <label className="button-link review-images__upload">
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
+                  multiple
+                  onChange={(event) => void onUploadListingImages(event)}
+                  disabled={
+                    uploadingListingImages || listingImageUrls.length >= MAX_LISTING_IMAGE_COUNT
+                  }
+                />
+                <span>
+                  {uploadingListingImages ? t.formPhotosUploading : t.formPhotosUploadButton}
+                </span>
+              </label>
+              {listingImageUrls.length > 0 ? (
+                <div className="review-image-grid">
+                  {listingImageUrls.map((url, index) => (
+                    <div key={`${url}-${index}`} className="review-image-grid__item">
+                      <a href={url} target="_blank" rel="noreferrer">
+                        <img src={url} alt={`Listing image ${index + 1}`} loading="lazy" />
+                      </a>
+                      <button
+                        type="button"
+                        className="button-link button-link--danger"
+                        onClick={() =>
+                          setListingImageUrls((previous) =>
+                            previous.filter((_, imageIndex) => imageIndex !== index),
+                          )
+                        }
+                      >
+                        {t.formPhotosRemoveButton}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            </fieldset>
           </>
         ) : null}
 
@@ -587,6 +706,50 @@ export function AddStayReviewForm({ lang, listings, neighborhoods }: AddStayRevi
             ))}
           </datalist>
         </label>
+
+        <fieldset className="review-images property-form__full">
+          <legend>{t.formReviewPhotosLabel}</legend>
+          <p className="review-images__hint">
+            {t.formPhotosHint.replace("{count}", String(MAX_REVIEW_IMAGE_COUNT))}
+          </p>
+          <label className="button-link review-images__upload">
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
+              multiple
+              onChange={(event) => void onUploadReviewImages(event)}
+              disabled={
+                uploadingReviewImages || reviewDraft.imageUrls.length >= MAX_REVIEW_IMAGE_COUNT
+              }
+            />
+            <span>{uploadingReviewImages ? t.formPhotosUploading : t.formPhotosUploadButton}</span>
+          </label>
+          {reviewDraft.imageUrls.length > 0 ? (
+            <div className="review-image-grid">
+              {reviewDraft.imageUrls.map((url, index) => (
+                <div key={`${url}-${index}`} className="review-image-grid__item">
+                  <a href={url} target="_blank" rel="noreferrer">
+                    <img src={url} alt={`Review image ${index + 1}`} loading="lazy" />
+                  </a>
+                  <button
+                    type="button"
+                    className="button-link button-link--danger"
+                    onClick={() =>
+                      setReviewDraft((previous) => ({
+                        ...previous,
+                        imageUrls: previous.imageUrls.filter(
+                          (_, imageIndex) => imageIndex !== index,
+                        ),
+                      }))
+                    }
+                  >
+                    {t.formPhotosRemoveButton}
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </fieldset>
 
         <fieldset
           className={`contact-section property-form__full${

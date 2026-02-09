@@ -223,6 +223,23 @@ describe("/api/reviews", () => {
     expect(response.status).toBe(400);
   });
 
+  it("rejects listing images for existing listing reviews", async () => {
+    mockedAuth.getRoleFromRequestAsync.mockResolvedValueOnce("whitelisted");
+    mockedAuth.canSubmitReviews.mockReturnValueOnce(true);
+    mockedData.getListingById.mockResolvedValueOnce({ id: "listing-3" } as never);
+
+    const response = await POST(
+      buildReviewRequest({
+        listingId: "listing-3",
+        confirmExistingDetails: true,
+        ...baseReviewPayload,
+        listingImageUrls: ["https://example.com/property.jpg"],
+      }),
+    );
+
+    expect(response.status).toBe(400);
+  });
+
   it("rejects mismatched latitude/longitude for new listing", async () => {
     mockedAuth.getRoleFromRequestAsync.mockResolvedValueOnce("whitelisted");
     mockedAuth.canSubmitReviews.mockReturnValueOnce(true);
@@ -279,5 +296,42 @@ describe("/api/reviews", () => {
     expect(mockedCache.revalidateTag).toHaveBeenCalledWith("public-listings", "max");
     expect(mockedCache.revalidateTag).toHaveBeenCalledWith("public-neighborhoods", "max");
     expect(mockedCache.revalidateTag).toHaveBeenCalledWith("public-dataset-meta", "max");
+  });
+
+  it("passes normalized listing/review image URLs to persistence layers", async () => {
+    mockedAuth.getRoleFromRequestAsync.mockResolvedValueOnce("whitelisted");
+    mockedAuth.canSubmitReviews.mockReturnValueOnce(true);
+    mockedData.createListing.mockResolvedValueOnce({ listingId: "listing-images" } as never);
+    mockedReviews.appendPendingReview.mockResolvedValueOnce();
+
+    const response = await POST(
+      buildReviewRequest({
+        ...baseReviewPayload,
+        address: "Calle Falsa 321",
+        neighborhood: "Recoleta",
+        contacts: "+54 9 11 4444-4444",
+        capacity: 2,
+        listingImageUrls: [
+          "https://example.com/property-photo.jpg",
+          "https://example.com/property-photo.jpg",
+        ],
+        reviewImageUrls: [
+          "https://example.com/review-photo.jpg",
+          "https://example.com/review-photo.jpg",
+        ],
+      }),
+    );
+
+    expect(response.status).toBe(201);
+    expect(mockedData.createListing).toHaveBeenCalledWith(
+      expect.objectContaining({
+        imageUrls: ["https://example.com/property-photo.jpg"],
+      }),
+    );
+    expect(mockedReviews.appendPendingReview).toHaveBeenCalledWith(
+      expect.objectContaining({
+        imageUrls: ["https://example.com/review-photo.jpg"],
+      }),
+    );
   });
 });

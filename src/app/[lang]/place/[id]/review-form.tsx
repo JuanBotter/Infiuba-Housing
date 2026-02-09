@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { ChangeEvent, FormEvent, useMemo, useState } from "react";
 
 import { getMessages } from "@/lib/i18n";
 import {
@@ -10,6 +10,8 @@ import {
 } from "@/lib/review-form";
 import { SEMESTER_OPTIONS } from "@/lib/semester-options";
 import { StarRating } from "@/components/star-rating";
+import { uploadReviewImageFiles } from "@/lib/review-image-upload";
+import { MAX_REVIEW_IMAGE_COUNT } from "@/lib/review-images";
 import type { Lang } from "@/types";
 
 interface ReviewFormProps {
@@ -21,6 +23,7 @@ export function ReviewForm({ lang, listingId }: ReviewFormProps) {
   const t = useMemo(() => getMessages(lang), [lang]);
   const [reviewDraft, setReviewDraft] = useState(createInitialReviewDraft);
   const [status, setStatus] = useState<"idle" | "sending" | "success" | "error">("idle");
+  const [uploadingImages, setUploadingImages] = useState(false);
   const [serverMessage, setServerMessage] = useState("");
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
@@ -102,6 +105,41 @@ export function ReviewForm({ lang, listingId }: ReviewFormProps) {
     } catch {
       setStatus("error");
     }
+  }
+
+  async function onUploadImages(event: ChangeEvent<HTMLInputElement>) {
+    const input = event.currentTarget;
+    const selectedFiles = Array.from(input.files || []);
+    input.value = "";
+    if (selectedFiles.length === 0) {
+      return;
+    }
+
+    const remainingSlots = MAX_REVIEW_IMAGE_COUNT - reviewDraft.imageUrls.length;
+    if (remainingSlots <= 0) {
+      setStatus("error");
+      setServerMessage(
+        t.formPhotosMaxError.replace("{count}", String(MAX_REVIEW_IMAGE_COUNT)),
+      );
+      return;
+    }
+
+    setUploadingImages(true);
+    const uploaded = await uploadReviewImageFiles(selectedFiles.slice(0, remainingSlots));
+    setUploadingImages(false);
+
+    if (!uploaded.ok) {
+      setStatus("error");
+      setServerMessage(uploaded.error);
+      return;
+    }
+
+    setReviewDraft((previous) => ({
+      ...previous,
+      imageUrls: [...previous.imageUrls, ...uploaded.urls].slice(0, MAX_REVIEW_IMAGE_COUNT),
+    }));
+    setStatus("idle");
+    setServerMessage("");
   }
 
   const ratingErrorId = formErrors.rating ? `review-rating-${listingId}-error` : undefined;
@@ -220,6 +258,46 @@ export function ReviewForm({ lang, listingId }: ReviewFormProps) {
           </p>
         ) : null}
       </label>
+
+      <fieldset className="review-images">
+        <legend>{t.formPhotosLabel}</legend>
+        <p className="review-images__hint">
+          {t.formPhotosHint.replace("{count}", String(MAX_REVIEW_IMAGE_COUNT))}
+        </p>
+        <label className="button-link review-images__upload">
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
+            multiple
+            onChange={(event) => void onUploadImages(event)}
+            disabled={uploadingImages || reviewDraft.imageUrls.length >= MAX_REVIEW_IMAGE_COUNT}
+          />
+          <span>{uploadingImages ? t.formPhotosUploading : t.formPhotosUploadButton}</span>
+        </label>
+        {reviewDraft.imageUrls.length > 0 ? (
+          <div className="review-image-grid">
+            {reviewDraft.imageUrls.map((url, index) => (
+              <div key={`${url}-${index}`} className="review-image-grid__item">
+                <a href={url} target="_blank" rel="noreferrer">
+                  <img src={url} alt={`Uploaded review image ${index + 1}`} loading="lazy" />
+                </a>
+                <button
+                  type="button"
+                  className="button-link button-link--danger"
+                  onClick={() =>
+                    setReviewDraft((previous) => ({
+                      ...previous,
+                      imageUrls: previous.imageUrls.filter((_, imageIndex) => imageIndex !== index),
+                    }))
+                  }
+                >
+                  {t.formPhotosRemoveButton}
+                </button>
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </fieldset>
 
       <label className={formErrors.semester ? "is-invalid" : ""}>
         <span>{t.formSemester}</span>
