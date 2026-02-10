@@ -12,7 +12,9 @@ export type SecurityAuditEventType =
   | "admin.user.delete"
   | "admin.user.upsert"
   | "admin.review.moderate"
-  | "admin.listing_images.reorder";
+  | "admin.listing_images.reorder"
+  | "admin.publication.update"
+  | "admin.publication.delete_image";
 
 interface SecurityAuditEventInput {
   eventType: SecurityAuditEventType;

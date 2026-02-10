@@ -57,6 +57,7 @@ export default async function PlaceDetailPage({ params }: PlaceDetailPageProps) 
   const lang = resolvedParams.lang as Lang;
   const messages = getMessages(lang);
   const role = await getCurrentUserRole();
+  const isAdmin = role === "admin";
   const canViewOwnerInfo = canViewOwnerContactInfo(role);
   const canViewReviewerInfo = canViewContactInfo(role);
   const canWriteReviews = canSubmitReviews(role);
@@ -112,6 +113,11 @@ export default async function PlaceDetailPage({ params }: PlaceDetailPageProps) 
       <article className="detail-card detail-card--primary">
         <p className="detail-card__eyebrow">{listing.neighborhood}</p>
         <h1>{listing.address}</h1>
+        {isAdmin ? (
+          <Link href={`/${lang}/admin/publications?listingId=${listing.id}`} className="inline-link">
+            {messages.adminEditListing}
+          </Link>
+        ) : null}
         {listing.imageUrls?.length ? (
           <ImageGalleryViewer
             lang={lang}

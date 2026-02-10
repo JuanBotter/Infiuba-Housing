@@ -259,6 +259,8 @@ export async function getSecurityTelemetrySnapshot(): Promise<TelemetryResult> {
           "admin.user.delete",
           "admin.user.upsert",
           "admin.listing_images.reorder",
+          "admin.publication.update",
+          "admin.publication.delete_image",
         ],
         60,
       ),

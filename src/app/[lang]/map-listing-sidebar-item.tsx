@@ -13,6 +13,8 @@ interface MapListingSidebarItemProps {
   isSelected: boolean;
   registerRef: (element: HTMLElement | null) => void;
   onSelect: () => void;
+  adminEditHref?: string;
+  adminEditLabel?: string;
 }
 
 export function MapListingSidebarItem({
@@ -22,6 +24,8 @@ export function MapListingSidebarItem({
   isSelected,
   registerRef,
   onSelect,
+  adminEditHref,
+  adminEditLabel,
 }: MapListingSidebarItemProps) {
   const priceText = formatUsdRange(
     {
@@ -73,6 +77,11 @@ export function MapListingSidebarItem({
       <Link href={`/${lang}/place/${listing.id}`} className="inline-link">
         {messages.viewDetails}
       </Link>
+      {adminEditHref && adminEditLabel ? (
+        <Link href={adminEditHref} className="inline-link">
+          {adminEditLabel}
+        </Link>
+      ) : null}
     </article>
   );
 }

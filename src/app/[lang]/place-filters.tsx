@@ -31,6 +31,7 @@ interface PlaceFiltersProps {
   neighborhoods: string[];
   canViewOwnerInfo: boolean;
   canWriteReviews: boolean;
+  isAdmin: boolean;
 }
 
 interface PersistedFilters {
@@ -107,6 +108,7 @@ export function PlaceFilters({
   neighborhoods,
   canViewOwnerInfo,
   canWriteReviews,
+  isAdmin,
 }: PlaceFiltersProps) {
   const [hasLoadedPersistedFilters, setHasLoadedPersistedFilters] = useState(false);
   const mapListItemRefs = useRef<Record<string, HTMLElement | null>>({});
@@ -643,77 +645,86 @@ export function PlaceFilters({
       ) : viewMode === "cards" ? (
         <section className="cards-grid">
           {filteredAndSorted.map((listing) => (
-            <Link
-              key={listing.id}
-              href={`/${lang}/place/${listing.id}`}
-              className="place-card-link"
-              aria-label={`${listing.address}, ${listing.neighborhood}`}
-            >
-              <article className="place-card">
-                <div className="place-card__media">
-                  {listing.imageUrls?.[0] ? (
-                    <img
-                      src={listing.imageUrls[0]}
-                      alt={`${listing.address} · ${messages.imageAltProperty}`}
-                      loading="lazy"
-                    />
-                  ) : (
-                    <div className="place-card__media-placeholder" aria-hidden="true" />
-                  )}
-                </div>
-                <div className="place-card__head">
-                  <div className="place-card__meta">
-                    <p className="place-card__neighborhood">{listing.neighborhood}</p>
-                    <p className="place-card__reviews-badge">
-                      {listing.totalReviews} {messages.reviewsLabel}
+            <div key={listing.id} className="place-card-stack">
+              <Link
+                href={`/${lang}/place/${listing.id}`}
+                className="place-card-link"
+                aria-label={`${listing.address}, ${listing.neighborhood}`}
+              >
+                <article className="place-card">
+                  <div className="place-card__media">
+                    {listing.imageUrls?.[0] ? (
+                      <img
+                        src={listing.imageUrls[0]}
+                        alt={`${listing.address} · ${messages.imageAltProperty}`}
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="place-card__media-placeholder" aria-hidden="true" />
+                    )}
+                  </div>
+                  <div className="place-card__head">
+                    <div className="place-card__meta">
+                      <p className="place-card__neighborhood">{listing.neighborhood}</p>
+                      <p className="place-card__reviews-badge">
+                        {listing.totalReviews} {messages.reviewsLabel}
+                      </p>
+                    </div>
+                    <h2>{listing.address}</h2>
+                  </div>
+
+                  <div className="place-card__stats">
+                    <p className="stat-chip">
+                      <span>{messages.ratingLabel}</span>
+                      <strong>
+                        {typeof listing.averageRating === "number"
+                          ? formatDecimal(listing.averageRating, lang)
+                          : "-"}
+                      </strong>
+                    </p>
+                    <p className="stat-chip">
+                      <span>{messages.recommendationRateLabel}</span>
+                      <strong>
+                        {typeof listing.recommendationRate === "number"
+                          ? formatPercent(listing.recommendationRate, lang)
+                          : "-"}
+                      </strong>
+                    </p>
+                    <p className="stat-chip">
+                      <span>{messages.priceLabel}</span>
+                      <strong>
+                        {(() => {
+                          const priceText = formatUsdRange(
+                            {
+                              min: listing.minPriceUsd,
+                              max: listing.maxPriceUsd,
+                            },
+                            lang,
+                          );
+                          return priceText ? `${priceText} ${messages.monthSuffix}` : "-";
+                        })()}
+                      </strong>
+                    </p>
+                    <p className="stat-chip">
+                      <span>{messages.capacityLabel}</span>
+                      <strong>
+                        {typeof listing.capacity === "number"
+                          ? `${Math.round(listing.capacity)} ${messages.studentsSuffix}`
+                          : "-"}
+                      </strong>
                     </p>
                   </div>
-                  <h2>{listing.address}</h2>
-                </div>
-
-                <div className="place-card__stats">
-                  <p className="stat-chip">
-                    <span>{messages.ratingLabel}</span>
-                    <strong>
-                      {typeof listing.averageRating === "number"
-                        ? formatDecimal(listing.averageRating, lang)
-                        : "-"}
-                    </strong>
-                  </p>
-                  <p className="stat-chip">
-                    <span>{messages.recommendationRateLabel}</span>
-                    <strong>
-                      {typeof listing.recommendationRate === "number"
-                        ? formatPercent(listing.recommendationRate, lang)
-                        : "-"}
-                    </strong>
-                  </p>
-                  <p className="stat-chip">
-                    <span>{messages.priceLabel}</span>
-                    <strong>
-                      {(() => {
-                        const priceText = formatUsdRange(
-                          {
-                            min: listing.minPriceUsd,
-                            max: listing.maxPriceUsd,
-                          },
-                          lang,
-                        );
-                        return priceText ? `${priceText} ${messages.monthSuffix}` : "-";
-                      })()}
-                    </strong>
-                  </p>
-                  <p className="stat-chip">
-                    <span>{messages.capacityLabel}</span>
-                    <strong>
-                      {typeof listing.capacity === "number"
-                        ? `${Math.round(listing.capacity)} ${messages.studentsSuffix}`
-                        : "-"}
-                    </strong>
-                  </p>
-                </div>
-              </article>
-            </Link>
+                </article>
+              </Link>
+              {isAdmin ? (
+                <Link
+                  href={`/${lang}/admin/publications?listingId=${listing.id}`}
+                  className="inline-link"
+                >
+                  {messages.adminEditListing}
+                </Link>
+              ) : null}
+            </div>
           ))}
         </section>
       ) : (
@@ -745,6 +756,10 @@ export function PlaceFilters({
                   listing={listing}
                   messages={messages}
                   isSelected={isSelected}
+                  adminEditHref={
+                    isAdmin ? `/${lang}/admin/publications?listingId=${listing.id}` : undefined
+                  }
+                  adminEditLabel={isAdmin ? messages.adminEditListing : undefined}
                   registerRef={(element) => {
                     mapListItemRefs.current[listing.id] = element;
                   }}
@@ -889,6 +904,14 @@ export function PlaceFilters({
                   <Link href={`/${lang}/place/${selectedMapListing.id}`} className="inline-link">
                     {messages.viewDetails}
                   </Link>
+                  {isAdmin ? (
+                    <Link
+                      href={`/${lang}/admin/publications?listingId=${selectedMapListing.id}`}
+                      className="inline-link"
+                    >
+                      {messages.adminEditListing}
+                    </Link>
+                  ) : null}
                 </section>
 
                 <section className="map-layout__reviews" aria-live="polite">

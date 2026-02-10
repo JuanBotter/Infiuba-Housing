@@ -34,6 +34,7 @@ export default async function ListingsPage({ params }: PageProps) {
   const lang = resolvedParams.lang as Lang;
   const messages = getMessages(lang);
   const role = await getCurrentUserRole();
+  const isAdmin = role === "admin";
   const canViewOwnerInfo = canViewOwnerContactInfo(role);
   const canViewReviewerInfo = canViewContactInfo(role);
   const canWriteReviews = canSubmitReviews(role);
@@ -89,6 +90,7 @@ export default async function ListingsPage({ params }: PageProps) {
         neighborhoods={neighborhoods}
         canViewOwnerInfo={canViewOwnerInfo}
         canWriteReviews={canWriteReviews}
+        isAdmin={isAdmin}
       />
 
       <p className="data-footnote">

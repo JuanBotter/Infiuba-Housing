@@ -29,6 +29,7 @@ export function AdminHeader({ lang, messages }: AdminHeaderProps) {
     },
     access: { title: messages.adminNavAccess, subtitle: messages.adminSubtitleAccess },
     security: { title: messages.adminNavSecurity, subtitle: messages.adminSubtitleSecurity },
+    publications: { title: messages.adminNavImages, subtitle: messages.adminSubtitleImages },
     images: { title: messages.adminNavImages, subtitle: messages.adminSubtitleImages },
   };
 

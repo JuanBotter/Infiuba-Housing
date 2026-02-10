@@ -36,7 +36,7 @@ Do not defer AGENTS updates.
 - OTP request/verify API responses are intentionally enumeration-safe: request responses are generic for allowed/not-allowed/rate-limited outcomes, and verify failures return a generic invalid-code response for auth failures.
 - OTP abuse controls are DB-backed and layered: OTP requests are rate limited by IP/subnet/global windows, and OTP verify failures are rate limited by IP and email+IP windows.
 - OTP emails are localized using the user-selected UI language (`requestOtp` payload `lang`) and include branded HTML (two-column layout with logo panel + styled content), a one-click magic login link, and the numeric OTP code as fallback.
-- Structured security audit events are recorded for OTP request/verify and admin-sensitive actions (user access changes, review moderation, listing image reordering, contact edit moderation, and contact edit submissions).
+- Structured security audit events are recorded for OTP request/verify and admin-sensitive actions (user access changes, review moderation, publication edits including image reordering/removal, contact edit moderation, and contact edit submissions).
 - Sensitive auth/admin API responses explicitly send `Cache-Control: no-store` headers.
 - Stateful `POST`/`DELETE` API endpoints enforce same-origin checks (Origin/Referer must match request host) to reduce CSRF risk; `GET /api/session/magic` is a token-authenticated email-link exception.
 - API request parsing/normalization is centralized in `src/lib/request-validation.ts` and reused across session/reviews/admin endpoints.
@@ -44,8 +44,9 @@ Do not defer AGENTS updates.
 - Reviewer contact email handling is hardened: `/api/reviews` validates strict email format for `studentEmail` and email-like `studentContact`, and listing detail renders `mailto:` only for strict emails using URI-encoded hrefs.
 - DB migrations are managed with node-pg-migrate (`migrations/` directory).
 - Survey import tooling now generates deterministic/stable survey review IDs from review content (instead of row order).
-- Admin UX: split views for reviews, contact edit requests, access management, security telemetry, and image ordering under `/{lang}/admin/*`; access view supports search, role changes, deletion, and bulk user creation.
-- Admin header copy is tab-aware: reviews/contact-edits/access/security/images each show contextual title/description instead of a single reviews-only subtitle.
+- Admin UX: split views for reviews, contact edit requests, access management, security telemetry, and publication editing under `/{lang}/admin/*`; access view supports search, role changes, deletion, and bulk user creation.
+- Admin users browsing the regular listings UI now see "Edit publication" links (cards, map sidebar/selected panel, and listing detail) that deep-link into `/{lang}/admin/publications?listingId=<id>`.
+- Admin header copy is tab-aware: reviews/contact-edits/access/security/publications each show contextual title/description instead of a single reviews-only subtitle.
 - Admin security telemetry view is presented as a dashboard with KPI cards, alert cards, per-window outcome summaries, and a recent audit-events table (still fed by `getSecurityTelemetrySnapshot` and no-store APIs); security dashboard uses a local blue/green alert palette distinct from the orange public theme, matching Stitch references.
 - Security telemetry dashboard labels/descriptions are localized for all supported languages.
 - Admin reviews pending cards surface structured moderation context (submitted-at timestamp, rating/recommendation/rent/semester/photo count facts, full comment block, inline listing/review image galleries when present, and submitter contact/share-consent fields); when no reviewer phone/email is provided, cards show an explicit "no contact information provided" state.
@@ -151,7 +152,7 @@ Roles:
   - Cannot access admin moderation.
 - `admin`:
   - Same as whitelisted.
-  - Can access admin pages for reviews, contact edits, user access, security telemetry, and listing image ordering.
+  - Can access admin pages for reviews, contact edits, user access, security telemetry, and publication editing.
 
 Implementation:
 
@@ -401,10 +402,11 @@ Integrity hardening (enforced in `migrations/20260206090000000_initial_schema.sq
 - Upload endpoint `POST /api/review-images` is role-gated to `whitelisted`/`admin`, same-origin protected, and accepts only `jpeg`/`png`/`webp`/`gif`/`avif` with a per-file 5MB limit and max 6 files per request.
 - Blob upload path supports environment separation via optional `BLOB_UPLOAD_PREFIX` (for example `prod`, `preview`, `local`).
 - Review submit payload supports optional `reviewImageUrls` only.
-- Admin listing image ordering API:
-  - `GET /api/admin/listing-images` lists listings + image counts.
-  - `GET /api/admin/listing-images?listingId=<id>` returns ordered image set for one listing.
-  - `POST /api/admin/listing-images` updates ordering for one listing.
+- Admin publication edit APIs:
+  - `GET /api/admin/publications` lists listings + review-image counts.
+  - `GET /api/admin/publications?listingId=<id>` returns publication details (address/neighborhood/capacity/contacts + ordered images).
+  - `POST /api/admin/publications` supports publication updates (`updatePublication`), image reorder (`saveImageOrder`), and image deletion (`deleteImage`).
+  - Legacy compatibility alias: `/api/admin/listing-images` maps to the same handlers.
 
 ## Review and Moderation Flow
 
@@ -457,12 +459,14 @@ Must remain true:
 - Admin contact edits panel: `src/app/[lang]/admin/contact-edits/contact-edits-panel.tsx`
 - Admin access page: `src/app/[lang]/admin/access/page.tsx`
 - Admin security telemetry page: `src/app/[lang]/admin/security/page.tsx`
-- Admin listing images page/panel: `src/app/[lang]/admin/images/page.tsx`, `src/app/[lang]/admin/images/images-panel.tsx`
+- Admin publication editor page/panel: `src/app/[lang]/admin/publications/page.tsx`, `src/app/[lang]/admin/publications/publications-panel.tsx`
+- Legacy admin images path redirect: `src/app/[lang]/admin/images/page.tsx` -> `/{lang}/admin/publications`
 - Legacy moderation path redirect: `src/app/[lang]/admin/moderation/page.tsx` -> `/{lang}/admin/reviews`
 - Admin users API: `src/app/api/admin/users/route.ts`
   - `GET` managed users (`active` + `deleted`)
   - `POST` update roles, delete, or bulk upsert users
-- Admin listing images API: `src/app/api/admin/listing-images/route.ts`
+- Admin publications API: `src/app/api/admin/publications/route.ts`
+- Legacy listing-images API alias: `src/app/api/admin/listing-images/route.ts`
 - Contact edit request API: `src/app/api/contact-edits/route.ts`
 - Admin contact edits API: `src/app/api/admin/contact-edits/route.ts`
 - Admin security telemetry API: `src/app/api/admin/security/route.ts`
