@@ -53,6 +53,7 @@ interface ReviewRow {
   student_email: string | null;
   allow_contact_sharing: boolean | null;
   image_urls: string[] | null;
+  listing_image_urls?: string[] | null;
   created_at: string | Date;
   approved_at: string | Date | null;
 }
@@ -71,6 +72,7 @@ function mapPendingReviewRow(row: ReviewRow): PendingWebReview {
     studentEmail: toOptionalText(row.student_email),
     shareContactInfo: Boolean(row.allow_contact_sharing),
     imageUrls: toOptionalStringArray(row.image_urls),
+    listingImageUrls: toOptionalStringArray(row.listing_image_urls),
     createdAt: toIsoString(row.created_at),
   };
 }
@@ -177,31 +179,33 @@ export async function getPendingReviews() {
   const result = await dbQuery<ReviewRow>(
     `
       SELECT
-        id,
-        listing_id,
-        rating,
-        price_usd,
-        recommended,
-        comment,
-        comment_en,
-        comment_es,
-        comment_fr,
-        comment_de,
-        comment_pt,
-        comment_it,
-        comment_no,
-        semester,
-        student_contact,
-        student_name,
-        student_email,
-        allow_contact_sharing,
-        image_urls,
-        created_at,
-        approved_at
-      FROM reviews
-      WHERE source = 'web'
-        AND status = 'pending'
-      ORDER BY created_at DESC
+        r.id,
+        r.listing_id,
+        r.rating,
+        r.price_usd,
+        r.recommended,
+        r.comment,
+        r.comment_en,
+        r.comment_es,
+        r.comment_fr,
+        r.comment_de,
+        r.comment_pt,
+        r.comment_it,
+        r.comment_no,
+        r.semester,
+        r.student_contact,
+        r.student_name,
+        r.student_email,
+        r.allow_contact_sharing,
+        r.image_urls,
+        l.image_urls AS listing_image_urls,
+        r.created_at,
+        r.approved_at
+      FROM reviews r
+      LEFT JOIN listings l ON l.id = r.listing_id
+      WHERE r.source = 'web'
+        AND r.status = 'pending'
+      ORDER BY r.created_at DESC
     `,
   );
   return result.rows.map(mapPendingReviewRow);

@@ -46,6 +46,7 @@ Do not defer AGENTS updates.
 - Survey import tooling now generates deterministic/stable survey review IDs from review content (instead of row order).
 - Admin UX: split views for reviews, contact edit requests, access management, and security telemetry under `/{lang}/admin/*`; access view supports search, role changes, deletion, and bulk user creation.
 - Admin security telemetry view is presented as a dashboard with KPI cards, alert cards, per-window outcome summaries, and a recent audit-events table (still fed by `getSecurityTelemetrySnapshot` and no-store APIs); security dashboard uses a local blue/green alert palette distinct from the orange public theme, matching Stitch references.
+- Admin reviews pending cards surface structured moderation context (submitted-at timestamp, rating/recommendation/rent/semester/photo count facts, full comment block, inline listing/review image galleries when present, and submitter contact/share-consent fields); when no reviewer phone/email is provided, cards show an explicit "no contact information provided" state.
 - Admin bulk user upsert uses set-based SQL (`DELETE ... WHERE email = ANY(...)` + `INSERT ... SELECT FROM UNNEST(...)`) in one transaction.
 - Add-review and detail-review flows share common review payload/state helpers in `src/lib/review-form.ts`.
 - New listing fields in the add-review flow omit coordinates; latitude/longitude are not collected from users.

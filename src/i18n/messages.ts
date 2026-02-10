@@ -149,6 +149,7 @@ export const messages = {
     adminActionError: "Could not update this review.",
     adminAuthError: "Unauthorized. Check your admin token.",
     adminUnknownListing: "Unknown listing",
+    adminNoContactInfoProvided: "No contact information provided.",
     adminUsersManageTitle: "Manage users",
     adminUsersManageSubtitle:
       "Create new users, change roles, or remove access as needed.",
@@ -407,6 +408,7 @@ export const messages = {
     adminActionError: "No pudimos actualizar esa reseña.",
     adminAuthError: "No autorizado. Revisá tu token de admin.",
     adminUnknownListing: "Alojamiento desconocido",
+    adminNoContactInfoProvided: "No se proporcionó información de contacto.",
     adminUsersManageTitle: "Gestionar usuarios",
     adminUsersManageSubtitle:
       "Creá usuarios, cambiá roles o quitá acceso cuando sea necesario.",
@@ -667,6 +669,7 @@ export const messages = {
     adminActionError: "Impossible de mettre à jour cet avis.",
     adminAuthError: "Non autorisé. Vérifiez votre jeton admin.",
     adminUnknownListing: "Logement inconnu",
+    adminNoContactInfoProvided: "Aucune information de contact fournie.",
     adminUsersManageTitle: "Gérer les utilisateurs",
     adminUsersManageSubtitle:
       "Créez des utilisateurs, changez les rôles ou retirez l'accès.",
@@ -930,6 +933,7 @@ export const messages = {
     adminActionError: "Diese Bewertung konnte nicht aktualisiert werden.",
     adminAuthError: "Nicht autorisiert. Prüfe dein Admin-Token.",
     adminUnknownListing: "Unbekannte Unterkunft",
+    adminNoContactInfoProvided: "Keine Kontaktinformationen angegeben.",
     adminUsersManageTitle: "Benutzer verwalten",
     adminUsersManageSubtitle:
       "Benutzer erstellen, Rollen ändern oder Zugriff entfernen.",
@@ -1193,6 +1197,7 @@ export const messages = {
     adminActionError: "Não foi possível atualizar esta avaliação.",
     adminAuthError: "Não autorizado. Verifique seu token de admin.",
     adminUnknownListing: "Imóvel desconhecido",
+    adminNoContactInfoProvided: "Nenhuma informação de contato fornecida.",
     adminUsersManageTitle: "Gerenciar usuários",
     adminUsersManageSubtitle:
       "Crie usuários, altere funções ou remova o acesso.",
@@ -1455,6 +1460,7 @@ export const messages = {
     adminActionError: "Impossibile aggiornare questa recensione.",
     adminAuthError: "Non autorizzato. Controlla il token admin.",
     adminUnknownListing: "Alloggio sconosciuto",
+    adminNoContactInfoProvided: "Nessuna informazione di contatto fornita.",
     adminUsersManageTitle: "Gestione utenti",
     adminUsersManageSubtitle:
       "Crea utenti, cambia ruoli o rimuovi l'accesso.",
@@ -1717,6 +1723,7 @@ export const messages = {
     adminActionError: "Kunne ikke oppdatere denne anmeldelsen.",
     adminAuthError: "Ikke autorisert. Sjekk admin-tokenet ditt.",
     adminUnknownListing: "Ukjent sted",
+    adminNoContactInfoProvided: "Ingen kontaktinformasjon oppgitt.",
     adminUsersManageTitle: "Administrer brukere",
     adminUsersManageSubtitle:
       "Opprett brukere, endre roller eller fjern tilgang.",
