@@ -62,6 +62,7 @@ export interface PendingWebReview {
   studentEmail?: string;
   shareContactInfo?: boolean;
   imageUrls?: string[];
+  listingImageUrls?: string[];
   createdAt: string;
 }
 

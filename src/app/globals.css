@@ -2058,7 +2058,102 @@ input[type="number"] {
 
 .moderation-item {
   display: grid;
-  gap: 0.35rem;
+  gap: 0.55rem;
+}
+
+.moderation-review-title {
+  margin: 0;
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.moderation-review-fields {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.42rem;
+}
+
+.moderation-review-fields div {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--chip-bg) 76%, transparent);
+  padding: 0.5rem 0.58rem;
+  display: grid;
+  gap: 0.22rem;
+}
+
+.moderation-review-fields dt {
+  margin: 0;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.moderation-review-fields dd {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.moderation-review-fields--contact {
+  grid-template-columns: 1fr;
+}
+
+.moderation-review-block {
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--chip-bg) 62%, transparent);
+  padding: 0.55rem 0.62rem;
+  display: grid;
+  gap: 0.32rem;
+}
+
+.moderation-review-block__title {
+  margin: 0;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.moderation-review-comment {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.moderation-review-block--contact {
+  gap: 0.45rem;
+}
+
+.moderation-review-block--images .image-gallery {
+  margin-top: 0;
+}
+
+.moderation-review-share {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+}
+
+.moderation-review-share-value {
+  margin: 0;
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.moderation-review-empty {
+  margin: 0;
+  font-size: 0.86rem;
+  color: var(--ink-soft);
 }
 
 .moderation-actions {
@@ -2255,6 +2350,10 @@ input[type="number"] {
   }
 
   .moderation-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .moderation-review-fields {
     grid-template-columns: 1fr;
   }
 
