@@ -66,9 +66,9 @@ export function mapReviewApiErrorMessage(rawError: string, messages: Messages) {
     return messages.formContactShareError;
   }
 
-  const listingImageLimit = error.match(/A listing can include at most (\d+) images/i);
-  if (listingImageLimit?.[1]) {
-    return messages.formPhotosMaxError.replace("{count}", listingImageLimit[1]);
+  const reviewImageLimit = error.match(/A (?:review|listing) can include at most (\d+) images/i);
+  if (reviewImageLimit?.[1]) {
+    return messages.formPhotosMaxError.replace("{count}", reviewImageLimit[1]);
   }
 
   return "";

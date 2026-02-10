@@ -6,7 +6,6 @@ vi.mock("@/lib/auth", () => ({
 }));
 
 vi.mock("@/lib/data", () => ({
-  appendListingImages: vi.fn(),
   createListing: vi.fn(),
   getListingById: vi.fn(),
 }));
@@ -42,11 +41,6 @@ beforeAll(async () => {
 beforeEach(() => {
   vi.clearAllMocks();
   mockedOrigin.validateSameOriginRequest.mockReturnValue({ ok: true });
-  mockedData.appendListingImages.mockResolvedValue({
-    ok: true,
-    addedCount: 0,
-    imageUrls: [],
-  } as never);
 });
 
 function buildReviewRequest(body: Record<string, unknown>) {
@@ -229,56 +223,6 @@ describe("/api/reviews", () => {
     expect(response.status).toBe(400);
   });
 
-  it("allows listing images for existing listing reviews", async () => {
-    mockedAuth.getRoleFromRequestAsync.mockResolvedValueOnce("whitelisted");
-    mockedAuth.canSubmitReviews.mockReturnValueOnce(true);
-    mockedData.getListingById.mockResolvedValueOnce({ id: "listing-3" } as never);
-    mockedData.appendListingImages.mockResolvedValueOnce({
-      ok: true,
-      addedCount: 1,
-      imageUrls: ["https://example.com/property.jpg"],
-    } as never);
-
-    const response = await POST(
-      buildReviewRequest({
-        listingId: "listing-3",
-        confirmExistingDetails: true,
-        ...baseReviewPayload,
-        listingImageUrls: ["https://example.com/property.jpg"],
-      }),
-    );
-
-    expect(response.status).toBe(201);
-    expect(mockedData.appendListingImages).toHaveBeenCalledWith("listing-3", [
-      "https://example.com/property.jpg",
-    ]);
-    expect(mockedCache.revalidateTag).toHaveBeenCalledWith("public-listings", "max");
-    expect(mockedCache.revalidateTag).toHaveBeenCalledWith("public-listing:listing-3", "max");
-  });
-
-  it("rejects listing image updates that would exceed max count", async () => {
-    mockedAuth.getRoleFromRequestAsync.mockResolvedValueOnce("whitelisted");
-    mockedAuth.canSubmitReviews.mockReturnValueOnce(true);
-    mockedData.getListingById.mockResolvedValueOnce({ id: "listing-cap" } as never);
-    mockedData.appendListingImages.mockResolvedValueOnce({
-      ok: false,
-      reason: "too_many",
-      maxAllowed: 12,
-    } as never);
-
-    const response = await POST(
-      buildReviewRequest({
-        listingId: "listing-cap",
-        confirmExistingDetails: true,
-        ...baseReviewPayload,
-        listingImageUrls: ["https://example.com/photo.jpg"],
-      }),
-    );
-
-    expect(response.status).toBe(400);
-    expect(mockedReviews.appendPendingReview).not.toHaveBeenCalled();
-  });
-
   it("rejects mismatched latitude/longitude for new listing", async () => {
     mockedAuth.getRoleFromRequestAsync.mockResolvedValueOnce("whitelisted");
     mockedAuth.canSubmitReviews.mockReturnValueOnce(true);
@@ -337,7 +281,7 @@ describe("/api/reviews", () => {
     expect(mockedCache.revalidateTag).toHaveBeenCalledWith("public-dataset-meta", "max");
   });
 
-  it("passes normalized listing/review image URLs to persistence layers", async () => {
+  it("passes normalized review image URLs to persistence layers", async () => {
     mockedAuth.getRoleFromRequestAsync.mockResolvedValueOnce("whitelisted");
     mockedAuth.canSubmitReviews.mockReturnValueOnce(true);
     mockedData.createListing.mockResolvedValueOnce({ listingId: "listing-images" } as never);
@@ -362,11 +306,10 @@ describe("/api/reviews", () => {
     );
 
     expect(response.status).toBe(201);
-    expect(mockedData.createListing).toHaveBeenCalledWith(
-      expect.objectContaining({
-        imageUrls: ["https://example.com/property-photo.jpg"],
-      }),
-    );
+    const createListingPayload = mockedData.createListing.mock.calls[0]?.[0] as
+      | Record<string, unknown>
+      | undefined;
+    expect(createListingPayload?.imageUrls).toBeUndefined();
     expect(mockedReviews.appendPendingReview).toHaveBeenCalledWith(
       expect.objectContaining({
         imageUrls: ["https://example.com/review-photo.jpg"],

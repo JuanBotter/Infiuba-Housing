@@ -11,7 +11,7 @@ import {
   readApiErrorMessage,
 } from "@/lib/review-form";
 import { uploadReviewImageFiles } from "@/lib/review-image-upload";
-import { MAX_LISTING_IMAGE_COUNT, MAX_REVIEW_IMAGE_COUNT } from "@/lib/review-images";
+import { MAX_REVIEW_IMAGE_COUNT } from "@/lib/review-images";
 import { splitContactParts } from "@/lib/contact-links";
 import { SEMESTER_OPTIONS } from "@/lib/semester-options";
 import { StarRating } from "@/components/star-rating";
@@ -65,10 +65,8 @@ export function AddStayReviewForm({ lang, listings, neighborhoods }: AddStayRevi
   const [neighborhood, setNeighborhood] = useState("");
   const [contacts, setContacts] = useState("");
   const [capacity, setCapacity] = useState("");
-  const [listingImageUrls, setListingImageUrls] = useState<string[]>([]);
   const [reviewDraft, setReviewDraft] = useState(createInitialReviewDraft);
   const [isNeighborhoodOpen, setIsNeighborhoodOpen] = useState(false);
-  const [uploadingListingImages, setUploadingListingImages] = useState(false);
   const [uploadingReviewImages, setUploadingReviewImages] = useState(false);
 
   const [status, setStatus] = useState<SubmitStatus>("idle");
@@ -133,7 +131,6 @@ export function AddStayReviewForm({ lang, listings, neighborhoods }: AddStayRevi
     setSelectedListingId(listing.id);
     setAddress(listing.address);
     setNeighborhood(listing.neighborhood);
-    setListingImageUrls([]);
     clearFormError("address");
     clearFormError("neighborhood");
     setMatchDecision("pending");
@@ -187,24 +184,6 @@ export function AddStayReviewForm({ lang, listings, neighborhoods }: AddStayRevi
           imageUrls: [...previous.imageUrls, ...urls].slice(0, MAX_REVIEW_IMAGE_COUNT),
         })),
       setUploadingReviewImages,
-    );
-  }
-
-  async function onUploadListingImages(event: ChangeEvent<HTMLInputElement>) {
-    const input = event.currentTarget;
-    const selectedFiles = Array.from(input.files || []);
-    input.value = "";
-    if (selectedFiles.length === 0) {
-      return;
-    }
-
-    const remainingSlots = MAX_LISTING_IMAGE_COUNT - listingImageUrls.length;
-    await uploadSelectedImages(
-      selectedFiles,
-      remainingSlots,
-      MAX_LISTING_IMAGE_COUNT,
-      (urls) => setListingImageUrls((previous) => [...previous, ...urls].slice(0, MAX_LISTING_IMAGE_COUNT)),
-      setUploadingListingImages,
     );
   }
 
@@ -291,10 +270,6 @@ export function AddStayReviewForm({ lang, listings, neighborhoods }: AddStayRevi
       payload.capacity = capacity ? Number(capacity) : undefined;
     }
 
-    if (listingImageUrls.length > 0) {
-      payload.listingImageUrls = listingImageUrls;
-    }
-
     try {
       const response = await fetch("/api/reviews", {
         method: "POST",
@@ -321,7 +296,6 @@ export function AddStayReviewForm({ lang, listings, neighborhoods }: AddStayRevi
       setReviewDraft(createInitialReviewDraft());
       setContacts("");
       setCapacity("");
-      setListingImageUrls([]);
       if (!useExistingListing) {
         setAddress("");
         setNeighborhood("");
@@ -671,39 +645,6 @@ export function AddStayReviewForm({ lang, listings, neighborhoods }: AddStayRevi
             ))}
           </datalist>
         </label>
-
-        <fieldset className="review-images property-form__full">
-          <legend>{t.formListingPhotosLabel}</legend>
-          <p className="review-images__hint">
-            {t.formPhotosHint.replace("{count}", String(MAX_LISTING_IMAGE_COUNT))}
-          </p>
-          <label className="button-link review-images__upload">
-            <input
-              type="file"
-              accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
-              multiple
-              onChange={(event) => void onUploadListingImages(event)}
-              disabled={uploadingListingImages || listingImageUrls.length >= MAX_LISTING_IMAGE_COUNT}
-            />
-            <span>
-              {uploadingListingImages ? t.formPhotosUploading : t.formPhotosUploadButton}
-            </span>
-          </label>
-          {listingImageUrls.length > 0 ? (
-            <ImageGalleryViewer
-              lang={lang}
-              images={listingImageUrls}
-              altBase={t.imageAltProperty}
-              ariaLabel={t.imageAriaSelectedListingPhotos}
-              onRemoveImage={(index) =>
-                setListingImageUrls((previous) =>
-                  previous.filter((_, imageIndex) => imageIndex !== index),
-                )
-              }
-              removeLabel={t.formPhotosRemoveButton}
-            />
-          ) : null}
-        </fieldset>
 
         <fieldset className="review-images property-form__full">
           <legend>{t.formReviewPhotosLabel}</legend>

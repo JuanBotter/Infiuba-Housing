@@ -53,7 +53,6 @@ interface ReviewRow {
   student_email: string | null;
   allow_contact_sharing: boolean | null;
   image_urls: string[] | null;
-  listing_image_urls?: string[] | null;
   created_at: string | Date;
   approved_at: string | Date | null;
 }
@@ -72,7 +71,6 @@ function mapPendingReviewRow(row: ReviewRow): PendingWebReview {
     studentEmail: toOptionalText(row.student_email),
     shareContactInfo: Boolean(row.allow_contact_sharing),
     imageUrls: toOptionalStringArray(row.image_urls),
-    listingImageUrls: toOptionalStringArray(row.listing_image_urls),
     createdAt: toIsoString(row.created_at),
   };
 }
@@ -198,11 +196,9 @@ export async function getPendingReviews() {
         r.student_email,
         r.allow_contact_sharing,
         r.image_urls,
-        l.image_urls AS listing_image_urls,
         r.created_at,
         r.approved_at
       FROM reviews r
-      LEFT JOIN listings l ON l.id = r.listing_id
       WHERE r.source = 'web'
         AND r.status = 'pending'
       ORDER BY r.created_at DESC

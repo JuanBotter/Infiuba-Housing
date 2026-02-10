@@ -157,18 +157,6 @@ export function ReviewsPanel({ lang, listingMap }: ReviewsPanelProps) {
                     <p className="moderation-review-comment">{review.comment}</p>
                   </section>
 
-                  {review.listingImageUrls?.length ? (
-                    <section className="moderation-review-block moderation-review-block--images">
-                      <p className="moderation-review-block__title">{messages.formListingPhotosLabel}</p>
-                      <ImageGalleryViewer
-                        lang={lang}
-                        images={review.listingImageUrls}
-                        altBase={messages.imageAltProperty}
-                        ariaLabel={messages.imageAriaPropertyPhotos}
-                      />
-                    </section>
-                  ) : null}
-
                   {review.imageUrls?.length ? (
                     <section className="moderation-review-block moderation-review-block--images">
                       <p className="moderation-review-block__title">{messages.formReviewPhotosLabel}</p>

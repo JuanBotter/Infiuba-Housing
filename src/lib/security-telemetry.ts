@@ -253,7 +253,15 @@ export async function getSecurityTelemetrySnapshot(): Promise<TelemetryResult> {
       getOutcomeCounts("auth.otp.verify", 15),
       getOutcomeCounts("auth.otp.verify", 60),
       getEventOutcomeCounts(["admin.review.moderate"], 60),
-      getEventOutcomeCounts(["admin.user.update_role", "admin.user.delete", "admin.user.upsert"], 60),
+      getEventOutcomeCounts(
+        [
+          "admin.user.update_role",
+          "admin.user.delete",
+          "admin.user.upsert",
+          "admin.listing_images.reorder",
+        ],
+        60,
+      ),
       getRateLimitScopeHits24h(),
       getRecentAuditEvents(),
     ]);

@@ -24,7 +24,7 @@ Do not defer AGENTS updates.
 - Visual system: Stitch-aligned editorial look across explorer/detail/review/auth/admin with warm ivory surfaces, dark cocoa dark-mode base (`#221510`), rounded cards, image-forward listing/media blocks, and high-contrast pill controls.
 - Dark-mode contrast guardrails are enforced in the global theme layer so top-bar popovers, filters/cards/map panels, listing-detail metric chips, and admin/security surfaces switch to dark high-contrast backgrounds with readable text/field contrast.
 - Core domain: listings, owner contacts, survey reviews, web reviews with moderation, multilingual review text, and review-level rent history.
-- Listings and reviews support photo galleries backed by Vercel Blob uploads (`image_urls` arrays in DB). Review submission supports image upload with server-side MIME/size/count validation.
+- Listings and reviews support photo galleries backed by Vercel Blob uploads. Review-level images (`reviews.image_urls`) are canonical, while listing-level gallery display is derived from approved review images and can be admin-ordered via listing image-order metadata (`listings.image_urls`).
 - Listing detail/admin galleries and review-form upload previews use an in-page image viewer (body-portal modal/lightbox with keyboard + thumbnail navigation) instead of opening images in a new tab; property galleries use a uniform same-size tile layout, and gallery/viewer frames use fixed-size layouts so image display size is consistent regardless of source resolution. The viewer supports fit/fill mode toggle, zoom controls (buttons, keyboard, wheel, double-click reset/toggle), swipe navigation on touch, and Home/End keyboard shortcuts.
 - Auth/login: email OTP in top-bar access menu; only active users present in `users` can sign in; login email field is required (label does not say optional).
 - Review submission requires a semester string in the format `1C-YYYY`/`2C-YYYY` from 2022–2030. UI uses a required text input with suggestions; API validates against the fixed list.
@@ -36,7 +36,7 @@ Do not defer AGENTS updates.
 - OTP request/verify API responses are intentionally enumeration-safe: request responses are generic for allowed/not-allowed/rate-limited outcomes, and verify failures return a generic invalid-code response for auth failures.
 - OTP abuse controls are DB-backed and layered: OTP requests are rate limited by IP/subnet/global windows, and OTP verify failures are rate limited by IP and email+IP windows.
 - OTP emails are localized using the user-selected UI language (`requestOtp` payload `lang`) and include branded HTML (two-column layout with logo panel + styled content), a one-click magic login link, and the numeric OTP code as fallback.
-- Structured security audit events are recorded for OTP request/verify and admin-sensitive actions (user access changes, review moderation, contact edit moderation, and contact edit submissions).
+- Structured security audit events are recorded for OTP request/verify and admin-sensitive actions (user access changes, review moderation, listing image reordering, contact edit moderation, and contact edit submissions).
 - Sensitive auth/admin API responses explicitly send `Cache-Control: no-store` headers.
 - Stateful `POST`/`DELETE` API endpoints enforce same-origin checks (Origin/Referer must match request host) to reduce CSRF risk; `GET /api/session/magic` is a token-authenticated email-link exception.
 - API request parsing/normalization is centralized in `src/lib/request-validation.ts` and reused across session/reviews/admin endpoints.
@@ -44,8 +44,8 @@ Do not defer AGENTS updates.
 - Reviewer contact email handling is hardened: `/api/reviews` validates strict email format for `studentEmail` and email-like `studentContact`, and listing detail renders `mailto:` only for strict emails using URI-encoded hrefs.
 - DB migrations are managed with node-pg-migrate (`migrations/` directory).
 - Survey import tooling now generates deterministic/stable survey review IDs from review content (instead of row order).
-- Admin UX: split views for reviews, contact edit requests, access management, and security telemetry under `/{lang}/admin/*`; access view supports search, role changes, deletion, and bulk user creation.
-- Admin header copy is tab-aware: reviews/contact-edits/access/security each show contextual title/description instead of a single reviews-only subtitle.
+- Admin UX: split views for reviews, contact edit requests, access management, security telemetry, and image ordering under `/{lang}/admin/*`; access view supports search, role changes, deletion, and bulk user creation.
+- Admin header copy is tab-aware: reviews/contact-edits/access/security/images each show contextual title/description instead of a single reviews-only subtitle.
 - Admin security telemetry view is presented as a dashboard with KPI cards, alert cards, per-window outcome summaries, and a recent audit-events table (still fed by `getSecurityTelemetrySnapshot` and no-store APIs); security dashboard uses a local blue/green alert palette distinct from the orange public theme, matching Stitch references.
 - Security telemetry dashboard labels/descriptions are localized for all supported languages.
 - Admin reviews pending cards surface structured moderation context (submitted-at timestamp, rating/recommendation/rent/semester/photo count facts, full comment block, inline listing/review image galleries when present, and submitter contact/share-consent fields); when no reviewer phone/email is provided, cards show an explicit "no contact information provided" state.
@@ -151,7 +151,7 @@ Roles:
   - Cannot access admin moderation.
 - `admin`:
   - Same as whitelisted.
-  - Can access admin pages for reviews and user access.
+  - Can access admin pages for reviews, contact edits, user access, security telemetry, and listing image ordering.
 
 Implementation:
 
@@ -201,7 +201,7 @@ Seed/import tooling:
 
 ## Database Schema (Current)
 
-Defined in `migrations/20260206090000000_initial_schema.sql`, `migrations/20260206090100000_otp_rate_limit_buckets.sql`, `migrations/20260206090200000_listing_contact_length_limit.sql`, `migrations/20260206090300000_dataset_meta_bootstrap.sql`, `migrations/20260206090400000_drop_legacy_invites.sql`, `migrations/20260206090500000_security_audit_events.sql`, `migrations/20260207090000000_contact_edit_requests.sql`, `migrations/20260208090000000_contact_edit_capacity.sql`, and `migrations/20260209100000000_listing_review_images.sql` (applied via node-pg-migrate; rollback behavior documented in `migrations/ROLLBACK_POLICY.md`).
+Defined in `migrations/20260206090000000_initial_schema.sql`, `migrations/20260206090100000_otp_rate_limit_buckets.sql`, `migrations/20260206090200000_listing_contact_length_limit.sql`, `migrations/20260206090300000_dataset_meta_bootstrap.sql`, `migrations/20260206090400000_drop_legacy_invites.sql`, `migrations/20260206090500000_security_audit_events.sql`, `migrations/20260207090000000_contact_edit_requests.sql`, `migrations/20260208090000000_contact_edit_capacity.sql`, `migrations/20260209100000000_listing_review_images.sql`, and `migrations/20260210130000000_listing_image_order_metadata.sql` (applied via node-pg-migrate; rollback behavior documented in `migrations/ROLLBACK_POLICY.md`).
 
 Finite-state fields use PostgreSQL enums:
 
@@ -232,7 +232,7 @@ Finite-state fields use PostgreSQL enums:
 - `recommendation_rate NUMERIC`
 - `total_reviews INTEGER NOT NULL DEFAULT 0`
 - `recent_year INTEGER`
-- `image_urls TEXT[] NOT NULL DEFAULT '{}'::text[]` (max 12)
+- `image_urls TEXT[] NOT NULL DEFAULT '{}'::text[]` (admin ordering metadata for review-derived listing gallery; no fixed count cap)
 - `created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`
 - `updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`
 
@@ -360,7 +360,7 @@ Indexes:
 - `idx_reviews_listing_status ON reviews(listing_id, status, source)`
 - `idx_reviews_status_created ON reviews(status, created_at DESC)`
 
-Integrity hardening (enforced in `migrations/20260206090000000_initial_schema.sql`, `migrations/20260206090100000_otp_rate_limit_buckets.sql`, `migrations/20260206090200000_listing_contact_length_limit.sql`, `migrations/20260206090300000_dataset_meta_bootstrap.sql`, `migrations/20260206090400000_drop_legacy_invites.sql`, `migrations/20260206090500000_security_audit_events.sql`, `migrations/20260207090000000_contact_edit_requests.sql`, `migrations/20260208090000000_contact_edit_capacity.sql`, and `migrations/20260209100000000_listing_review_images.sql`):
+Integrity hardening (enforced in `migrations/20260206090000000_initial_schema.sql`, `migrations/20260206090100000_otp_rate_limit_buckets.sql`, `migrations/20260206090200000_listing_contact_length_limit.sql`, `migrations/20260206090300000_dataset_meta_bootstrap.sql`, `migrations/20260206090400000_drop_legacy_invites.sql`, `migrations/20260206090500000_security_audit_events.sql`, `migrations/20260207090000000_contact_edit_requests.sql`, `migrations/20260208090000000_contact_edit_capacity.sql`, `migrations/20260209100000000_listing_review_images.sql`, and `migrations/20260210130000000_listing_image_order_metadata.sql`):
 
 - Non-empty checks for core text identifiers (`users.email`, `deleted_users.email`, `auth_email_otps.email`, listing address/neighborhood, listing contact).
 - Numeric range checks for ratings, recommendation rates, coordinates, and year fields.
@@ -371,7 +371,7 @@ Integrity hardening (enforced in `migrations/20260206090000000_initial_schema.sq
 - Security audit event consistency (`event_type`/`outcome` non-empty).
 - Listing contact length control (`listing_contacts.contact` <= 180 for new/updated rows).
 - Contact edit requests enforce non-empty requester emails and at least one requested field (contacts or max students); requested/current capacity values must be null or > 0.
-- Listing/review image arrays enforce count caps (`listings.image_urls <= 12`, `reviews.image_urls <= 6`).
+- Review image arrays enforce count caps (`reviews.image_urls <= 6`); listing image-order metadata is intentionally uncapped.
 - `dataset_meta` bootstrap row (`id=1`) is created if missing via migration.
 - Legacy invite DB artifacts (`auth_invites`, `invite_consumed_reason_enum`) are dropped by migration.
 - Legacy-row normalization before constraints are applied (trim/canonicalize emails, null-out invalid ranges, dedupe users by case-insensitive email).
@@ -395,13 +395,16 @@ Integrity hardening (enforced in `migrations/20260206090000000_initial_schema.sq
 
 ## Image Data Model
 
-- Listing-level gallery images are stored in `listings.image_urls` (up to 12 URLs).
-- Review-level images are stored in `reviews.image_urls` (up to 6 URLs).
+- Review-level images are stored in `reviews.image_urls` (up to 6 URLs) and are the canonical source of listing/gallery media.
+- Listing-level gallery display is derived from approved review images (survey + web).
+- `listings.image_urls` stores admin-managed ordering metadata for the derived gallery; the first ordered image is the listing cover image in cards.
 - Upload endpoint `POST /api/review-images` is role-gated to `whitelisted`/`admin`, same-origin protected, and accepts only `jpeg`/`png`/`webp`/`gif`/`avif` with a per-file 5MB limit and max 6 files per request.
 - Blob upload path supports environment separation via optional `BLOB_UPLOAD_PREFIX` (for example `prod`, `preview`, `local`).
-- Review submit payload supports:
-  - `reviewImageUrls` for all review submissions.
-  - `listingImageUrls` when creating a new listing and also when reviewing an existing listing (appends to listing gallery, capped at 12 total images).
+- Review submit payload supports optional `reviewImageUrls` only.
+- Admin listing image ordering API:
+  - `GET /api/admin/listing-images` lists listings + image counts.
+  - `GET /api/admin/listing-images?listingId=<id>` returns ordered image set for one listing.
+  - `POST /api/admin/listing-images` updates ordering for one listing.
 
 ## Review and Moderation Flow
 
@@ -414,10 +417,8 @@ Submission:
 - New reviews are inserted as `source='web'`, `status='pending'`
 - New-listing contact ingestion (`contacts`) enforces at most 20 entries and rejects any item longer than 180 characters.
 - New review payload supports optional `reviewImageUrls`.
-- `listingImageUrls` is optional for both new-listing and existing-listing review submissions.
-- For existing listings, submitted `listingImageUrls` are merged into `listings.image_urls` before saving the pending review; requests are rejected if the merged listing gallery would exceed 12 images.
+- Listing image URLs are not accepted from review submissions; listing/gallery media comes from approved review images only.
 - Creating a new listing through review submission revalidates public listing/dataset cache tags.
-- Existing-listing image updates through review submissions revalidate public listing cache tags.
 - Review submission validates `studentEmail` and any email-like `studentContact` with strict email rules; invalid email input is rejected.
 - Permission enforced server-side: only `whitelisted` and `admin`
 
@@ -456,10 +457,12 @@ Must remain true:
 - Admin contact edits panel: `src/app/[lang]/admin/contact-edits/contact-edits-panel.tsx`
 - Admin access page: `src/app/[lang]/admin/access/page.tsx`
 - Admin security telemetry page: `src/app/[lang]/admin/security/page.tsx`
+- Admin listing images page/panel: `src/app/[lang]/admin/images/page.tsx`, `src/app/[lang]/admin/images/images-panel.tsx`
 - Legacy moderation path redirect: `src/app/[lang]/admin/moderation/page.tsx` -> `/{lang}/admin/reviews`
 - Admin users API: `src/app/api/admin/users/route.ts`
   - `GET` managed users (`active` + `deleted`)
   - `POST` update roles, delete, or bulk upsert users
+- Admin listing images API: `src/app/api/admin/listing-images/route.ts`
 - Contact edit request API: `src/app/api/contact-edits/route.ts`
 - Admin contact edits API: `src/app/api/admin/contact-edits/route.ts`
 - Admin security telemetry API: `src/app/api/admin/security/route.ts`
@@ -481,6 +484,7 @@ Must remain true:
 - OTP magic-link verifier route: `src/app/api/session/magic/route.ts`
 - OTP email logo asset: `public/infiuba-logo.png` (sourced from `assets/infiuba color 1.png`; PNG is used for broad email-client compatibility). OTP logo URL can be overridden with `OTP_LOGO_URL`.
 - Review image helpers: `src/lib/review-images.ts`, `src/lib/review-image-upload.ts`
+- Review-image ordering helpers: `src/lib/review-image-order.ts`, `src/lib/admin-listing-images.ts`
 - Data access: `src/lib/data.ts`
 - Reviews store: `src/lib/reviews-store.ts`
 - Messages/i18n: `src/i18n/messages.ts`

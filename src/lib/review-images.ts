@@ -1,5 +1,4 @@
 export const MAX_REVIEW_IMAGE_COUNT = 6;
-export const MAX_LISTING_IMAGE_COUNT = 12;
 export const MAX_IMAGE_UPLOAD_FILES = 6;
 export const MAX_IMAGE_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 export const MAX_IMAGE_URL_LENGTH = 2048;
@@ -62,24 +61,6 @@ export function parseReviewImageUrls(value: unknown) {
         parsed.error === "too_many"
           ? `A review can include at most ${MAX_REVIEW_IMAGE_COUNT} images`
           : "Invalid review image URLs",
-    };
-  }
-
-  return {
-    ok: true as const,
-    urls: parsed.urls,
-  };
-}
-
-export function parseListingImageUrls(value: unknown) {
-  const parsed = parseImageUrls(value, MAX_LISTING_IMAGE_COUNT);
-  if (!parsed.ok) {
-    return {
-      ok: false as const,
-      error:
-        parsed.error === "too_many"
-          ? `A listing can include at most ${MAX_LISTING_IMAGE_COUNT} images`
-          : "Invalid listing image URLs",
     };
   }
 

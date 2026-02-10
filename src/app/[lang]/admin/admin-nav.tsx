@@ -40,6 +40,12 @@ export function AdminNav({ lang }: AdminNavProps) {
       >
         {messages.adminNavSecurity}
       </Link>
+      <Link
+        href={`/${lang}/admin/images`}
+        className={`view-toggle__button admin-nav__link ${segment === "images" ? "is-active" : ""}`}
+      >
+        {messages.adminNavImages}
+      </Link>
     </nav>
   );
 }

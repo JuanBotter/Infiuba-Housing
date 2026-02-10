@@ -13,7 +13,7 @@ import { SEMESTER_OPTIONS } from "@/lib/semester-options";
 import { StarRating } from "@/components/star-rating";
 import { ImageGalleryViewer } from "@/components/image-gallery-viewer";
 import { uploadReviewImageFiles } from "@/lib/review-image-upload";
-import { MAX_LISTING_IMAGE_COUNT, MAX_REVIEW_IMAGE_COUNT } from "@/lib/review-images";
+import { MAX_REVIEW_IMAGE_COUNT } from "@/lib/review-images";
 import type { Lang } from "@/types";
 
 interface ReviewFormProps {
@@ -24,9 +24,7 @@ interface ReviewFormProps {
 export function ReviewForm({ lang, listingId }: ReviewFormProps) {
   const t = useMemo(() => getMessages(lang), [lang]);
   const [reviewDraft, setReviewDraft] = useState(createInitialReviewDraft);
-  const [listingImageUrls, setListingImageUrls] = useState<string[]>([]);
   const [status, setStatus] = useState<"idle" | "sending" | "success" | "error">("idle");
-  const [uploadingListingImages, setUploadingListingImages] = useState(false);
   const [uploadingImages, setUploadingImages] = useState(false);
   const [serverMessage, setServerMessage] = useState("");
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
@@ -94,7 +92,6 @@ export function ReviewForm({ lang, listingId }: ReviewFormProps) {
         body: JSON.stringify({
           listingId,
           ...buildReviewPayload(reviewDraft),
-          listingImageUrls,
         }),
       });
 
@@ -108,44 +105,9 @@ export function ReviewForm({ lang, listingId }: ReviewFormProps) {
       setStatus("success");
       setFormErrors({});
       setReviewDraft(createInitialReviewDraft());
-      setListingImageUrls([]);
     } catch {
       setStatus("error");
     }
-  }
-
-  async function onUploadListingImages(event: ChangeEvent<HTMLInputElement>) {
-    const input = event.currentTarget;
-    const selectedFiles = Array.from(input.files || []);
-    input.value = "";
-    if (selectedFiles.length === 0) {
-      return;
-    }
-
-    const remainingSlots = MAX_LISTING_IMAGE_COUNT - listingImageUrls.length;
-    if (remainingSlots <= 0) {
-      setStatus("error");
-      setServerMessage(
-        t.formPhotosMaxError.replace("{count}", String(MAX_LISTING_IMAGE_COUNT)),
-      );
-      return;
-    }
-
-    setUploadingListingImages(true);
-    const uploaded = await uploadReviewImageFiles(selectedFiles.slice(0, remainingSlots));
-    setUploadingListingImages(false);
-
-    if (!uploaded.ok) {
-      setStatus("error");
-      setServerMessage(uploaded.error);
-      return;
-    }
-
-    setListingImageUrls((previous) =>
-      [...previous, ...uploaded.urls].slice(0, MAX_LISTING_IMAGE_COUNT),
-    );
-    setStatus("idle");
-    setServerMessage("");
   }
 
   async function onUploadImages(event: ChangeEvent<HTMLInputElement>) {
@@ -300,41 +262,6 @@ export function ReviewForm({ lang, listingId }: ReviewFormProps) {
           </p>
         ) : null}
       </label>
-
-      <fieldset className="review-images">
-        <legend>{t.formListingPhotosLabel}</legend>
-        <p className="review-images__hint">
-          {t.formPhotosHint.replace("{count}", String(MAX_LISTING_IMAGE_COUNT))}
-        </p>
-        <label className="button-link review-images__upload">
-          <input
-            type="file"
-            accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
-            multiple
-            onChange={(event) => void onUploadListingImages(event)}
-            disabled={
-              uploadingListingImages || listingImageUrls.length >= MAX_LISTING_IMAGE_COUNT
-            }
-          />
-          <span>
-            {uploadingListingImages ? t.formPhotosUploading : t.formPhotosUploadButton}
-          </span>
-        </label>
-        {listingImageUrls.length > 0 ? (
-          <ImageGalleryViewer
-            lang={lang}
-            images={listingImageUrls}
-            altBase={t.imageAltProperty}
-            ariaLabel={t.imageAriaSelectedListingPhotos}
-            onRemoveImage={(index) =>
-              setListingImageUrls((previous) =>
-                previous.filter((_, imageIndex) => imageIndex !== index),
-              )
-            }
-            removeLabel={t.formPhotosRemoveButton}
-          />
-        ) : null}
-      </fieldset>
 
       <fieldset className="review-images">
         <legend>{t.formReviewPhotosLabel}</legend>

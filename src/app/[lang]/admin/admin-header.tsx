@@ -29,6 +29,7 @@ export function AdminHeader({ lang, messages }: AdminHeaderProps) {
     },
     access: { title: messages.adminNavAccess, subtitle: messages.adminSubtitleAccess },
     security: { title: messages.adminNavSecurity, subtitle: messages.adminSubtitleSecurity },
+    images: { title: messages.adminNavImages, subtitle: messages.adminSubtitleImages },
   };
 
   const activeHeader = headerBySection[section] ?? headerBySection.reviews;
