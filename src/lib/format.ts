@@ -14,6 +14,18 @@ export function getLocaleForLang(lang: Lang) {
   return localeByLanguage[lang] || "en-US";
 }
 
+export function formatNumber(value: number, lang: Lang) {
+  return new Intl.NumberFormat(getLocaleForLang(lang), {
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
+export function formatUsdAmount(value: number) {
+  return new Intl.NumberFormat("en-US", {
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
 export function formatUsd(value: number, lang: Lang) {
   return new Intl.NumberFormat(getLocaleForLang(lang), {
     style: "currency",
@@ -43,6 +55,32 @@ export function formatUsdRange(
   }
   if (typeof fallback === "number") {
     return formatUsd(fallback, lang);
+  }
+
+  return undefined;
+}
+
+export function formatUsdRangePlain(
+  values: { min?: number; max?: number; fallback?: number },
+  _lang: Lang,
+) {
+  const { min, max, fallback } = values;
+
+  if (typeof min === "number" && typeof max === "number") {
+    if (Math.abs(min - max) < 0.000001) {
+      return formatUsdAmount(min);
+    }
+    return `${formatUsdAmount(min)} - ${formatUsdAmount(max)}`;
+  }
+
+  if (typeof min === "number") {
+    return formatUsdAmount(min);
+  }
+  if (typeof max === "number") {
+    return formatUsdAmount(max);
+  }
+  if (typeof fallback === "number") {
+    return formatUsdAmount(fallback);
   }
 
   return undefined;

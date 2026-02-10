@@ -25,6 +25,7 @@ Do not defer AGENTS updates.
 - Dark-mode contrast guardrails are enforced in the global theme layer so top-bar popovers, filters/cards/map panels, listing-detail metric chips, and admin/security surfaces switch to dark high-contrast backgrounds with readable text/field contrast.
 - Core domain: listings, owner contacts, survey reviews, web reviews with moderation, multilingual review text, and review-level rent history.
 - Listings and reviews support photo galleries backed by Vercel Blob uploads. Review-level images (`reviews.image_urls`) are canonical, while listing-level gallery display is derived from approved review images and can be admin-ordered via listing image-order metadata (`listings.image_urls`).
+- Listing cards in list mode render image overlays for neighborhood + rent + rating and include a heart favorite control; favorites persist per logged-in user, while visitor clicks show a sign-in hint and do not save.
 - Listing detail/admin galleries and review-form upload previews use an in-page image viewer (body-portal modal/lightbox with keyboard + thumbnail navigation) instead of opening images in a new tab; property galleries use a uniform same-size tile layout, and gallery/viewer frames use fixed-size layouts so image display size is consistent regardless of source resolution. The viewer supports fit/fill mode toggle, zoom controls (buttons, keyboard, wheel, double-click reset/toggle), swipe navigation on touch, and Home/End keyboard shortcuts.
 - Auth/login: email OTP in top-bar access menu; only active users present in `users` can sign in; login email field is required (label does not say optional).
 - Review submission requires a semester string in the format `1C-YYYY`/`2C-YYYY` from 2022–2030. UI uses a required text input with suggestions; API validates against the fixed list.
@@ -53,6 +54,7 @@ Do not defer AGENTS updates.
 - Listings hero helper copy now emphasizes comparing neighborhoods, rent ranges, and recent student experiences (instead of implementation-oriented wording).
 - Non-admin UX copy is standardized across listings/detail/review/auth flows: map/list hints, empty states, owner-contact prompts, OTP guidance/errors, and add-review matching prompts now use user-task language in all supported locales.
 - Review forms use a dedicated rent-input label (reported rent paid), while list/map/detail cards keep estimated rent wording for aggregated ranges.
+- Monthly-rent labels in list/map/detail cards use `Monthly rent (USD)` wording (localized by locale); displayed values omit both repeated `/month` suffixes and redundant USD currency symbols in those labeled contexts, and plain USD-number rendering in those contexts uses `en-US` grouping separators for consistency.
 - Listing detail review metadata uses localized review-source labels (`web`/`survey`) instead of hardcoded English text.
 - Shared image gallery/lightbox controls and labels are localized by UI language (fit/fill, zoom, open-original, close, previous/next, thumbnails, and fallback remove text).
 - Admin bulk user upsert uses set-based SQL (`DELETE ... WHERE email = ANY(...)` + `INSERT ... SELECT FROM UNNEST(...)`) in one transaction.
@@ -60,7 +62,7 @@ Do not defer AGENTS updates.
 - New listing fields in the add-review flow omit coordinates; latitude/longitude are not collected from users.
 - Add-review flow uses neighborhood autocomplete suggestions from known neighborhood values.
 - Main listings UI uses a view toggle: `Map` (default), `List`, and (for whitelisted/admin) `Add review`.
-- Cards/Map filters include search, neighborhood, recommendation, min/max price, minimum rating, sorting (default: newest), and active filter chips that support one-click removal plus clear-all.
+- Cards/Map filters include search, neighborhood, recommendation, min/max price, minimum rating, sorting (default: newest), and a logged-in `Favorites` slider toggle rendered as the last filter control; active filter chips support one-click removal plus clear-all.
 - Price filtering is review-history based: with a min/max rent filter active, a listing matches only when at least one approved review `price_usd` falls within the selected bounds.
 - `price_asc` sorting uses the listing's lowest approved-review rent value (listings without review rents sort after priced listings).
 - Listing-level `price_usd` is treated as legacy/deprecated at runtime; list/detail/map rent display no longer falls back to listing-level values.
@@ -71,6 +73,7 @@ Do not defer AGENTS updates.
 - Listing aggregate fields (`average_rating`, `recommendation_rate`, `total_reviews`, `recent_year`) are recomputed from approved reviews whenever a pending web review is approved.
 - Map panel shows up to 3 latest approved review comments for the selected listing (translated to current UI language when available), with the same "show original/translation" toggle used in listing detail reviews.
 - Map view includes full selected-listing details (stats, owner contacts when visible by role, details link); historical reviews render before the inline per-listing review form for whitelisted/admin users.
+- Map mode has favorites parity with list mode: sidebar cards and selected-listing details include favorite controls (visitor clicks show a sign-in hint and do not save), and map sidebar image overlays/rail summaries show quick neighborhood + rating visibility.
 - When owner contacts are hidden by permissions, listing detail and map-selected panels show a small colored hint prompting login to view contact info.
 - Owner contact strings are linkified in UI (email/phone/url detection) for detail pages, map view, and review form context.
 - Whitelisted/admin users can request owner-contact and max-students updates from listing views; requests are reviewed in the admin contact edits view before applying changes.
@@ -81,6 +84,7 @@ Do not defer AGENTS updates.
 - Selecting a listing from map markers keeps list/rail selection in sync and auto-scrolls the corresponding item into view when visible; when sort order changes in map mode, selection resets to the first result in the new order.
 - On desktop map layout, the left listing column uses viewport-capped internal scrolling (`max-height`), while the right panel keeps a matching viewport-based minimum height.
 - Map sidebar listing cards include extra inner spacing/insets so media badges, wrapped titles, stats text, and CTA links do not sit flush against card edges.
+- List-mode cards use equal-height stacks with two-line title clamping so long addresses do not break grid rhythm or misalign adjacent admin action links.
 - Header menus (language/access) are layered above map controls/popups to avoid overlap while using map view.
 - Top-bar menus (`language-menu`, `role-menu`) close when users click outside the open menu.
 - In the OTP login popover, the "Remember me" checkbox and label stay aligned on a single row.
@@ -145,13 +149,16 @@ Roles:
   - Cannot see owner contacts unless `VISITOR_CAN_VIEW_OWNER_CONTACTS=true`.
   - Cannot see reviewer contact info.
   - Cannot submit reviews.
+  - Cannot save listing favorites.
   - Cannot access admin moderation.
 - `whitelisted`:
   - Full listing/review visibility including contacts (subject to reviewer consent).
   - Can submit reviews.
+  - Can save listing favorites.
   - Cannot access admin moderation.
 - `admin`:
   - Same as whitelisted.
+  - Can save listing favorites.
   - Can access admin pages for reviews, contact edits, user access, security telemetry, and publication editing.
 
 Implementation:
@@ -202,7 +209,7 @@ Seed/import tooling:
 
 ## Database Schema (Current)
 
-Defined in `migrations/20260206090000000_initial_schema.sql`, `migrations/20260206090100000_otp_rate_limit_buckets.sql`, `migrations/20260206090200000_listing_contact_length_limit.sql`, `migrations/20260206090300000_dataset_meta_bootstrap.sql`, `migrations/20260206090400000_drop_legacy_invites.sql`, `migrations/20260206090500000_security_audit_events.sql`, `migrations/20260207090000000_contact_edit_requests.sql`, `migrations/20260208090000000_contact_edit_capacity.sql`, `migrations/20260209100000000_listing_review_images.sql`, and `migrations/20260210130000000_listing_image_order_metadata.sql` (applied via node-pg-migrate; rollback behavior documented in `migrations/ROLLBACK_POLICY.md`).
+Defined in `migrations/20260206090000000_initial_schema.sql`, `migrations/20260206090100000_otp_rate_limit_buckets.sql`, `migrations/20260206090200000_listing_contact_length_limit.sql`, `migrations/20260206090300000_dataset_meta_bootstrap.sql`, `migrations/20260206090400000_drop_legacy_invites.sql`, `migrations/20260206090500000_security_audit_events.sql`, `migrations/20260207090000000_contact_edit_requests.sql`, `migrations/20260208090000000_contact_edit_capacity.sql`, `migrations/20260209100000000_listing_review_images.sql`, `migrations/20260210130000000_listing_image_order_metadata.sql`, and `migrations/20260210170000000_listing_favorites.sql` (applied via node-pg-migrate; rollback behavior documented in `migrations/ROLLBACK_POLICY.md`).
 
 Finite-state fields use PostgreSQL enums:
 
@@ -301,6 +308,13 @@ Finite-state fields use PostgreSQL enums:
 - `email TEXT PRIMARY KEY` (lowercased)
 - `deleted_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`
 
+### `listing_favorites`
+
+- `user_email TEXT NOT NULL REFERENCES users(email) ON DELETE CASCADE`
+- `listing_id TEXT NOT NULL REFERENCES listings(id) ON DELETE CASCADE`
+- `created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`
+- `PRIMARY KEY (user_email, listing_id)`
+
 ### `auth_email_otps`
 
 - `id BIGSERIAL PRIMARY KEY`
@@ -347,6 +361,8 @@ Indexes:
 - `idx_users_role_active ON users(role, is_active)`
 - `idx_deleted_users_email_lower_unique ON deleted_users(lower(email))` (unique, case-insensitive)
 - `idx_deleted_users_deleted_at ON deleted_users(deleted_at DESC)`
+- `idx_listing_favorites_user_created ON listing_favorites(user_email, created_at DESC)`
+- `idx_listing_favorites_listing_id ON listing_favorites(listing_id)`
 - `idx_auth_email_otps_email_open ON auth_email_otps(email, consumed_at, expires_at DESC)`
 - `idx_auth_email_otps_email_lower ON auth_email_otps(lower(email))`
 - `idx_auth_rate_limit_buckets_updated_at ON auth_rate_limit_buckets(updated_at DESC)`
@@ -361,7 +377,7 @@ Indexes:
 - `idx_reviews_listing_status ON reviews(listing_id, status, source)`
 - `idx_reviews_status_created ON reviews(status, created_at DESC)`
 
-Integrity hardening (enforced in `migrations/20260206090000000_initial_schema.sql`, `migrations/20260206090100000_otp_rate_limit_buckets.sql`, `migrations/20260206090200000_listing_contact_length_limit.sql`, `migrations/20260206090300000_dataset_meta_bootstrap.sql`, `migrations/20260206090400000_drop_legacy_invites.sql`, `migrations/20260206090500000_security_audit_events.sql`, `migrations/20260207090000000_contact_edit_requests.sql`, `migrations/20260208090000000_contact_edit_capacity.sql`, `migrations/20260209100000000_listing_review_images.sql`, and `migrations/20260210130000000_listing_image_order_metadata.sql`):
+Integrity hardening (enforced in `migrations/20260206090000000_initial_schema.sql`, `migrations/20260206090100000_otp_rate_limit_buckets.sql`, `migrations/20260206090200000_listing_contact_length_limit.sql`, `migrations/20260206090300000_dataset_meta_bootstrap.sql`, `migrations/20260206090400000_drop_legacy_invites.sql`, `migrations/20260206090500000_security_audit_events.sql`, `migrations/20260207090000000_contact_edit_requests.sql`, `migrations/20260208090000000_contact_edit_capacity.sql`, `migrations/20260209100000000_listing_review_images.sql`, `migrations/20260210130000000_listing_image_order_metadata.sql`, and `migrations/20260210170000000_listing_favorites.sql`):
 
 - Non-empty checks for core text identifiers (`users.email`, `deleted_users.email`, `auth_email_otps.email`, listing address/neighborhood, listing contact).
 - Numeric range checks for ratings, recommendation rates, coordinates, and year fields.
@@ -372,6 +388,7 @@ Integrity hardening (enforced in `migrations/20260206090000000_initial_schema.sq
 - Security audit event consistency (`event_type`/`outcome` non-empty).
 - Listing contact length control (`listing_contacts.contact` <= 180 for new/updated rows).
 - Contact edit requests enforce non-empty requester emails and at least one requested field (contacts or max students); requested/current capacity values must be null or > 0.
+- Listing favorites enforce non-empty user email and listing id.
 - Review image arrays enforce count caps (`reviews.image_urls <= 6`); listing image-order metadata is intentionally uncapped.
 - `dataset_meta` bootstrap row (`id=1`) is created if missing via migration.
 - Legacy invite DB artifacts (`auth_invites`, `invite_consumed_reason_enum`) are dropped by migration.
@@ -407,6 +424,17 @@ Integrity hardening (enforced in `migrations/20260206090000000_initial_schema.sq
   - `GET /api/admin/publications?listingId=<id>` returns publication details (address/neighborhood/capacity/contacts + ordered images).
   - `POST /api/admin/publications` supports publication updates (`updatePublication`), image reorder (`saveImageOrder`), and image deletion (`deleteImage`).
   - Legacy compatibility alias: `/api/admin/listing-images` maps to the same handlers.
+
+## Favorites Data Model
+
+- Favorites are stored in `listing_favorites` and keyed by `(user_email, listing_id)`.
+- Favorites can be saved/removed only for authenticated OTP sessions tied to active users.
+- API:
+  - `GET /api/favorites` returns current user favorite listing IDs (or an empty list for visitors).
+  - `POST /api/favorites` with `{ action: "add" | "remove", listingId }` updates favorites (same-origin protected, no-store).
+  - When favorites schema is missing (migration not applied), API returns `503` with a migration-required error.
+- List/map favorite heart controls show a sign-in hint when visitors click, and show inline error feedback instead of silently failing when favorite reads/writes fail.
+- Listings filters include a `Favorites` slider toggle that is available for logged-in users and persisted with the same shared filter storage key.
 
 ## Review and Moderation Flow
 
@@ -467,6 +495,7 @@ Must remain true:
   - `POST` update roles, delete, or bulk upsert users
 - Admin publications API: `src/app/api/admin/publications/route.ts`
 - Legacy listing-images API alias: `src/app/api/admin/listing-images/route.ts`
+- Favorites API: `src/app/api/favorites/route.ts`
 - Contact edit request API: `src/app/api/contact-edits/route.ts`
 - Admin contact edits API: `src/app/api/admin/contact-edits/route.ts`
 - Admin security telemetry API: `src/app/api/admin/security/route.ts`
@@ -489,6 +518,7 @@ Must remain true:
 - OTP email logo asset: `public/infiuba-logo.png` (sourced from `assets/infiuba color 1.png`; PNG is used for broad email-client compatibility). OTP logo URL can be overridden with `OTP_LOGO_URL`.
 - Review image helpers: `src/lib/review-images.ts`, `src/lib/review-image-upload.ts`
 - Review-image ordering helpers: `src/lib/review-image-order.ts`, `src/lib/admin-listing-images.ts`
+- Favorites helpers: `src/lib/favorites.ts`
 - Data access: `src/lib/data.ts`
 - Reviews store: `src/lib/reviews-store.ts`
 - Messages/i18n: `src/i18n/messages.ts`

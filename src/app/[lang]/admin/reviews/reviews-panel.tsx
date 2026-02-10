@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { ImageGalleryViewer } from "@/components/image-gallery-viewer";
-import { formatUsd, getLocaleForLang } from "@/lib/format";
+import { formatUsdAmount, getLocaleForLang } from "@/lib/format";
 import { getMessages } from "@/lib/i18n";
 import type { ApprovedWebReview, Lang, PendingWebReview } from "@/types";
 
@@ -131,10 +131,10 @@ export function ReviewsPanel({ lang, listingMap }: ReviewsPanelProps) {
                       <dd>{review.rating}/5</dd>
                     </div>
                     <div>
-                      <dt>{messages.priceLabel}</dt>
+                      <dt>{messages.formPriceLabel}</dt>
                       <dd>
                         {typeof review.priceUsd === "number"
-                          ? `${formatUsd(review.priceUsd, lang)} ${messages.monthSuffix}`
+                          ? `${formatUsdAmount(review.priceUsd)} ${messages.monthSuffix}`
                           : "-"}
                       </dd>
                     </div>

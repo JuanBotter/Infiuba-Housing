@@ -14,7 +14,7 @@ import {
 import { getCachedPublicListingById, getListingById } from "@/lib/data";
 import { splitReviewerContactParts } from "@/lib/reviewer-contact";
 import { splitContactParts } from "@/lib/contact-links";
-import { formatDecimal, formatPercent, formatUsd, formatUsdRange } from "@/lib/format";
+import { formatDecimal, formatPercent, formatUsd, formatUsdRangePlain } from "@/lib/format";
 import { getMessages, isSupportedLanguage } from "@/lib/i18n";
 import {
   getApprovedReviewsForListing,
@@ -96,7 +96,7 @@ export default async function PlaceDetailPage({ params }: PlaceDetailPageProps) 
       createdAt: review.createdAt,
     })),
   ].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-  const listingPriceRange = formatUsdRange(
+  const listingPriceRange = formatUsdRangePlain(
     {
       min: listing.minPriceUsd,
       max: listing.maxPriceUsd,
@@ -148,7 +148,7 @@ export default async function PlaceDetailPage({ params }: PlaceDetailPageProps) 
           <p>
             <span>{messages.priceLabel}</span>
             <strong>
-              {listingPriceRange ? `${listingPriceRange} ${messages.monthSuffix}` : "-"}
+              {listingPriceRange || "-"}
             </strong>
           </p>
           <p>

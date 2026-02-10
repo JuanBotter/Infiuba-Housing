@@ -35,6 +35,7 @@ export default async function ListingsPage({ params }: PageProps) {
   const messages = getMessages(lang);
   const role = await getCurrentUserRole();
   const isAdmin = role === "admin";
+  const isLoggedIn = role !== "visitor";
   const canViewOwnerInfo = canViewOwnerContactInfo(role);
   const canViewReviewerInfo = canViewContactInfo(role);
   const canWriteReviews = canSubmitReviews(role);
@@ -90,6 +91,7 @@ export default async function ListingsPage({ params }: PageProps) {
         neighborhoods={neighborhoods}
         canViewOwnerInfo={canViewOwnerInfo}
         canWriteReviews={canWriteReviews}
+        isLoggedIn={isLoggedIn}
         isAdmin={isAdmin}
       />
 
