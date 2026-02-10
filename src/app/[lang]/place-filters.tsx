@@ -652,7 +652,11 @@ export function PlaceFilters({
               <article className="place-card">
                 <div className="place-card__media">
                   {listing.imageUrls?.[0] ? (
-                    <img src={listing.imageUrls[0]} alt={`${listing.address} photo`} loading="lazy" />
+                    <img
+                      src={listing.imageUrls[0]}
+                      alt={`${listing.address} · ${messages.imageAltProperty}`}
+                      loading="lazy"
+                    />
                   ) : (
                     <div className="place-card__media-placeholder" aria-hidden="true" />
                   )}
@@ -809,7 +813,7 @@ export function PlaceFilters({
                     <div className="map-selected-details__media">
                       <img
                         src={selectedMapListing.imageUrls[0]}
-                        alt={`${selectedMapListing.address} photo`}
+                        alt={`${selectedMapListing.address} · ${messages.imageAltProperty}`}
                         loading="lazy"
                       />
                     </div>

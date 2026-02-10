@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 
-import { AdminNav } from "@/app/[lang]/admin/admin-nav";
+import { AdminHeader } from "@/app/[lang]/admin/admin-header";
 import { canAccessAdmin, getCurrentUserRole } from "@/lib/auth";
 import { getMessages, isSupportedLanguage } from "@/lib/i18n";
 import type { Lang } from "@/types";
@@ -28,11 +28,7 @@ export default async function AdminLayout({ children, params }: AdminLayoutProps
 
   return (
     <section className="content-wrapper content-wrapper--admin">
-      <article className="detail-card detail-card--admin-header">
-        <h1>{messages.adminTitle}</h1>
-        <p>{messages.adminSubtitle}</p>
-        <AdminNav lang={lang} />
-      </article>
+      <AdminHeader lang={lang} messages={messages} />
       <section className="admin-shell">{children}</section>
     </section>
   );

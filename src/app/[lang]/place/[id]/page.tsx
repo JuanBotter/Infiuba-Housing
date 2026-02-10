@@ -114,9 +114,10 @@ export default async function PlaceDetailPage({ params }: PlaceDetailPageProps) 
         <h1>{listing.address}</h1>
         {listing.imageUrls?.length ? (
           <ImageGalleryViewer
+            lang={lang}
             images={listing.imageUrls}
-            altBase={`${listing.address} photo`}
-            ariaLabel="Property photos"
+            altBase={messages.imageAltProperty}
+            ariaLabel={messages.imageAriaPropertyPhotos}
             variant="property"
           />
         ) : null}
@@ -199,7 +200,9 @@ export default async function PlaceDetailPage({ params }: PlaceDetailPageProps) 
                   }`}
                 >
                   <p className="review-item__meta">
-                    {review.source === "web" ? "Web" : "Survey"}
+                    {review.source === "web"
+                      ? messages.reviewSourceWeb
+                      : messages.reviewSourceSurvey}
                     {review.year ? ` · ${review.year}` : ""}
                     {review.semester ? ` · ${review.semester}` : ""}
                     {typeof review.rating === "number" ? ` · ${review.rating}/5` : ""}
@@ -219,9 +222,10 @@ export default async function PlaceDetailPage({ params }: PlaceDetailPageProps) 
                   />
                   {review.imageUrls?.length ? (
                     <ImageGalleryViewer
+                      lang={lang}
                       images={review.imageUrls}
-                      altBase="Review image"
-                      ariaLabel="Review photos"
+                      altBase={messages.imageAltReview}
+                      ariaLabel={messages.imageAriaReviewPhotos}
                     />
                   ) : null}
                   {canViewReviewerInfo && review.studentContact ? (

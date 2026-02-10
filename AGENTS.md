@@ -45,10 +45,17 @@ Do not defer AGENTS updates.
 - DB migrations are managed with node-pg-migrate (`migrations/` directory).
 - Survey import tooling now generates deterministic/stable survey review IDs from review content (instead of row order).
 - Admin UX: split views for reviews, contact edit requests, access management, and security telemetry under `/{lang}/admin/*`; access view supports search, role changes, deletion, and bulk user creation.
+- Admin header copy is tab-aware: reviews/contact-edits/access/security each show contextual title/description instead of a single reviews-only subtitle.
 - Admin security telemetry view is presented as a dashboard with KPI cards, alert cards, per-window outcome summaries, and a recent audit-events table (still fed by `getSecurityTelemetrySnapshot` and no-store APIs); security dashboard uses a local blue/green alert palette distinct from the orange public theme, matching Stitch references.
+- Security telemetry dashboard labels/descriptions are localized for all supported languages.
 - Admin reviews pending cards surface structured moderation context (submitted-at timestamp, rating/recommendation/rent/semester/photo count facts, full comment block, inline listing/review image galleries when present, and submitter contact/share-consent fields); when no reviewer phone/email is provided, cards show an explicit "no contact information provided" state.
+- Listings hero helper copy now emphasizes comparing neighborhoods, rent ranges, and recent student experiences (instead of implementation-oriented wording).
+- Non-admin UX copy is standardized across listings/detail/review/auth flows: map/list hints, empty states, owner-contact prompts, OTP guidance/errors, and add-review matching prompts now use user-task language in all supported locales.
+- Review forms use a dedicated rent-input label (reported rent paid), while list/map/detail cards keep estimated rent wording for aggregated ranges.
+- Listing detail review metadata uses localized review-source labels (`web`/`survey`) instead of hardcoded English text.
+- Shared image gallery/lightbox controls and labels are localized by UI language (fit/fill, zoom, open-original, close, previous/next, thumbnails, and fallback remove text).
 - Admin bulk user upsert uses set-based SQL (`DELETE ... WHERE email = ANY(...)` + `INSERT ... SELECT FROM UNNEST(...)`) in one transaction.
-- Add-review and detail-review flows share common review payload/state helpers in `src/lib/review-form.ts`.
+- Add-review and detail-review flows share common review payload/state helpers in `src/lib/review-form.ts`, including client-side mapping of server review errors to localized UI copy (unknown server errors fall back to generic localized form errors).
 - New listing fields in the add-review flow omit coordinates; latitude/longitude are not collected from users.
 - Add-review flow uses neighborhood autocomplete suggestions from known neighborhood values.
 - Main listings UI uses a view toggle: `Map` (default), `List`, and (for whitelisted/admin) `Add review`.
@@ -67,11 +74,12 @@ Do not defer AGENTS updates.
 - Owner contact strings are linkified in UI (email/phone/url detection) for detail pages, map view, and review form context.
 - Whitelisted/admin users can request owner-contact and max-students updates from listing views; requests are reviewed in the admin contact edits view before applying changes.
 - Reviewer contact info is shown under map comments when available/consented, linkifying each email and phone separately (phones open WhatsApp; emails use mailto).
-- Review rating inputs use a 5-star control with whole-star increments and start unselected (0) until the user picks a value; recommendation radio buttons also start unselected and must be chosen. Review forms use client-side validation (no native browser validation) and highlight missing required fields with inline error text plus a shared error summary. Estimated rent is required for all reviews; new listings also require owner contact info and max students. Contact fields are grouped under a contact section in review forms.
+- Review rating inputs use a 5-star control with whole-star increments and start unselected (0) until the user picks a value; recommendation radio buttons also start unselected and must be chosen. Review forms use client-side validation (no native browser validation) and highlight missing required fields with inline error text plus a shared error summary. Reported rent paid is required for all reviews; new listings also require owner contact info and max students. Contact fields are grouped under a contact section in review forms.
 - On mobile/narrow layouts (`<=1100px`), map mode is map-first: a horizontal property rail sits under the map, and the full results list opens as a bottom-sheet drawer with backdrop.
 - In map mode, selected listing details (stats + owner contacts when visible to role + details link) render under the map panel content; on mobile/narrow layouts they appear under the horizontal rail.
 - Selecting a listing from map markers keeps list/rail selection in sync and auto-scrolls the corresponding item into view when visible; when sort order changes in map mode, selection resets to the first result in the new order.
 - On desktop map layout, the left listing column uses viewport-capped internal scrolling (`max-height`), while the right panel keeps a matching viewport-based minimum height.
+- Map sidebar listing cards include extra inner spacing/insets so media badges, wrapped titles, stats text, and CTA links do not sit flush against card edges.
 - Header menus (language/access) are layered above map controls/popups to avoid overlap while using map view.
 - Top-bar menus (`language-menu`, `role-menu`) close when users click outside the open menu.
 - In the OTP login popover, the "Remember me" checkbox and label stay aligned on a single row.
@@ -442,7 +450,7 @@ Must remain true:
 - Listing detail page: `src/app/[lang]/place/[id]/page.tsx`
 - Add review flow: `src/app/[lang]/add-stay-review-form.tsx`
 - Detail review form: `src/app/[lang]/place/[id]/review-form.tsx`
-- Admin layout + navigation: `src/app/[lang]/admin/layout.tsx`, `src/app/[lang]/admin/admin-nav.tsx`
+- Admin layout + header/navigation: `src/app/[lang]/admin/layout.tsx`, `src/app/[lang]/admin/admin-header.tsx`, `src/app/[lang]/admin/admin-nav.tsx`
 - Admin reviews page: `src/app/[lang]/admin/reviews/page.tsx`
 - Admin contact edits page: `src/app/[lang]/admin/contact-edits/page.tsx`
 - Admin contact edits panel: `src/app/[lang]/admin/contact-edits/contact-edits-panel.tsx`

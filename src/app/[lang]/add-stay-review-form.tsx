@@ -7,6 +7,7 @@ import { getMessages } from "@/lib/i18n";
 import {
   buildReviewPayload,
   createInitialReviewDraft,
+  mapReviewApiErrorMessage,
   readApiErrorMessage,
 } from "@/lib/review-form";
 import { uploadReviewImageFiles } from "@/lib/review-image-upload";
@@ -308,7 +309,8 @@ export function AddStayReviewForm({ lang, listings, neighborhoods }: AddStayRevi
         return;
       }
       if (!response.ok) {
-        setServerMessage(await readApiErrorMessage(response));
+        const apiError = await readApiErrorMessage(response);
+        setServerMessage(mapReviewApiErrorMessage(apiError, t));
         setStatus("error");
         return;
       }
@@ -536,7 +538,7 @@ export function AddStayReviewForm({ lang, listings, neighborhoods }: AddStayRevi
         ) : null}
 
         <label className={formErrors.priceUsd ? "is-invalid" : ""}>
-          <span>{t.priceLabel}</span>
+          <span>{t.formPriceLabel}</span>
           <input
             type="number"
             min={1}
@@ -568,6 +570,7 @@ export function AddStayReviewForm({ lang, listings, neighborhoods }: AddStayRevi
                 clearFormError("rating");
               }}
               label={t.formRating}
+              hint={t.formRatingHint}
               hasError={Boolean(formErrors.rating)}
               errorId={ratingErrorId}
             />
@@ -688,9 +691,10 @@ export function AddStayReviewForm({ lang, listings, neighborhoods }: AddStayRevi
           </label>
           {listingImageUrls.length > 0 ? (
             <ImageGalleryViewer
+              lang={lang}
               images={listingImageUrls}
-              altBase="Listing image"
-              ariaLabel="Selected listing images"
+              altBase={t.imageAltProperty}
+              ariaLabel={t.imageAriaSelectedListingPhotos}
               onRemoveImage={(index) =>
                 setListingImageUrls((previous) =>
                   previous.filter((_, imageIndex) => imageIndex !== index),
@@ -720,9 +724,10 @@ export function AddStayReviewForm({ lang, listings, neighborhoods }: AddStayRevi
           </label>
           {reviewDraft.imageUrls.length > 0 ? (
             <ImageGalleryViewer
+              lang={lang}
               images={reviewDraft.imageUrls}
-              altBase="Review image"
-              ariaLabel="Selected review images"
+              altBase={t.imageAltReview}
+              ariaLabel={t.imageAriaSelectedReviewPhotos}
               onRemoveImage={(index) =>
                 setReviewDraft((previous) => ({
                   ...previous,
@@ -819,7 +824,7 @@ export function AddStayReviewForm({ lang, listings, neighborhoods }: AddStayRevi
         <p className="form-status error">{t.addReviewNeedMatchChoice}</p>
       ) : null}
       {status === "unavailable" ? (
-        <p className="form-status error">{t.addPropertyUnavailableError}</p>
+        <p className="form-status error">{t.addReviewUnavailableError}</p>
       ) : null}
       {status === "error" ? (
         <p className="form-status error">{serverMessage || t.formError}</p>

@@ -161,9 +161,10 @@ export function ReviewsPanel({ lang, listingMap }: ReviewsPanelProps) {
                     <section className="moderation-review-block moderation-review-block--images">
                       <p className="moderation-review-block__title">{messages.formListingPhotosLabel}</p>
                       <ImageGalleryViewer
+                        lang={lang}
                         images={review.listingImageUrls}
-                        altBase="Listing image"
-                        ariaLabel="Listing photos"
+                        altBase={messages.imageAltProperty}
+                        ariaLabel={messages.imageAriaPropertyPhotos}
                       />
                     </section>
                   ) : null}
@@ -172,9 +173,10 @@ export function ReviewsPanel({ lang, listingMap }: ReviewsPanelProps) {
                     <section className="moderation-review-block moderation-review-block--images">
                       <p className="moderation-review-block__title">{messages.formReviewPhotosLabel}</p>
                       <ImageGalleryViewer
+                        lang={lang}
                         images={review.imageUrls}
-                        altBase="Pending review image"
-                        ariaLabel="Pending review photos"
+                        altBase={messages.imageAltReview}
+                        ariaLabel={messages.imageAriaReviewPhotos}
                       />
                     </section>
                   ) : null}
@@ -247,9 +249,10 @@ export function ReviewsPanel({ lang, listingMap }: ReviewsPanelProps) {
                 <p>{review.comment}</p>
                 {review.imageUrls?.length ? (
                   <ImageGalleryViewer
+                    lang={lang}
                     images={review.imageUrls}
-                    altBase="Approved review image"
-                    ariaLabel="Approved review photos"
+                    altBase={messages.imageAltReview}
+                    ariaLabel={messages.imageAriaReviewPhotos}
                   />
                 ) : null}
               </li>

@@ -11,7 +11,7 @@
   max-height: calc(100vh - 8.6rem);
   min-height: 0;
   overflow: auto;
-  padding-right: 0.2rem;
+  padding: 0.08rem 0.26rem 0.08rem 0.08rem;
 }
 
 .map-layout__list-header,
@@ -47,9 +47,11 @@
 .map-listing {
   border: 1px solid var(--line);
   border-radius: 15px;
-  padding: 0.74rem;
+  padding: 0.9rem;
   background: var(--surface-strong);
   box-shadow: var(--shadow-soft);
+  display: grid;
+  gap: 0.52rem;
   transition: transform 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
 }
 
@@ -63,6 +65,8 @@
   text-align: left;
   cursor: pointer;
   font: inherit;
+  display: grid;
+  gap: 0.42rem;
 }
 
 .map-listing__select:focus-visible {
@@ -86,12 +90,16 @@
   align-items: center;
   justify-content: space-between;
   gap: 0.6rem;
+  flex-wrap: wrap;
+  padding-inline: 0.06rem;
 }
 
 .map-listing h3 {
-  margin: 0.36rem 0 0;
+  margin: 0;
   font-family: var(--font-heading);
   font-size: 1.02rem;
+  line-height: 1.27;
+  padding-inline: 0.06rem;
 }
 
 .map-listing__media {
@@ -119,10 +127,10 @@
 
 .map-listing__price-pill {
   position: absolute;
-  right: 0.45rem;
-  bottom: 0.45rem;
+  right: 0.62rem;
+  bottom: 0.62rem;
   margin: 0;
-  padding: 0.14rem 0.48rem;
+  padding: 0.18rem 0.56rem;
   border-radius: 999px;
   background: color-mix(in srgb, var(--primary) 86%, #000);
   color: #fff;
@@ -131,9 +139,10 @@
 }
 
 .map-listing__stats {
-  margin-top: 0.4rem;
+  margin-top: 0;
   display: grid;
-  gap: 0.15rem;
+  gap: 0.2rem;
+  padding-inline: 0.06rem;
 }
 
 .map-listing__stats p {
@@ -143,7 +152,7 @@
 }
 
 .map-listing .inline-link {
-  margin-top: 0.45rem;
+  margin: 0 0 0.08rem 0.06rem;
 }
 
 .map-layout__panel {

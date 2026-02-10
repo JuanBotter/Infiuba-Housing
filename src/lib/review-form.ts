@@ -1,3 +1,5 @@
+import type { Messages } from "@/i18n/messages";
+
 export interface ReviewDraft {
   rating: string;
   priceUsd: string;
@@ -46,4 +48,28 @@ export function buildReviewPayload(draft: ReviewDraft) {
 export async function readApiErrorMessage(response: Response) {
   const body = (await response.json().catch(() => null)) as { error?: unknown } | null;
   return typeof body?.error === "string" ? body.error : "";
+}
+
+export function mapReviewApiErrorMessage(rawError: string, messages: Messages) {
+  const error = rawError.trim();
+  if (!error) {
+    return "";
+  }
+
+  if (error === "This property is already in the database.") {
+    return messages.addPropertyDuplicateError;
+  }
+  if (error === "Only whitelisted students can submit reviews.") {
+    return messages.accessNotAllowedError;
+  }
+  if (error === "Add an email or phone number to share contact info") {
+    return messages.formContactShareError;
+  }
+
+  const listingImageLimit = error.match(/A listing can include at most (\d+) images/i);
+  if (listingImageLimit?.[1]) {
+    return messages.formPhotosMaxError.replace("{count}", listingImageLimit[1]);
+  }
+
+  return "";
 }

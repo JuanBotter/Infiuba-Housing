@@ -45,7 +45,7 @@ export function MapListingSidebarItem({
       >
         <div className="map-listing__media">
           {coverImage ? (
-            <img src={coverImage} alt={`${listing.address} cover`} loading="lazy" />
+            <img src={coverImage} alt={`${listing.address} · ${messages.imageAltProperty}`} loading="lazy" />
           ) : (
             <div className="map-listing__media-placeholder" aria-hidden="true" />
           )}

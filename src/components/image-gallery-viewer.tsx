@@ -10,7 +10,10 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 
+import type { Lang } from "@/types";
+
 interface ImageGalleryViewerProps {
+  lang: Lang;
   images: string[];
   altBase: string;
   ariaLabel?: string;
@@ -18,6 +21,210 @@ interface ImageGalleryViewerProps {
   onRemoveImage?: (index: number) => void;
   removeLabel?: string;
 }
+
+interface ViewerText {
+  toggleFitModeAria: string;
+  fillFrameTitle: string;
+  fitImageTitle: string;
+  fillButton: string;
+  fitButton: string;
+  zoomOutAria: string;
+  zoomOutTitle: string;
+  resetZoomAria: string;
+  resetZoomTitle: string;
+  zoomInAria: string;
+  zoomInTitle: string;
+  openOriginalAria: string;
+  openOriginalTitle: string;
+  openButton: string;
+  closeAria: string;
+  closeTitle: string;
+  previousAria: string;
+  previousTitle: string;
+  nextAria: string;
+  nextTitle: string;
+  thumbnailsAria: string;
+  viewImageAriaPrefix: string;
+  removeButton: string;
+}
+
+const viewerTextByLang: Record<Lang, ViewerText> = {
+  en: {
+    toggleFitModeAria: "Toggle fit mode",
+    fillFrameTitle: "Fill frame (F)",
+    fitImageTitle: "Fit image (F)",
+    fillButton: "Fill",
+    fitButton: "Fit",
+    zoomOutAria: "Zoom out",
+    zoomOutTitle: "Zoom out (-)",
+    resetZoomAria: "Reset zoom",
+    resetZoomTitle: "Reset zoom (0)",
+    zoomInAria: "Zoom in",
+    zoomInTitle: "Zoom in (+)",
+    openOriginalAria: "Open original image",
+    openOriginalTitle: "Open original image in new tab",
+    openButton: "Open",
+    closeAria: "Close image viewer",
+    closeTitle: "Close (Esc)",
+    previousAria: "Previous image",
+    previousTitle: "Previous image (Left arrow)",
+    nextAria: "Next image",
+    nextTitle: "Next image (Right arrow)",
+    thumbnailsAria: "Image thumbnails",
+    viewImageAriaPrefix: "View image",
+    removeButton: "Remove",
+  },
+  es: {
+    toggleFitModeAria: "Cambiar modo de ajuste",
+    fillFrameTitle: "Llenar marco (F)",
+    fitImageTitle: "Ajustar imagen (F)",
+    fillButton: "Llenar",
+    fitButton: "Ajustar",
+    zoomOutAria: "Alejar",
+    zoomOutTitle: "Alejar (-)",
+    resetZoomAria: "Restablecer zoom",
+    resetZoomTitle: "Restablecer zoom (0)",
+    zoomInAria: "Acercar",
+    zoomInTitle: "Acercar (+)",
+    openOriginalAria: "Abrir imagen original",
+    openOriginalTitle: "Abrir imagen original en una pestaña nueva",
+    openButton: "Abrir",
+    closeAria: "Cerrar visor de imágenes",
+    closeTitle: "Cerrar (Esc)",
+    previousAria: "Imagen anterior",
+    previousTitle: "Imagen anterior (Flecha izquierda)",
+    nextAria: "Imagen siguiente",
+    nextTitle: "Imagen siguiente (Flecha derecha)",
+    thumbnailsAria: "Miniaturas de imágenes",
+    viewImageAriaPrefix: "Ver imagen",
+    removeButton: "Quitar",
+  },
+  fr: {
+    toggleFitModeAria: "Changer le mode d'ajustement",
+    fillFrameTitle: "Remplir le cadre (F)",
+    fitImageTitle: "Ajuster l'image (F)",
+    fillButton: "Remplir",
+    fitButton: "Ajuster",
+    zoomOutAria: "Zoom arrière",
+    zoomOutTitle: "Zoom arrière (-)",
+    resetZoomAria: "Réinitialiser le zoom",
+    resetZoomTitle: "Réinitialiser le zoom (0)",
+    zoomInAria: "Zoom avant",
+    zoomInTitle: "Zoom avant (+)",
+    openOriginalAria: "Ouvrir l'image originale",
+    openOriginalTitle: "Ouvrir l'image originale dans un nouvel onglet",
+    openButton: "Ouvrir",
+    closeAria: "Fermer la visionneuse d'images",
+    closeTitle: "Fermer (Esc)",
+    previousAria: "Image précédente",
+    previousTitle: "Image précédente (Flèche gauche)",
+    nextAria: "Image suivante",
+    nextTitle: "Image suivante (Flèche droite)",
+    thumbnailsAria: "Vignettes des images",
+    viewImageAriaPrefix: "Voir l'image",
+    removeButton: "Retirer",
+  },
+  de: {
+    toggleFitModeAria: "Anpassungsmodus umschalten",
+    fillFrameTitle: "Rahmen füllen (F)",
+    fitImageTitle: "Bild einpassen (F)",
+    fillButton: "Füllen",
+    fitButton: "Einpassen",
+    zoomOutAria: "Verkleinern",
+    zoomOutTitle: "Verkleinern (-)",
+    resetZoomAria: "Zoom zurücksetzen",
+    resetZoomTitle: "Zoom zurücksetzen (0)",
+    zoomInAria: "Vergrößern",
+    zoomInTitle: "Vergrößern (+)",
+    openOriginalAria: "Originalbild öffnen",
+    openOriginalTitle: "Originalbild in neuem Tab öffnen",
+    openButton: "Öffnen",
+    closeAria: "Bildansicht schließen",
+    closeTitle: "Schließen (Esc)",
+    previousAria: "Vorheriges Bild",
+    previousTitle: "Vorheriges Bild (Pfeil links)",
+    nextAria: "Nächstes Bild",
+    nextTitle: "Nächstes Bild (Pfeil rechts)",
+    thumbnailsAria: "Bild-Miniaturen",
+    viewImageAriaPrefix: "Bild anzeigen",
+    removeButton: "Entfernen",
+  },
+  pt: {
+    toggleFitModeAria: "Alternar modo de ajuste",
+    fillFrameTitle: "Preencher moldura (F)",
+    fitImageTitle: "Ajustar imagem (F)",
+    fillButton: "Preencher",
+    fitButton: "Ajustar",
+    zoomOutAria: "Diminuir zoom",
+    zoomOutTitle: "Diminuir zoom (-)",
+    resetZoomAria: "Redefinir zoom",
+    resetZoomTitle: "Redefinir zoom (0)",
+    zoomInAria: "Aumentar zoom",
+    zoomInTitle: "Aumentar zoom (+)",
+    openOriginalAria: "Abrir imagem original",
+    openOriginalTitle: "Abrir imagem original em nova aba",
+    openButton: "Abrir",
+    closeAria: "Fechar visualizador de imagens",
+    closeTitle: "Fechar (Esc)",
+    previousAria: "Imagem anterior",
+    previousTitle: "Imagem anterior (Seta esquerda)",
+    nextAria: "Próxima imagem",
+    nextTitle: "Próxima imagem (Seta direita)",
+    thumbnailsAria: "Miniaturas das imagens",
+    viewImageAriaPrefix: "Ver imagem",
+    removeButton: "Remover",
+  },
+  it: {
+    toggleFitModeAria: "Cambia modalità di adattamento",
+    fillFrameTitle: "Riempi riquadro (F)",
+    fitImageTitle: "Adatta immagine (F)",
+    fillButton: "Riempi",
+    fitButton: "Adatta",
+    zoomOutAria: "Riduci zoom",
+    zoomOutTitle: "Riduci zoom (-)",
+    resetZoomAria: "Reimposta zoom",
+    resetZoomTitle: "Reimposta zoom (0)",
+    zoomInAria: "Aumenta zoom",
+    zoomInTitle: "Aumenta zoom (+)",
+    openOriginalAria: "Apri immagine originale",
+    openOriginalTitle: "Apri immagine originale in una nuova scheda",
+    openButton: "Apri",
+    closeAria: "Chiudi visualizzatore immagini",
+    closeTitle: "Chiudi (Esc)",
+    previousAria: "Immagine precedente",
+    previousTitle: "Immagine precedente (Freccia sinistra)",
+    nextAria: "Immagine successiva",
+    nextTitle: "Immagine successiva (Freccia destra)",
+    thumbnailsAria: "Miniature immagini",
+    viewImageAriaPrefix: "Vedi immagine",
+    removeButton: "Rimuovi",
+  },
+  no: {
+    toggleFitModeAria: "Bytt tilpasningsmodus",
+    fillFrameTitle: "Fyll ramme (F)",
+    fitImageTitle: "Tilpass bilde (F)",
+    fillButton: "Fyll",
+    fitButton: "Tilpass",
+    zoomOutAria: "Zoom ut",
+    zoomOutTitle: "Zoom ut (-)",
+    resetZoomAria: "Tilbakestill zoom",
+    resetZoomTitle: "Tilbakestill zoom (0)",
+    zoomInAria: "Zoom inn",
+    zoomInTitle: "Zoom inn (+)",
+    openOriginalAria: "Åpne originalbilde",
+    openOriginalTitle: "Åpne originalbilde i ny fane",
+    openButton: "Åpne",
+    closeAria: "Lukk bildeviser",
+    closeTitle: "Lukk (Esc)",
+    previousAria: "Forrige bilde",
+    previousTitle: "Forrige bilde (Venstre pil)",
+    nextAria: "Neste bilde",
+    nextTitle: "Neste bilde (Høyre pil)",
+    thumbnailsAria: "Bilde-miniatyrer",
+    viewImageAriaPrefix: "Vis bilde",
+    removeButton: "Fjern",
+  },
+};
 
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 3;
@@ -33,6 +240,7 @@ function clampZoom(value: number) {
 }
 
 export function ImageGalleryViewer({
+  lang,
   images,
   altBase,
   ariaLabel,
@@ -58,6 +266,7 @@ export function ImageGalleryViewer({
   const canNavigate = validImages.length > 1;
   const activeUrl = activeIndex === null ? null : validImages[activeIndex] ?? null;
   const activeImageLoaded = activeUrl ? Boolean(loadedImages[activeUrl]) : false;
+  const text = viewerTextByLang[lang];
 
   function markImageLoaded(url: string | null) {
     if (!url) {
@@ -291,17 +500,17 @@ export function ImageGalleryViewer({
                 type="button"
                 className="image-viewer__action image-viewer__action--toggle"
                 onClick={toggleFitMode}
-                aria-label="Toggle fit mode"
-                title={fitMode === "contain" ? "Fill frame (F)" : "Fit image (F)"}
+                aria-label={text.toggleFitModeAria}
+                title={fitMode === "contain" ? text.fillFrameTitle : text.fitImageTitle}
               >
-                {fitMode === "contain" ? "Fill" : "Fit"}
+                {fitMode === "contain" ? text.fillButton : text.fitButton}
               </button>
               <button
                 type="button"
                 className="image-viewer__action"
                 onClick={() => adjustZoom(-ZOOM_STEP)}
-                aria-label="Zoom out"
-                title="Zoom out (-)"
+                aria-label={text.zoomOutAria}
+                title={text.zoomOutTitle}
                 disabled={zoomLevel <= MIN_ZOOM}
               >
                 -
@@ -310,8 +519,8 @@ export function ImageGalleryViewer({
                 type="button"
                 className="image-viewer__action image-viewer__action--zoom"
                 onClick={resetZoom}
-                aria-label="Reset zoom"
-                title="Reset zoom (0)"
+                aria-label={text.resetZoomAria}
+                title={text.resetZoomTitle}
                 disabled={zoomLevel === MIN_ZOOM}
               >
                 {Math.round(zoomLevel * 100)}%
@@ -320,8 +529,8 @@ export function ImageGalleryViewer({
                 type="button"
                 className="image-viewer__action"
                 onClick={() => adjustZoom(ZOOM_STEP)}
-                aria-label="Zoom in"
-                title="Zoom in (+)"
+                aria-label={text.zoomInAria}
+                title={text.zoomInTitle}
                 disabled={zoomLevel >= MAX_ZOOM}
               >
                 +
@@ -331,17 +540,17 @@ export function ImageGalleryViewer({
                 href={activeUrl}
                 target="_blank"
                 rel="noreferrer"
-                aria-label="Open original image"
-                title="Open original image in new tab"
+                aria-label={text.openOriginalAria}
+                title={text.openOriginalTitle}
               >
-                Open
+                {text.openButton}
               </a>
               <button
                 type="button"
                 className="image-viewer__icon image-viewer__close"
                 onClick={closeViewer}
-                aria-label="Close image viewer"
-                title="Close (Esc)"
+                aria-label={text.closeAria}
+                title={text.closeTitle}
               >
                 ×
               </button>
@@ -359,8 +568,8 @@ export function ImageGalleryViewer({
                 type="button"
                 className="image-viewer__icon image-viewer__nav"
                 onClick={showPrevious}
-                aria-label="Previous image"
-                title="Previous image (Left arrow)"
+                aria-label={text.previousAria}
+                title={text.previousTitle}
               >
                 ‹
               </button>
@@ -391,8 +600,8 @@ export function ImageGalleryViewer({
                 type="button"
                 className="image-viewer__icon image-viewer__nav"
                 onClick={showNext}
-                aria-label="Next image"
-                title="Next image (Right arrow)"
+                aria-label={text.nextAria}
+                title={text.nextTitle}
               >
                 ›
               </button>
@@ -402,7 +611,7 @@ export function ImageGalleryViewer({
           </div>
 
           {canNavigate ? (
-            <div className="image-viewer__thumbs" aria-label="Image thumbnails">
+            <div className="image-viewer__thumbs" aria-label={text.thumbnailsAria}>
               {validImages.map((url, index) => (
                 <button
                   key={`${url}-${index}-viewer`}
@@ -412,7 +621,7 @@ export function ImageGalleryViewer({
                     setActiveIndex(index);
                     setZoomLevel(MIN_ZOOM);
                   }}
-                  aria-label={`View image ${index + 1}`}
+                  aria-label={`${text.viewImageAriaPrefix} ${index + 1}`}
                 >
                   <img
                     src={url}
@@ -442,7 +651,7 @@ export function ImageGalleryViewer({
                 className="image-gallery__remove"
                 onClick={() => onRemoveImage(index)}
               >
-                {removeLabel || "Remove"}
+                {removeLabel || text.removeButton}
               </button>
             ) : null}
           </div>
