@@ -93,7 +93,7 @@ export function ReviewsPanel({ lang, listingMap }: ReviewsPanelProps) {
 
   return (
     <>
-      <article className="detail-card moderation-toolbar">
+      <article className="detail-card moderation-toolbar moderation-toolbar--admin">
         <button type="button" className="button-link" onClick={() => void loadModerationData()}>
           {loading ? messages.adminLoading : messages.adminRefresh}
         </button>
@@ -102,13 +102,13 @@ export function ReviewsPanel({ lang, listingMap }: ReviewsPanelProps) {
       {error ? <p className="form-status error">{error}</p> : null}
 
       <section className="moderation-grid">
-        <article className="detail-card">
+        <article className="detail-card admin-moderation-column">
           <h2>{messages.adminPendingTitle}</h2>
           {loading ? <p>{messages.adminLoading}</p> : null}
           {!loading && pendingReviews.length === 0 ? <p>{messages.adminEmptyPending}</p> : null}
           <ul className="review-list">
             {pendingReviews.map((review) => (
-              <li key={review.id} className="review-item moderation-item">
+              <li key={review.id} className="review-item moderation-item moderation-item--pending">
                 <p className="review-item__meta">
                   {listingMap[review.listingId] || messages.adminUnknownListing}
                 </p>
@@ -147,12 +147,12 @@ export function ReviewsPanel({ lang, listingMap }: ReviewsPanelProps) {
           </ul>
         </article>
 
-        <article className="detail-card">
+        <article className="detail-card admin-moderation-column">
           <h2>{messages.adminApprovedTitle}</h2>
           {!loading && approvedReviews.length === 0 ? <p>{messages.adminEmptyApproved}</p> : null}
           <ul className="review-list">
             {approvedReviews.map((review) => (
-              <li key={review.id} className="review-item moderation-item">
+              <li key={review.id} className="review-item moderation-item moderation-item--approved">
                 <p className="review-item__meta">
                   {listingMap[review.listingId] || messages.adminUnknownListing}
                 </p>

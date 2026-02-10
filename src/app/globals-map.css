@@ -1,17 +1,17 @@
 .map-layout {
   display: grid;
-  gap: 0.9rem;
-  grid-template-columns: minmax(260px, 0.9fr) minmax(0, 1.1fr);
+  gap: 1rem;
+  grid-template-columns: minmax(290px, 0.9fr) minmax(0, 1.1fr);
   align-items: start;
 }
 
 .map-layout__list {
   display: grid;
-  gap: 0.6rem;
+  gap: 0.7rem;
   max-height: calc(100vh - 8.6rem);
   min-height: 0;
   overflow: auto;
-  padding-right: 0.15rem;
+  padding-right: 0.2rem;
 }
 
 .map-layout__list-header,
@@ -47,8 +47,10 @@
 .map-listing {
   border: 1px solid var(--line);
   border-radius: 15px;
-  padding: 0.72rem;
+  padding: 0.74rem;
   background: var(--surface-strong);
+  box-shadow: var(--shadow-soft);
+  transition: transform 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
 }
 
 .map-listing__select {
@@ -71,7 +73,12 @@
 
 .map-listing.is-selected {
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(19, 139, 132, 0.15);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 26%, transparent);
+}
+
+.map-listing:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--line) 65%, var(--primary) 35%);
 }
 
 .map-listing__head {
@@ -85,6 +92,42 @@
   margin: 0.36rem 0 0;
   font-family: var(--font-heading);
   font-size: 1.02rem;
+}
+
+.map-listing__media {
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--chip-bg) 75%, var(--surface-strong));
+}
+
+.map-listing__media img {
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  display: block;
+}
+
+.map-listing__media-placeholder {
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  background:
+    radial-gradient(circle at 20% 25%, color-mix(in srgb, var(--primary) 20%, transparent), transparent 42%),
+    linear-gradient(130deg, color-mix(in srgb, var(--chip-bg) 75%, white), color-mix(in srgb, var(--subtle-bg) 85%, #f1f3f8));
+}
+
+.map-listing__price-pill {
+  position: absolute;
+  right: 0.45rem;
+  bottom: 0.45rem;
+  margin: 0;
+  padding: 0.14rem 0.48rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--primary) 86%, #000);
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 700;
 }
 
 .map-listing__stats {
@@ -138,7 +181,7 @@
   display: grid;
   border: 1px solid var(--line);
   border-radius: 14px;
-  background: var(--surface-strong);
+  background: color-mix(in srgb, var(--chip-bg) 75%, var(--surface-strong));
   padding: 0.66rem;
   gap: 0.52rem;
 }
@@ -156,6 +199,19 @@
   margin: 0;
   font-family: var(--font-heading);
   font-size: 1.05rem;
+}
+
+.map-selected-details__media {
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+}
+
+.map-selected-details__media img {
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  display: block;
 }
 
 .map-selected-details__stats {
@@ -227,7 +283,7 @@
 
 .map-mobile-rail__item.is-selected {
   border-color: var(--primary);
-  box-shadow: 0 0 0 2px rgba(19, 139, 132, 0.15);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 24%, transparent);
 }
 
 .map-mobile-rail__item span {

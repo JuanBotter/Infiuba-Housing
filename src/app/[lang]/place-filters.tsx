@@ -650,6 +650,13 @@ export function PlaceFilters({
               aria-label={`${listing.address}, ${listing.neighborhood}`}
             >
               <article className="place-card">
+                <div className="place-card__media">
+                  {listing.imageUrls?.[0] ? (
+                    <img src={listing.imageUrls[0]} alt={`${listing.address} photo`} loading="lazy" />
+                  ) : (
+                    <div className="place-card__media-placeholder" aria-hidden="true" />
+                  )}
+                </div>
                 <div className="place-card__head">
                   <div className="place-card__meta">
                     <p className="place-card__neighborhood">{listing.neighborhood}</p>
@@ -798,6 +805,15 @@ export function PlaceFilters({
                 </section>
 
                 <section className="map-selected-details">
+                  {selectedMapListing.imageUrls?.[0] ? (
+                    <div className="map-selected-details__media">
+                      <img
+                        src={selectedMapListing.imageUrls[0]}
+                        alt={`${selectedMapListing.address} photo`}
+                        loading="lazy"
+                      />
+                    </div>
+                  ) : null}
                   <p className="map-selected-details__eyebrow">{selectedMapListing.neighborhood}</p>
                   <h4>{selectedMapListing.address}</h4>
                   <div className="map-selected-details__stats">

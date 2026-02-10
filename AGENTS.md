@@ -20,7 +20,9 @@ Do not defer AGENTS updates.
 - Languages: `en`, `es`, `fr`, `de`, `pt`, `it`, `no`.
 - Default landing language is Spanish (`/` redirects to `/es`).
 - Theme: light/dark with persisted browser preference.
-- Typography: unified sans-serif stack for headings and body (`Avenir Next` fallback stack).
+- Typography: Stitch-aligned sans stacks are loaded globally (`Plus Jakarta Sans` baseline, with `Work Sans` for admin-heavy surfaces and `Inter` for security telemetry modules; `Avenir Next` remains fallback).
+- Visual system: Stitch-aligned editorial look across explorer/detail/review/auth/admin with warm ivory surfaces, dark cocoa dark-mode base (`#221510`), rounded cards, image-forward listing/media blocks, and high-contrast pill controls.
+- Dark-mode contrast guardrails are enforced in the global theme layer so top-bar popovers, filters/cards/map panels, listing-detail metric chips, and admin/security surfaces switch to dark high-contrast backgrounds with readable text/field contrast.
 - Core domain: listings, owner contacts, survey reviews, web reviews with moderation, multilingual review text, and review-level rent history.
 - Listings and reviews support photo galleries backed by Vercel Blob uploads (`image_urls` arrays in DB). Review submission supports image upload with server-side MIME/size/count validation.
 - Listing detail/admin galleries and review-form upload previews use an in-page image viewer (body-portal modal/lightbox with keyboard + thumbnail navigation) instead of opening images in a new tab; property galleries use a uniform same-size tile layout, and gallery/viewer frames use fixed-size layouts so image display size is consistent regardless of source resolution. The viewer supports fit/fill mode toggle, zoom controls (buttons, keyboard, wheel, double-click reset/toggle), swipe navigation on touch, and Home/End keyboard shortcuts.
@@ -43,6 +45,7 @@ Do not defer AGENTS updates.
 - DB migrations are managed with node-pg-migrate (`migrations/` directory).
 - Survey import tooling now generates deterministic/stable survey review IDs from review content (instead of row order).
 - Admin UX: split views for reviews, contact edit requests, access management, and security telemetry under `/{lang}/admin/*`; access view supports search, role changes, deletion, and bulk user creation.
+- Admin security telemetry view is presented as a dashboard with KPI cards, alert cards, per-window outcome summaries, and a recent audit-events table (still fed by `getSecurityTelemetrySnapshot` and no-store APIs); security dashboard uses a local blue/green alert palette distinct from the orange public theme, matching Stitch references.
 - Admin bulk user upsert uses set-based SQL (`DELETE ... WHERE email = ANY(...)` + `INSERT ... SELECT FROM UNNEST(...)`) in one transaction.
 - Add-review and detail-review flows share common review payload/state helpers in `src/lib/review-form.ts`.
 - New listing fields in the add-review flow omit coordinates; latitude/longitude are not collected from users.

@@ -224,9 +224,12 @@ export function RoleSwitcher({ lang, role, email }: RoleSwitcherProps) {
         <UserIcon />
       </summary>
       <div className="role-menu__popover">
-        <p className="role-menu__current">
-          {t.accessCurrentRoleLabel}: <strong>{roleLabel}</strong>
-        </p>
+        <div className="role-menu__header">
+          <p className="role-menu__title">{t.accessLabel}</p>
+          <p className="role-menu__current">
+            {t.accessCurrentRoleLabel}: <strong>{roleLabel}</strong>
+          </p>
+        </div>
 
         {role === "visitor" ? (
           <>
@@ -274,7 +277,11 @@ export function RoleSwitcher({ lang, role, email }: RoleSwitcherProps) {
                 </>
               ) : null}
 
-              <button type="submit" className="button-link" disabled={status === "sending"}>
+              <button
+                type="submit"
+                className="button-link role-menu__action-main"
+                disabled={status === "sending"}
+              >
                 {status === "sending"
                   ? t.accessSigningIn
                   : otpStep === "request"
@@ -286,7 +293,7 @@ export function RoleSwitcher({ lang, role, email }: RoleSwitcherProps) {
             {otpStep === "verify" ? (
               <button
                 type="button"
-                className="button-link"
+                className="button-link button-link--secondary role-menu__action-secondary"
                 onClick={() => {
                   setOtpCode("");
                   setTrustDevice(false);
@@ -303,7 +310,7 @@ export function RoleSwitcher({ lang, role, email }: RoleSwitcherProps) {
             {otpStep === "verify" ? (
               <button
                 type="button"
-                className="button-link"
+                className="button-link button-link--secondary role-menu__action-secondary"
                 disabled={status === "sending"}
                 onClick={() => void submitOtpRequest()}
               >
@@ -320,7 +327,11 @@ export function RoleSwitcher({ lang, role, email }: RoleSwitcherProps) {
                 {t.accessLoggedInAsLabel}: <strong>{email}</strong>
               </p>
             ) : null}
-            <button type="button" className="button-link" onClick={() => void signOut()}>
+            <button
+              type="button"
+              className="button-link role-menu__action-main"
+              onClick={() => void signOut()}
+            >
               {t.accessSignOut}
             </button>
           </>

@@ -27,13 +27,13 @@ export default async function AdminLayout({ children, params }: AdminLayoutProps
   const messages = getMessages(lang);
 
   return (
-    <section className="content-wrapper">
-      <article className="detail-card">
+    <section className="content-wrapper content-wrapper--admin">
+      <article className="detail-card detail-card--admin-header">
         <h1>{messages.adminTitle}</h1>
         <p>{messages.adminSubtitle}</p>
         <AdminNav lang={lang} />
       </article>
-      {children}
+      <section className="admin-shell">{children}</section>
     </section>
   );
 }

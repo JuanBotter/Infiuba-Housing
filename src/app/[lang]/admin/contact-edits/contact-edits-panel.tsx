@@ -100,7 +100,7 @@ export function ContactEditsPanel({ lang, messages }: ContactEditsPanelProps) {
 
   return (
     <>
-      <article className="detail-card moderation-toolbar">
+      <article className="detail-card moderation-toolbar moderation-toolbar--admin">
         <button type="button" className="button-link" onClick={() => void loadRequests()}>
           {loading ? messages.adminLoading : messages.adminRefresh}
         </button>
@@ -109,7 +109,7 @@ export function ContactEditsPanel({ lang, messages }: ContactEditsPanelProps) {
       {error ? <p className="form-status error">{error}</p> : null}
 
       <section className="moderation-grid">
-        <article className="detail-card">
+        <article className="detail-card admin-moderation-column">
           <h2>{pendingTitle}</h2>
           {loading ? <p>{messages.adminLoading}</p> : null}
           {!loading && pendingRequests.length === 0 ? (
@@ -117,7 +117,7 @@ export function ContactEditsPanel({ lang, messages }: ContactEditsPanelProps) {
           ) : null}
           <ul className="review-list contact-edit-list">
             {pendingRequests.map((request) => (
-              <li key={request.id} className="review-item contact-edit-item">
+              <li key={request.id} className="review-item contact-edit-item moderation-item--pending">
                 <p className="review-item__meta">
                   {request.listingAddress || messages.adminUnknownListing}
                   {request.listingNeighborhood ? ` · ${request.listingNeighborhood}` : ""}
@@ -184,14 +184,21 @@ export function ContactEditsPanel({ lang, messages }: ContactEditsPanelProps) {
           </ul>
         </article>
 
-        <article className="detail-card">
+        <article className="detail-card admin-moderation-column">
           <h2>{historyTitle}</h2>
           {!loading && historyRequests.length === 0 ? (
             <p>{messages.adminContactEditsEmptyHistory}</p>
           ) : null}
           <ul className="review-list contact-edit-list">
             {historyRequests.map((request) => (
-              <li key={request.id} className="review-item contact-edit-item">
+              <li
+                key={request.id}
+                className={`review-item contact-edit-item ${
+                  request.status === "approved"
+                    ? "moderation-item--approved"
+                    : "moderation-item--rejected"
+                }`}
+              >
                 <p className="review-item__meta">
                   {request.listingAddress || messages.adminUnknownListing}
                   {request.listingNeighborhood ? ` · ${request.listingNeighborhood}` : ""}

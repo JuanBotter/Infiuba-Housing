@@ -289,7 +289,7 @@ export function AccessPanel({ lang }: AccessPanelProps) {
 
   return (
     <>
-      <article className="detail-card moderation-toolbar">
+      <article className="detail-card moderation-toolbar moderation-toolbar--admin">
         <h2>{messages.adminUsersManageTitle}</h2>
         <p className="property-form__hint">{messages.adminUsersManageSubtitle}</p>
         <div className="property-form">
@@ -340,7 +340,7 @@ export function AccessPanel({ lang }: AccessPanelProps) {
         </div>
       </article>
 
-      <article className="detail-card">
+      <article className="detail-card access-users-card">
         <h2>{messages.adminUsersTitle}</h2>
         <div className="admin-users-toolbar">
           <p className="property-form__hint">{messages.adminUsersSubtitle}</p>
@@ -372,7 +372,7 @@ export function AccessPanel({ lang }: AccessPanelProps) {
                   const roleValue = roleDrafts[user.email] ?? user.role;
                   const roleChanged = roleValue !== user.role;
                   return (
-                    <li key={user.email} className="review-item moderation-item">
+                    <li key={user.email} className="review-item moderation-item admin-user-item">
                       <p className="review-item__meta">{user.email}</p>
                       <label className="admin-user-role">
                         <span>{messages.adminUsersRoleLabel}</span>
@@ -431,8 +431,14 @@ export function AccessPanel({ lang }: AccessPanelProps) {
               <ul className="review-list">
                 {filteredDeletedUsers.map((user) => {
                   return (
-                    <li key={user.email} className="review-item moderation-item">
+                    <li
+                      key={user.email}
+                      className="review-item moderation-item admin-user-item admin-user-item--deleted"
+                    >
                       <p className="review-item__meta">{user.email}</p>
+                      <p className="review-item__meta">
+                        {messages.adminUsersUpdatedAtLabel}: {formatDate(user.deletedAt, lang)}
+                      </p>
                     </li>
                   );
                 })}

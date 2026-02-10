@@ -20,8 +20,8 @@ const DEFAULT_ZOOM = 12;
 function markerOptions(selected: boolean): L.CircleMarkerOptions {
   if (selected) {
     return {
-      color: "#0d5f7b",
-      fillColor: "#21bfae",
+      color: "#ffffff",
+      fillColor: "#ec4913",
       fillOpacity: 0.92,
       weight: 2,
       radius: 9,
@@ -29,10 +29,10 @@ function markerOptions(selected: boolean): L.CircleMarkerOptions {
   }
 
   return {
-    color: "#1f4d71",
-    fillColor: "#3b84c4",
-    fillOpacity: 0.78,
-    weight: 1.5,
+    color: "#ec4913",
+    fillColor: "#ffffff",
+    fillOpacity: 0.86,
+    weight: 1.8,
     radius: 6.5,
   };
 }
