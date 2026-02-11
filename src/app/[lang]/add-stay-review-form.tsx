@@ -16,6 +16,7 @@ import { splitContactParts } from "@/lib/contact-links";
 import { SEMESTER_OPTIONS } from "@/lib/semester-options";
 import { StarRating } from "@/components/star-rating";
 import { ImageGalleryViewer } from "@/components/image-gallery-viewer";
+import { PhoneInputWithCountry } from "@/components/phone-input-with-country";
 import type { Lang, Listing } from "@/types";
 
 interface AddStayReviewFormProps {
@@ -704,17 +705,21 @@ export function AddStayReviewForm({ lang, listings, neighborhoods }: AddStayRevi
 
           <label>
             <span>{t.formPhone}</span>
-            <input
-              type="text"
+            <PhoneInputWithCountry
+              lang={lang}
               value={reviewDraft.studentContact}
-              onChange={(event) => {
+              onChange={(nextValue) => {
                 setReviewDraft((previous) => ({
                   ...previous,
-                  studentContact: event.target.value,
+                  studentContact: nextValue,
                 }));
                 clearFormError("contactShare");
               }}
               maxLength={120}
+              pickerLabel={t.phoneCountryPickerLabel}
+              searchPlaceholder={t.phoneCountrySearchPlaceholder}
+              noResultsLabel={t.phoneCountryNoResults}
+              numberPlaceholder={t.phoneNumberPlaceholder}
             />
           </label>
 

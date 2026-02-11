@@ -24,6 +24,7 @@
   "dependencies": {
     "@vercel/blob": "^2.2.0",
     "leaflet": "^1.9.4",
+    "libphonenumber-js": "^1.12.36",
     "next": "^16.1.6",
     "pg": "^8.16.3",
     "react": "18.3.1",

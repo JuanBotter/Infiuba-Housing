@@ -16,6 +16,7 @@ import { splitReviewerContactParts } from "@/lib/reviewer-contact";
 import { splitContactParts } from "@/lib/contact-links";
 import { formatDecimal, formatPercent, formatUsd, formatUsdRangePlain } from "@/lib/format";
 import { getMessages, isSupportedLanguage } from "@/lib/i18n";
+import { getReviewDisplayYear } from "@/lib/review-year";
 import {
   getApprovedReviewsForListing,
   getCachedPublicApprovedReviewsForListing,
@@ -194,69 +195,72 @@ export default async function PlaceDetailPage({ params }: PlaceDetailPageProps) 
           <ul className="review-list">
             {mergedReviews
               .filter((review) => review.comment)
-              .map((review) => (
-                <li
-                  key={review.id}
-                  className={`review-item ${
-                    review.recommended === true
-                      ? "review-item--yes"
-                      : review.recommended === false
-                        ? "review-item--no"
-                        : ""
-                  }`}
-                >
-                  <p className="review-item__meta">
-                    {review.source === "web"
-                      ? messages.reviewSourceWeb
-                      : messages.reviewSourceSurvey}
-                    {review.year ? ` · ${review.year}` : ""}
-                    {review.semester ? ` · ${review.semester}` : ""}
-                    {typeof review.rating === "number" ? ` · ${review.rating}/5` : ""}
-                    {typeof review.priceUsd === "number"
-                      ? ` · ${formatUsd(review.priceUsd, lang)} ${messages.monthSuffix}`
-                      : ""}
-                    {typeof review.recommended === "boolean"
-                      ? ` · ${review.recommended ? messages.yes : messages.no}`
-                      : ""}
-                  </p>
-                  <ReviewComment
-                    comment={review.comment || ""}
-                    translatedComment={review.translatedComment}
-                    originalComment={review.originalComment}
-                    showOriginalLabel={messages.reviewShowOriginal}
-                    showTranslationLabel={messages.reviewShowTranslation}
-                  />
-                  {review.imageUrls?.length ? (
-                    <ImageGalleryViewer
-                      lang={lang}
-                      images={review.imageUrls}
-                      altBase={messages.imageAltReview}
-                      ariaLabel={messages.imageAriaReviewPhotos}
-                    />
-                  ) : null}
-                  {canViewReviewerInfo && review.studentContact ? (
-                    <p className="review-item__contact">
-                      {messages.reviewContactLabel}:{" "}
-                      {splitReviewerContactParts(review.studentContact).map((part, index) => {
-                        if (part.type === "link") {
-                          const isExternal = part.kind === "whatsapp" || part.kind === "url";
-                          return (
-                            <a
-                              key={`${part.text}-${index}`}
-                              href={part.href}
-                              target={isExternal ? "_blank" : undefined}
-                              rel={isExternal ? "noreferrer" : undefined}
-                            >
-                              {part.text}
-                            </a>
-                          );
-                        }
-                        return <span key={`${part.text}-${index}`}>{part.text}</span>;
-                      })}
+              .map((review) => {
+                const displayYear = getReviewDisplayYear(review);
+                return (
+                  <li
+                    key={review.id}
+                    className={`review-item ${
+                      review.recommended === true
+                        ? "review-item--yes"
+                        : review.recommended === false
+                          ? "review-item--no"
+                          : ""
+                    }`}
+                  >
+                    <p className="review-item__meta">
+                      {review.source === "web"
+                        ? messages.reviewSourceWeb
+                        : messages.reviewSourceSurvey}
+                      {typeof displayYear === "number" ? ` · ${displayYear}` : ""}
+                      {review.semester ? ` · ${review.semester}` : ""}
+                      {typeof review.rating === "number" ? ` · ${review.rating}/5` : ""}
+                      {typeof review.priceUsd === "number"
+                        ? ` · ${formatUsd(review.priceUsd, lang)} ${messages.monthSuffix}`
+                        : ""}
+                      {typeof review.recommended === "boolean"
+                        ? ` · ${review.recommended ? messages.yes : messages.no}`
+                        : ""}
                     </p>
-                  ) : null}
-                </li>
-              ))}
+                    <ReviewComment
+                      comment={review.comment || ""}
+                      translatedComment={review.translatedComment}
+                      originalComment={review.originalComment}
+                      showOriginalLabel={messages.reviewShowOriginal}
+                      showTranslationLabel={messages.reviewShowTranslation}
+                    />
+                    {review.imageUrls?.length ? (
+                      <ImageGalleryViewer
+                        lang={lang}
+                        images={review.imageUrls}
+                        altBase={messages.imageAltReview}
+                        ariaLabel={messages.imageAriaReviewPhotos}
+                      />
+                    ) : null}
+                    {canViewReviewerInfo && review.studentContact ? (
+                      <p className="review-item__contact">
+                        {messages.reviewContactLabel}:{" "}
+                        {splitReviewerContactParts(review.studentContact).map((part, index) => {
+                          if (part.type === "link") {
+                            const isExternal = part.kind === "whatsapp" || part.kind === "url";
+                            return (
+                              <a
+                                key={`${part.text}-${index}`}
+                                href={part.href}
+                                target={isExternal ? "_blank" : undefined}
+                                rel={isExternal ? "noreferrer" : undefined}
+                              >
+                                {part.text}
+                              </a>
+                            );
+                          }
+                          return <span key={`${part.text}-${index}`}>{part.text}</span>;
+                        })}
+                      </p>
+                    ) : null}
+                  </li>
+                );
+              })}
           </ul>
         )}
       </article>

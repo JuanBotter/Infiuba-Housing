@@ -798,6 +798,142 @@ textarea {
   resize: vertical;
 }
 
+.phone-input {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  gap: 0.44rem;
+}
+
+.phone-input__country-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.38rem;
+  padding: 0.62rem 0.58rem;
+  min-width: 6.6rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--field-bg);
+  color: var(--ink);
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+
+.phone-input__country-button:focus-visible {
+  outline: none;
+  border-color: var(--line);
+  box-shadow: none;
+}
+
+.phone-input__country-button:disabled {
+  opacity: 0.72;
+  cursor: not-allowed;
+}
+
+.phone-input__country-flag {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.phone-input__country-code {
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.phone-input__country-caret {
+  color: var(--ink-soft);
+  font-size: 0.75rem;
+  line-height: 1;
+}
+
+.phone-input__number {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.phone-input__popover {
+  position: absolute;
+  top: calc(100% + 0.3rem);
+  left: 0;
+  z-index: 1205;
+  width: min(420px, 100%);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: var(--shadow-soft);
+  padding: 0.5rem;
+  display: grid;
+  gap: 0.46rem;
+}
+
+.phone-input__search {
+  width: 100%;
+}
+
+.phone-input__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 255px;
+  overflow: auto;
+  display: grid;
+  gap: 0.26rem;
+}
+
+.phone-input__option {
+  width: 100%;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--ink);
+  padding: 0.4rem 0.5rem;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.48rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.phone-input__option:hover {
+  background: var(--chip-bg);
+  border-color: color-mix(in srgb, var(--line) 72%, var(--primary) 28%);
+}
+
+.phone-input__option.is-selected {
+  background: color-mix(in srgb, var(--chip-bg) 70%, var(--surface) 30%);
+  border-color: color-mix(in srgb, var(--line) 64%, var(--primary) 36%);
+}
+
+.phone-input__option:focus-visible {
+  outline: none;
+  border-color: rgba(19, 139, 132, 0.6);
+  box-shadow: 0 0 0 3px rgba(19, 139, 132, 0.18);
+}
+
+.phone-input__option-flag {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.phone-input__option-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.phone-input__option-code {
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+.phone-input__empty {
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+  padding: 0.4rem 0.5rem;
+}
+
 .result-count {
   margin: 0;
   color: var(--ink-soft);
@@ -1254,7 +1390,7 @@ textarea {
 }
 
 .button-link,
-.review-form button,
+.review-form button:not(.phone-input__country-button):not(.phone-input__option),
 .property-form button {
   border: 0;
   border-radius: 999px;
@@ -1276,13 +1412,13 @@ textarea {
 }
 
 .button-link:hover,
-.review-form button:hover,
+.review-form button:not(.phone-input__country-button):not(.phone-input__option):hover,
 .property-form button:hover {
   transform: translateY(-1px);
   filter: brightness(1.04);
 }
 
-.review-form button:disabled,
+.review-form button:not(.phone-input__country-button):not(.phone-input__option):disabled,
 .property-form button:disabled {
   opacity: 0.74;
   cursor: wait;
@@ -3057,7 +3193,7 @@ input[type="number"] {
 }
 
 .button-link,
-.review-form button,
+.review-form button:not(.phone-input__country-button):not(.phone-input__option),
 .property-form button {
   background: linear-gradient(125deg, var(--accent), var(--warm));
   box-shadow: 0 10px 20px color-mix(in srgb, var(--accent) 36%, transparent);
@@ -3472,6 +3608,30 @@ input[type="number"] {
 :root[data-theme="dark"] input::placeholder,
 :root[data-theme="dark"] textarea::placeholder {
   color: color-mix(in srgb, var(--ink-soft) 90%, #ffffff 10%);
+}
+
+:root[data-theme="dark"] .phone-input__country-button {
+  border-color: var(--line);
+  background: var(--field-bg);
+  color: var(--ink);
+  box-shadow: none;
+}
+
+:root[data-theme="dark"] .phone-input__popover {
+  border-color: color-mix(in srgb, var(--line) 74%, var(--primary) 26%);
+  background:
+    linear-gradient(
+      160deg,
+      color-mix(in srgb, #3a241a 70%, transparent),
+      color-mix(in srgb, #241510 90%, transparent)
+    ),
+    var(--surface-strong);
+}
+
+:root[data-theme="dark"] .phone-input__option:hover,
+:root[data-theme="dark"] .phone-input__option.is-selected {
+  background: color-mix(in srgb, var(--subtle-bg) 86%, #140d09);
+  border-color: color-mix(in srgb, var(--line) 74%, var(--primary) 26%);
 }
 
 :root[data-theme="dark"] .filters-panel__range-slider::before {

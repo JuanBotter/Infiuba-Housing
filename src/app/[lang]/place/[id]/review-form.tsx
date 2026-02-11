@@ -12,6 +12,7 @@ import {
 import { SEMESTER_OPTIONS } from "@/lib/semester-options";
 import { StarRating } from "@/components/star-rating";
 import { ImageGalleryViewer } from "@/components/image-gallery-viewer";
+import { PhoneInputWithCountry } from "@/components/phone-input-with-country";
 import { uploadReviewImageFiles } from "@/lib/review-image-upload";
 import { MAX_REVIEW_IMAGE_COUNT } from "@/lib/review-images";
 import type { Lang } from "@/types";
@@ -343,14 +344,18 @@ export function ReviewForm({ lang, listingId }: ReviewFormProps) {
 
         <label>
           <span>{t.formPhone}</span>
-          <input
-            type="text"
+          <PhoneInputWithCountry
+            lang={lang}
             value={reviewDraft.studentContact}
-            onChange={(event) => {
-              setReviewDraft((previous) => ({ ...previous, studentContact: event.target.value }));
+            onChange={(nextValue) => {
+              setReviewDraft((previous) => ({ ...previous, studentContact: nextValue }));
               clearFormError("contactShare");
             }}
             maxLength={120}
+            pickerLabel={t.phoneCountryPickerLabel}
+            searchPlaceholder={t.phoneCountrySearchPlaceholder}
+            noResultsLabel={t.phoneCountryNoResults}
+            numberPlaceholder={t.phoneNumberPlaceholder}
           />
         </label>
 

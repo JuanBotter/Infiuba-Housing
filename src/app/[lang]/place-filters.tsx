@@ -15,8 +15,15 @@ import { ReviewComment } from "@/app/[lang]/place/[id]/review-comment";
 import { ReviewForm } from "@/app/[lang]/place/[id]/review-form";
 import { ContactEditRequestForm } from "@/components/contact-edit-request-form";
 import { splitContactParts } from "@/lib/contact-links";
-import { formatDecimal, formatPercent, formatUsdAmount, formatUsdRangePlain } from "@/lib/format";
+import {
+  formatDecimal,
+  formatPercent,
+  formatUsd,
+  formatUsdAmount,
+  formatUsdRangePlain,
+} from "@/lib/format";
 import { splitReviewerContactParts } from "@/lib/reviewer-contact";
+import { getReviewDisplayYear } from "@/lib/review-year";
 import type { Messages } from "@/i18n/messages";
 import type { Lang, Listing } from "@/types";
 
@@ -1441,38 +1448,51 @@ export function PlaceFilters({
                     <p className="map-layout__reviews-empty">{messages.noComments}</p>
                   ) : (
                     <ul className="map-layout__reviews-list">
-                      {selectedMapReviews.map((review) => (
-                        <li key={review.id} className="map-layout__review-item">
-                          <ReviewComment
-                            comment={review.comment || ""}
-                            translatedComment={review.translatedComment}
-                            originalComment={review.originalComment}
-                            showOriginalLabel={messages.reviewShowOriginal}
-                            showTranslationLabel={messages.reviewShowTranslation}
-                          />
-                          {review.studentContact ? (
-                            <p className="review-item__contact">
-                              {messages.reviewContactLabel}:{" "}
-                              {splitReviewerContactParts(review.studentContact).map((part, index) => {
-                                if (part.type === "link") {
-                                  const isExternal = part.kind === "whatsapp" || part.kind === "url";
-                                  return (
-                                    <a
-                                      key={`${part.text}-${index}`}
-                                      href={part.href}
-                                      target={isExternal ? "_blank" : undefined}
-                                      rel={isExternal ? "noreferrer" : undefined}
-                                    >
-                                      {part.text}
-                                    </a>
-                                  );
-                                }
-                                return <span key={`${part.text}-${index}`}>{part.text}</span>;
-                              })}
+                      {selectedMapReviews.map((review) => {
+                        const displayYear = getReviewDisplayYear(review);
+                        return (
+                          <li key={review.id} className="map-layout__review-item">
+                            <p className="review-item__meta">
+                              {review.source === "web"
+                                ? messages.reviewSourceWeb
+                                : messages.reviewSourceSurvey}
+                              {typeof displayYear === "number" ? ` · ${displayYear}` : ""}
+                              {typeof review.priceUsd === "number"
+                                ? ` · ${formatUsd(review.priceUsd, lang)} ${messages.monthSuffix}`
+                                : ""}
+                              {review.semester ? ` · ${review.semester}` : ""}
                             </p>
-                          ) : null}
-                        </li>
-                      ))}
+                            <ReviewComment
+                              comment={review.comment || ""}
+                              translatedComment={review.translatedComment}
+                              originalComment={review.originalComment}
+                              showOriginalLabel={messages.reviewShowOriginal}
+                              showTranslationLabel={messages.reviewShowTranslation}
+                            />
+                            {review.studentContact ? (
+                              <p className="review-item__contact">
+                                {messages.reviewContactLabel}:{" "}
+                                {splitReviewerContactParts(review.studentContact).map((part, index) => {
+                                  if (part.type === "link") {
+                                    const isExternal = part.kind === "whatsapp" || part.kind === "url";
+                                    return (
+                                      <a
+                                        key={`${part.text}-${index}`}
+                                        href={part.href}
+                                        target={isExternal ? "_blank" : undefined}
+                                        rel={isExternal ? "noreferrer" : undefined}
+                                      >
+                                        {part.text}
+                                      </a>
+                                    );
+                                  }
+                                  return <span key={`${part.text}-${index}`}>{part.text}</span>;
+                                })}
+                              </p>
+                            ) : null}
+                          </li>
+                        );
+                      })}
                     </ul>
                   )}
                 </section>

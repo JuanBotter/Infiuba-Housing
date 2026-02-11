@@ -56,7 +56,7 @@ Do not defer AGENTS updates.
 - Non-admin UX copy is standardized across listings/detail/review/auth flows: map/list hints, empty states, owner-contact prompts, OTP guidance/errors, and add-review matching prompts now use user-task language in all supported locales.
 - Review forms use a dedicated rent-input label (reported rent paid), while list/map/detail cards keep estimated rent wording for aggregated ranges.
 - Monthly-rent labels in list/map/detail cards use `Monthly rent (USD)` wording (localized by locale); displayed values omit both repeated `/month` suffixes and redundant USD currency symbols in those labeled contexts, and plain USD-number rendering in those contexts uses `en-US` grouping separators for consistency.
-- Listing detail review metadata uses localized review-source labels (`web`/`survey`) instead of hardcoded English text.
+- Listing/detail/map review metadata uses localized review-source labels (`web`/`survey`), shows a review year derived from `year`, then `semester`, then `createdAt`, and includes per-review reported rent when available.
 - Shared image gallery/lightbox controls and labels are localized by UI language (fit/fill, zoom, open-original, close, previous/next, thumbnails, and fallback remove text).
 - Admin bulk user upsert uses set-based SQL (`DELETE ... WHERE email = ANY(...)` + `INSERT ... SELECT FROM UNNEST(...)`) in one transaction.
 - Add-review and detail-review flows share common review payload/state helpers in `src/lib/review-form.ts`, including client-side mapping of server review errors to localized UI copy (unknown server errors fall back to generic localized form errors).
@@ -84,6 +84,7 @@ Do not defer AGENTS updates.
 - Whitelisted/admin users can request owner-contact and max-students updates from listing views; requests are reviewed in the admin contact edits view before applying changes.
 - Reviewer contact info is shown under map comments when available/consented, linkifying each email and phone separately (phones open WhatsApp; emails use mailto).
 - Review rating inputs use a 5-star control with whole-star increments and start unselected (0) until the user picks a value; recommendation radio buttons also start unselected and must be chosen. Review forms use client-side validation (no native browser validation) and highlight missing required fields with inline error text plus a shared error summary. Reported rent paid is required for all reviews; new listings also require owner contact info and max students. Contact fields are grouped under a contact section in review forms.
+- Review forms use a searchable country-code phone picker (flag + localized country name + dial code) for reviewer phone input in both add-review and detail-review flows; stored reviewer phone values are normalized to `+<country-code> <number>`. Default country is Argentina (`+54`) for English and Spanish UI.
 - On mobile/narrow layouts (`<=1100px`), map mode is map-first: a horizontal property rail sits under the map, and the full results list opens as a bottom-sheet drawer with backdrop.
 - In map mode, selected listing details (stats + owner contacts when visible to role + details link) render under the map panel content; on mobile/narrow layouts they appear under the horizontal rail.
 - Selecting a listing from map markers keeps list/rail selection in sync and auto-scrolls the corresponding item into view when visible; when sort order changes in map mode, selection resets to the first result in the new order.
@@ -510,6 +511,8 @@ Must remain true:
 - Theme bootstrap script (static, beforeInteractive): `public/theme-init.js`
 - Request validation helpers: `src/lib/request-validation.ts`
 - Shared review payload helpers: `src/lib/review-form.ts`
+- Review year helper: `src/lib/review-year.ts`
+- Phone input with country picker: `src/components/phone-input-with-country.tsx`
 - Contact edit request UI: `src/components/contact-edit-request-form.tsx`
 - Shared image gallery/lightbox UI: `src/components/image-gallery-viewer.tsx`
 - Role/auth helpers: `src/lib/auth.ts`
