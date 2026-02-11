@@ -3,20 +3,13 @@ import { createHash, randomUUID } from "node:crypto";
 import { unstable_cache } from "next/cache";
 
 import { dbQuery, withTransaction } from "@/lib/db";
+import { normalizeListingContacts, toOptionalNumber } from "@/lib/domain-constraints";
 import {
   applyStoredReviewImageOrder,
   getApprovedReviewImagesMap,
 } from "@/lib/review-image-order";
 import { getTranslatedCommentForLanguage } from "@/lib/review-translations";
 import type { Lang, Listing, Review } from "@/types";
-
-function toOptionalNumber(value: unknown) {
-  if (value === null || value === undefined || value === "") {
-    return undefined;
-  }
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : undefined;
-}
 
 function normalizeText(value: string) {
   return value
@@ -444,9 +437,7 @@ export async function createListing(input: NewListingInput) {
       ],
     );
 
-    const uniqueContacts = [...new Set(input.contacts.map((contact) => contact.trim()))]
-      .filter(Boolean)
-      .slice(0, 20);
+    const uniqueContacts = normalizeListingContacts(input.contacts);
 
     for (const contact of uniqueContacts) {
       await client.query(

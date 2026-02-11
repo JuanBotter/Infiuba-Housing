@@ -5,10 +5,10 @@ import {
   requestLoginOtp,
   verifyLoginOtp,
 } from "@/lib/auth";
-import { jsonNoStore, withNoStore } from "@/lib/http-cache";
+import { jsonError, requireSameOrigin } from "@/lib/api-route-helpers";
+import { jsonNoStore } from "@/lib/http-cache";
 import { supportedLanguages } from "@/lib/i18n";
 import { getRequestNetworkFingerprint } from "@/lib/request-network";
-import { validateSameOriginRequest } from "@/lib/request-origin";
 import { asObject, parseBoolean, parseEnum, parseString } from "@/lib/request-validation";
 import { recordSecurityAuditEvent } from "@/lib/security-audit";
 
@@ -25,9 +25,9 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const originValidation = validateSameOriginRequest(request);
-  if (!originValidation.ok) {
-    return withNoStore(originValidation.response);
+  const sameOriginResponse = requireSameOrigin(request, { noStore: true });
+  if (sameOriginResponse) {
+    return sameOriginResponse;
   }
 
   const networkFingerprint = getRequestNetworkFingerprint(request);
@@ -40,10 +40,10 @@ export async function POST(request: Request) {
   const trustDevice = parseBoolean(payload?.trustDevice);
 
   if (!action) {
-    return jsonNoStore(
-      { error: "Unsupported action. Use requestOtp or verifyOtp." },
-      { status: 400 },
-    );
+    return jsonError("Unsupported action. Use requestOtp or verifyOtp.", {
+      status: 400,
+      noStore: true,
+    });
   }
 
   if (action === "requestOtp") {
@@ -53,7 +53,7 @@ export async function POST(request: Request) {
         outcome: "invalid_request",
         networkFingerprint,
       });
-      return jsonNoStore({ error: "Missing email" }, { status: 400 });
+      return jsonError("Missing email", { status: 400, noStore: true });
     }
 
     const requested = await requestLoginOtp(email, networkFingerprint, {
@@ -68,10 +68,13 @@ export async function POST(request: Request) {
         networkFingerprint,
       });
       if (requested.reason === "db_unavailable") {
-        return jsonNoStore({ error: "Database is required for OTP login" }, { status: 503 });
+        return jsonError("Database is required for OTP login", {
+          status: 503,
+          noStore: true,
+        });
       }
       if (requested.reason === "invalid_email") {
-        return jsonNoStore({ error: "Invalid email" }, { status: 400 });
+        return jsonError("Invalid email", { status: 400, noStore: true });
       }
       // Prevent account enumeration via request OTP response semantics.
       return buildOtpRequestAcceptedResponse(email);
@@ -94,7 +97,7 @@ export async function POST(request: Request) {
       targetEmail: email || null,
       networkFingerprint,
     });
-    return jsonNoStore({ error: "Missing email or OTP code" }, { status: 400 });
+    return jsonError("Missing email or OTP code", { status: 400, noStore: true });
   }
 
   const verified = await verifyLoginOtp(email, otpCode, networkFingerprint);
@@ -106,13 +109,16 @@ export async function POST(request: Request) {
       networkFingerprint,
     });
     if (verified.reason === "db_unavailable") {
-      return jsonNoStore({ error: "Database is required for OTP login" }, { status: 503 });
+      return jsonError("Database is required for OTP login", {
+        status: 503,
+        noStore: true,
+      });
     }
     if (verified.reason === "invalid_email") {
-      return jsonNoStore({ error: "Invalid email" }, { status: 400 });
+      return jsonError("Invalid email", { status: 400, noStore: true });
     }
     // Keep authentication failures generic to reduce account enumeration.
-    return jsonNoStore({ error: "Invalid or expired OTP code" }, { status: 401 });
+    return jsonError("Invalid or expired OTP code", { status: 401, noStore: true });
   }
 
   await recordSecurityAuditEvent({
@@ -144,9 +150,9 @@ export async function POST(request: Request) {
 }
 
 export function DELETE(request: Request) {
-  const originValidation = validateSameOriginRequest(request);
-  if (!originValidation.ok) {
-    return withNoStore(originValidation.response);
+  const sameOriginResponse = requireSameOrigin(request, { noStore: true });
+  if (sameOriginResponse) {
+    return sameOriginResponse;
   }
 
   const response = jsonNoStore({ ok: true, role: "visitor" });

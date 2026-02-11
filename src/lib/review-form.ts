@@ -1,4 +1,6 @@
 import type { Messages } from "@/i18n/messages";
+import { REVIEW_API_ERROR_CODES } from "@/lib/review-api-errors";
+import { MAX_REVIEW_IMAGE_COUNT } from "@/lib/review-images";
 
 export interface ReviewDraft {
   rating: string;
@@ -45,13 +47,41 @@ export function buildReviewPayload(draft: ReviewDraft) {
   };
 }
 
-export async function readApiErrorMessage(response: Response) {
-  const body = (await response.json().catch(() => null)) as { error?: unknown } | null;
-  return typeof body?.error === "string" ? body.error : "";
+export interface ReviewApiErrorResponse {
+  code: string;
+  message: string;
 }
 
-export function mapReviewApiErrorMessage(rawError: string, messages: Messages) {
-  const error = rawError.trim();
+export async function readApiErrorMessage(response: Response): Promise<ReviewApiErrorResponse> {
+  const body = (await response.json().catch(() => null)) as
+    | { code?: unknown; message?: unknown; error?: unknown }
+    | null;
+  const code = typeof body?.code === "string" ? body.code.trim() : "";
+  const messageValue =
+    typeof body?.message === "string"
+      ? body.message
+      : typeof body?.error === "string"
+        ? body.error
+        : "";
+  return {
+    code,
+    message: messageValue.trim(),
+  };
+}
+
+export function mapReviewApiErrorMessage(apiError: ReviewApiErrorResponse, messages: Messages) {
+  const code = apiError.code.trim();
+  if (code === REVIEW_API_ERROR_CODES.SUBMIT_NOT_ALLOWED) {
+    return messages.accessNotAllowedError;
+  }
+  if (code === REVIEW_API_ERROR_CODES.CONTACT_SHARE_REQUIRES_CONTACT) {
+    return messages.formContactShareError;
+  }
+  if (code === REVIEW_API_ERROR_CODES.REVIEW_IMAGES_TOO_MANY) {
+    return messages.formPhotosMaxError.replace("{count}", String(MAX_REVIEW_IMAGE_COUNT));
+  }
+
+  const error = apiError.message.trim();
   if (!error) {
     return "";
   }

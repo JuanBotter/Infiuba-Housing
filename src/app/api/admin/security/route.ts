@@ -1,11 +1,11 @@
-import { canAccessAdmin, getAuthSessionFromRequest } from "@/lib/auth";
+import { requireAdminSession } from "@/lib/api-route-helpers";
 import { jsonNoStore } from "@/lib/http-cache";
 import { getSecurityTelemetrySnapshot } from "@/lib/security-telemetry";
 
 export async function GET(request: Request) {
-  const session = await getAuthSessionFromRequest(request);
-  if (!canAccessAdmin(session.role)) {
-    return jsonNoStore({ error: "Unauthorized" }, { status: 401 });
+  const adminSessionResult = await requireAdminSession(request);
+  if (!adminSessionResult.ok) {
+    return adminSessionResult.response;
   }
 
   const telemetry = await getSecurityTelemetrySnapshot();

@@ -3,21 +3,23 @@ import { NextResponse } from "next/server";
 import { canSubmitReviews, getAuthSessionFromRequest, getRoleFromRequestAsync } from "@/lib/auth";
 import { dbQuery, isDatabaseEnabled } from "@/lib/db";
 import {
+  LISTING_CONTACT_MAX_LENGTH,
+  LISTING_ID_MAX_LENGTH,
+  hasListingContactTooLong,
+  isValidListingCapacity,
+  parseListingContactsFromDelimited,
+} from "@/lib/domain-constraints";
+import {
   asObject,
-  parseDelimitedList,
   parseOptionalNumber,
   parseString,
 } from "@/lib/request-validation";
 import { validateSameOriginRequest } from "@/lib/request-origin";
 import { recordSecurityAuditEvent } from "@/lib/security-audit";
 
-const MAX_CONTACTS = 20;
-const MAX_CONTACT_LENGTH = 180;
-const MAX_CAPACITY = 50;
-
 function parseContacts(value: unknown) {
-  const parsedContacts = parseDelimitedList(value, { maxItems: MAX_CONTACTS });
-  const hasContactTooLong = parsedContacts.some((item) => item.length > MAX_CONTACT_LENGTH);
+  const parsedContacts = parseListingContactsFromDelimited(value);
+  const hasContactTooLong = hasListingContactTooLong(parsedContacts);
   return {
     contacts: parsedContacts,
     hasContactTooLong,
@@ -46,7 +48,7 @@ export async function POST(request: Request) {
     }
 
     const payload = asObject(await request.json().catch(() => null));
-    const listingId = parseString(payload?.listingId, { maxLength: 200 });
+    const listingId = parseString(payload?.listingId, { maxLength: LISTING_ID_MAX_LENGTH });
     const rawContacts = parseString(payload?.contacts, { maxLength: 2000 });
     const capacityValue = parseOptionalNumber(payload?.capacity);
 
@@ -54,7 +56,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Missing listing" }, { status: 400 });
     }
 
-    if (capacityValue !== undefined && (capacityValue <= 0 || capacityValue > MAX_CAPACITY)) {
+    if (!isValidListingCapacity(capacityValue)) {
       return NextResponse.json({ error: "Invalid capacity value" }, { status: 400 });
     }
 
@@ -64,7 +66,7 @@ export async function POST(request: Request) {
     }
     if (contacts.length > 0 && hasContactTooLong) {
       return NextResponse.json(
-        { error: `Each contact must be at most ${MAX_CONTACT_LENGTH} characters` },
+        { error: `Each contact must be at most ${LISTING_CONTACT_MAX_LENGTH} characters` },
         { status: 400 },
       );
     }

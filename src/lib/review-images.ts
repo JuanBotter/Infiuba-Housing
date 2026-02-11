@@ -57,6 +57,7 @@ export function parseReviewImageUrls(value: unknown) {
   if (!parsed.ok) {
     return {
       ok: false as const,
+      code: parsed.error,
       error:
         parsed.error === "too_many"
           ? `A review can include at most ${MAX_REVIEW_IMAGE_COUNT} images`

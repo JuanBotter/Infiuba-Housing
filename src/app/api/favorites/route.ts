@@ -1,8 +1,7 @@
 import { getAuthSessionFromRequest } from "@/lib/auth";
-import { isDatabaseEnabled } from "@/lib/db";
+import { jsonError, requireDb, requireSameOrigin } from "@/lib/api-route-helpers";
 import { getFavoriteListingIdsForUser, setListingFavoriteForUser } from "@/lib/favorites";
-import { jsonNoStore, withNoStore } from "@/lib/http-cache";
-import { validateSameOriginRequest } from "@/lib/request-origin";
+import { jsonNoStore } from "@/lib/http-cache";
 import { asObject, parseEnum, parseString } from "@/lib/request-validation";
 
 function getAuthenticatedEmail(session: Awaited<ReturnType<typeof getAuthSessionFromRequest>>) {
@@ -13,8 +12,9 @@ function getAuthenticatedEmail(session: Awaited<ReturnType<typeof getAuthSession
 }
 
 export async function GET(request: Request) {
-  if (!isDatabaseEnabled()) {
-    return jsonNoStore({ error: "Database is required" }, { status: 503 });
+  const dbResponse = requireDb({ noStore: true });
+  if (dbResponse) {
+    return dbResponse;
   }
 
   const session = await getAuthSessionFromRequest(request);
@@ -26,12 +26,12 @@ export async function GET(request: Request) {
   const result = await getFavoriteListingIdsForUser(email);
   if (!result.ok) {
     if (result.reason === "schema_missing") {
-      return jsonNoStore(
-        { error: "Favorites are unavailable until database migrations are applied" },
-        { status: 503 },
-      );
+      return jsonError("Favorites are unavailable until database migrations are applied", {
+        status: 503,
+        noStore: true,
+      });
     }
-    return jsonNoStore({ error: "Could not load favorites" }, { status: 400 });
+    return jsonError("Could not load favorites", { status: 400, noStore: true });
   }
 
   return jsonNoStore({
@@ -42,19 +42,20 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const originValidation = validateSameOriginRequest(request);
-  if (!originValidation.ok) {
-    return withNoStore(originValidation.response);
+  const sameOriginResponse = requireSameOrigin(request, { noStore: true });
+  if (sameOriginResponse) {
+    return sameOriginResponse;
   }
 
-  if (!isDatabaseEnabled()) {
-    return jsonNoStore({ error: "Database is required" }, { status: 503 });
+  const dbResponse = requireDb({ noStore: true });
+  if (dbResponse) {
+    return dbResponse;
   }
 
   const session = await getAuthSessionFromRequest(request);
   const email = getAuthenticatedEmail(session);
   if (!email) {
-    return jsonNoStore({ error: "Unauthorized" }, { status: 401 });
+    return jsonError("Unauthorized", { status: 401, noStore: true });
   }
 
   const payload = asObject(await request.json().catch(() => null));
@@ -62,21 +63,21 @@ export async function POST(request: Request) {
   const listingId = parseString(payload?.listingId, { maxLength: 200 });
 
   if (!action || !listingId) {
-    return jsonNoStore({ error: "Invalid payload" }, { status: 400 });
+    return jsonError("Invalid payload", { status: 400, noStore: true });
   }
 
   const result = await setListingFavoriteForUser(email, listingId, action === "add");
   if (!result.ok) {
     if (result.reason === "not_found") {
-      return jsonNoStore({ error: "Listing not found" }, { status: 404 });
+      return jsonError("Listing not found", { status: 404, noStore: true });
     }
     if (result.reason === "schema_missing") {
-      return jsonNoStore(
-        { error: "Favorites are unavailable until database migrations are applied" },
-        { status: 503 },
-      );
+      return jsonError("Favorites are unavailable until database migrations are applied", {
+        status: 503,
+        noStore: true,
+      });
     }
-    return jsonNoStore({ error: "Could not update favorite" }, { status: 400 });
+    return jsonError("Could not update favorite", { status: 400, noStore: true });
   }
 
   return jsonNoStore({

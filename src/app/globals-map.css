@@ -55,6 +55,10 @@
   transition: transform 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
 }
 
+.map-listing__select-wrap {
+  position: relative;
+}
+
 .map-listing__select {
   width: 100%;
   margin: 0;

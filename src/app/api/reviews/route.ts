@@ -1,45 +1,60 @@
 import { NextResponse } from "next/server";
-import { revalidateTag } from "next/cache";
 
+import { requireSameOrigin } from "@/lib/api-route-helpers";
 import { canSubmitReviews, getRoleFromRequestAsync } from "@/lib/auth";
+import { revalidatePublicListingsDataset } from "@/lib/cache-tags";
 import { createListing, getListingById } from "@/lib/data";
-import { isStrictEmail, normalizeEmailInput } from "@/lib/email";
-import { asObject, parseDelimitedList, parseOptionalNumber, parseString } from "@/lib/request-validation";
-import { validateSameOriginRequest } from "@/lib/request-origin";
+import {
+  LISTING_ADDRESS_MAX_LENGTH,
+  LISTING_CONTACT_MAX_LENGTH,
+  LISTING_ID_MAX_LENGTH,
+  LISTING_NEIGHBORHOOD_MAX_LENGTH,
+  hasListingContactTooLong,
+  isValidListingCapacity,
+  normalizeReviewerContactFields,
+  parseListingContactsFromDelimited,
+} from "@/lib/domain-constraints";
+import { asObject, parseOptionalNumber, parseString } from "@/lib/request-validation";
+import {
+  buildReviewApiErrorPayload,
+  REVIEW_API_ERROR_CODES,
+  type ReviewApiErrorCode,
+} from "@/lib/review-api-errors";
 import { parseReviewImageUrls } from "@/lib/review-images";
 import { appendPendingReview } from "@/lib/reviews-store";
 import { isValidSemester } from "@/lib/semester-options";
 
-const MAX_NEW_LISTING_CONTACTS = 20;
-const MAX_NEW_LISTING_CONTACT_LENGTH = 180;
-
 function parseContacts(value: unknown) {
-  const parsedContacts = parseDelimitedList(value, { maxItems: MAX_NEW_LISTING_CONTACTS });
-
-  const hasContactTooLong = parsedContacts.some((item) => item.length > MAX_NEW_LISTING_CONTACT_LENGTH);
+  const parsedContacts = parseListingContactsFromDelimited(value);
+  const hasContactTooLong = hasListingContactTooLong(parsedContacts);
   return {
     contacts: parsedContacts,
     hasContactTooLong,
   };
 }
 
+function reviewApiError(code: ReviewApiErrorCode, message: string, status: number) {
+  return NextResponse.json(buildReviewApiErrorPayload(code, message), { status });
+}
+
 export async function POST(request: Request) {
   try {
-    const originValidation = validateSameOriginRequest(request);
-    if (!originValidation.ok) {
-      return originValidation.response;
+    const sameOriginResponse = requireSameOrigin(request);
+    if (sameOriginResponse) {
+      return sameOriginResponse;
     }
 
     const role = await getRoleFromRequestAsync(request);
     if (!canSubmitReviews(role)) {
-      return NextResponse.json(
-        { error: "Only whitelisted students can submit reviews." },
-        { status: 403 },
+      return reviewApiError(
+        REVIEW_API_ERROR_CODES.SUBMIT_NOT_ALLOWED,
+        "Only whitelisted students can submit reviews.",
+        403,
       );
     }
 
     const payload = asObject(await request.json().catch(() => null));
-    const listingId = parseString(payload?.listingId, { maxLength: 200 });
+    const listingId = parseString(payload?.listingId, { maxLength: LISTING_ID_MAX_LENGTH });
     const comment = parseString(payload?.comment, { maxLength: 1000 });
     const semester = parseString(payload?.semester, { maxLength: 60 });
     const studentName = parseString(payload?.studentName, { maxLength: 80 });
@@ -54,46 +69,54 @@ export async function POST(request: Request) {
     const confirmExistingDetails = payload?.confirmExistingDetails;
 
     if (!Number.isFinite(rating) || rating < 1 || rating > 5) {
-      return NextResponse.json({ error: "Invalid rating" }, { status: 400 });
+      return reviewApiError(REVIEW_API_ERROR_CODES.INVALID_RATING, "Invalid rating", 400);
     }
     if (typeof recommended !== "boolean") {
-      return NextResponse.json({ error: "Invalid recommendation value" }, { status: 400 });
+      return reviewApiError(
+        REVIEW_API_ERROR_CODES.INVALID_RECOMMENDATION,
+        "Invalid recommendation value",
+        400,
+      );
     }
     if (comment.length < 12) {
-      return NextResponse.json({ error: "Comment is too short" }, { status: 400 });
+      return reviewApiError(REVIEW_API_ERROR_CODES.COMMENT_TOO_SHORT, "Comment is too short", 400);
     }
     if (!semester) {
-      return NextResponse.json({ error: "Semester is required" }, { status: 400 });
+      return reviewApiError(REVIEW_API_ERROR_CODES.SEMESTER_REQUIRED, "Semester is required", 400);
     }
     if (!isValidSemester(semester)) {
-      return NextResponse.json({ error: "Invalid semester" }, { status: 400 });
+      return reviewApiError(REVIEW_API_ERROR_CODES.INVALID_SEMESTER, "Invalid semester", 400);
     }
     if (submittedPriceUsd === undefined) {
-      return NextResponse.json({ error: "Rent is required" }, { status: 400 });
+      return reviewApiError(REVIEW_API_ERROR_CODES.RENT_REQUIRED, "Rent is required", 400);
     }
     if (submittedPriceUsd <= 0 || submittedPriceUsd > 20000) {
-      return NextResponse.json({ error: "Invalid rent value" }, { status: 400 });
+      return reviewApiError(REVIEW_API_ERROR_CODES.INVALID_RENT, "Invalid rent value", 400);
     }
-    if (studentEmail) {
-      if (!isStrictEmail(studentEmail)) {
-        return NextResponse.json({ error: "Invalid contact email" }, { status: 400 });
-      }
-      studentEmail = normalizeEmailInput(studentEmail);
+
+    const normalizedContactFields = normalizeReviewerContactFields(studentEmail, studentContact);
+    if (!normalizedContactFields.ok) {
+      return reviewApiError(
+        REVIEW_API_ERROR_CODES.INVALID_CONTACT_EMAIL,
+        "Invalid contact email",
+        400,
+      );
     }
-    if (studentContact.includes("@")) {
-      if (!isStrictEmail(studentContact)) {
-        return NextResponse.json({ error: "Invalid contact email" }, { status: 400 });
-      }
-      studentContact = normalizeEmailInput(studentContact);
-    }
+    studentEmail = normalizedContactFields.studentEmail;
+    studentContact = normalizedContactFields.studentContact;
     if (shareContactInfo && !studentEmail && !studentContact) {
-      return NextResponse.json(
-        { error: "Add an email or phone number to share contact info" },
-        { status: 400 },
+      return reviewApiError(
+        REVIEW_API_ERROR_CODES.CONTACT_SHARE_REQUIRES_CONTACT,
+        "Add an email or phone number to share contact info",
+        400,
       );
     }
     if (!parsedReviewImageUrls.ok) {
-      return NextResponse.json({ error: parsedReviewImageUrls.error }, { status: 400 });
+      const errorCode =
+        parsedReviewImageUrls.code === "too_many"
+          ? REVIEW_API_ERROR_CODES.REVIEW_IMAGES_TOO_MANY
+          : REVIEW_API_ERROR_CODES.REVIEW_IMAGES_INVALID;
+      return reviewApiError(errorCode, parsedReviewImageUrls.error, 400);
     }
 
     let resolvedListingId = listingId;
@@ -101,7 +124,7 @@ export async function POST(request: Request) {
     if (listingId) {
       const listing = await getListingById(listingId);
       if (!listing) {
-        return NextResponse.json({ error: "Invalid listingId" }, { status: 400 });
+        return reviewApiError(REVIEW_API_ERROR_CODES.INVALID_LISTING_ID, "Invalid listingId", 400);
       }
 
       // Backwards compatibility for detail page review form.
@@ -111,56 +134,79 @@ export async function POST(request: Request) {
         payload?.neighborhood === undefined;
 
       if (!isLegacyPayload && confirmExistingDetails !== true) {
-        return NextResponse.json(
-          { error: "Please confirm property details for existing listings" },
-          { status: 400 },
+        return reviewApiError(
+          REVIEW_API_ERROR_CODES.LISTING_CONFIRMATION_REQUIRED,
+          "Please confirm property details for existing listings",
+          400,
         );
       }
     } else {
-      const address = parseString(payload?.address, { maxLength: 180 });
-      const neighborhood = parseString(payload?.neighborhood, { maxLength: 80 });
+      const address = parseString(payload?.address, { maxLength: LISTING_ADDRESS_MAX_LENGTH });
+      const neighborhood = parseString(payload?.neighborhood, {
+        maxLength: LISTING_NEIGHBORHOOD_MAX_LENGTH,
+      });
       const { contacts, hasContactTooLong } = parseContacts(payload?.contacts);
       const capacity = parseOptionalNumber(payload?.capacity);
       const latitude = parseOptionalNumber(payload?.latitude);
       const longitude = parseOptionalNumber(payload?.longitude);
 
       if (address.length < 6) {
-        return NextResponse.json({ error: "Invalid address" }, { status: 400 });
+        return reviewApiError(REVIEW_API_ERROR_CODES.INVALID_ADDRESS, "Invalid address", 400);
       }
       if (neighborhood.length < 2) {
-        return NextResponse.json({ error: "Invalid neighborhood" }, { status: 400 });
+        return reviewApiError(
+          REVIEW_API_ERROR_CODES.INVALID_NEIGHBORHOOD,
+          "Invalid neighborhood",
+          400,
+        );
       }
       if (contacts.length === 0) {
-        return NextResponse.json({ error: "Owner contact is required" }, { status: 400 });
+        return reviewApiError(
+          REVIEW_API_ERROR_CODES.OWNER_CONTACT_REQUIRED,
+          "Owner contact is required",
+          400,
+        );
       }
       if (hasContactTooLong) {
-        return NextResponse.json(
-          {
-            error: `Each contact must be at most ${MAX_NEW_LISTING_CONTACT_LENGTH} characters`,
-          },
-          { status: 400 },
+        return reviewApiError(
+          REVIEW_API_ERROR_CODES.CONTACT_TOO_LONG,
+          `Each contact must be at most ${LISTING_CONTACT_MAX_LENGTH} characters`,
+          400,
         );
       }
       if (capacity === undefined) {
-        return NextResponse.json({ error: "Capacity is required" }, { status: 400 });
+        return reviewApiError(
+          REVIEW_API_ERROR_CODES.CAPACITY_REQUIRED,
+          "Capacity is required",
+          400,
+        );
       }
-      if (capacity <= 0 || capacity > 50) {
-        return NextResponse.json({ error: "Invalid capacity value" }, { status: 400 });
+      if (!isValidListingCapacity(capacity)) {
+        return reviewApiError(
+          REVIEW_API_ERROR_CODES.INVALID_CAPACITY,
+          "Invalid capacity value",
+          400,
+        );
       }
 
       const latitudeProvided = latitude !== undefined;
       const longitudeProvided = longitude !== undefined;
       if (latitudeProvided !== longitudeProvided) {
-        return NextResponse.json(
-          { error: "Latitude and longitude must be provided together" },
-          { status: 400 },
+        return reviewApiError(
+          REVIEW_API_ERROR_CODES.COORDINATES_MISMATCH,
+          "Latitude and longitude must be provided together",
+          400,
         );
       }
       if (latitudeProvided && (latitude < -90 || latitude > 90)) {
-        return NextResponse.json({ error: "Invalid latitude" }, { status: 400 });
+        return reviewApiError(REVIEW_API_ERROR_CODES.INVALID_LATITUDE, "Invalid latitude", 400);
       }
       if (longitudeProvided && (longitude < -180 || longitude > 180)) {
-        return NextResponse.json({ error: "Invalid longitude" }, { status: 400 });
+        return reviewApiError(
+          REVIEW_API_ERROR_CODES.INVALID_LONGITUDE,
+          "Invalid longitude",
+          400,
+        );
       }
 
       const created = await createListing({
@@ -190,13 +236,11 @@ export async function POST(request: Request) {
     });
 
     if (createdNewListing) {
-      revalidateTag("public-listings", "max");
-      revalidateTag("public-neighborhoods", "max");
-      revalidateTag("public-dataset-meta", "max");
+      revalidatePublicListingsDataset();
     }
 
     return NextResponse.json({ ok: true, listingId: resolvedListingId }, { status: 201 });
   } catch {
-    return NextResponse.json({ error: "Could not create review" }, { status: 500 });
+    return reviewApiError(REVIEW_API_ERROR_CODES.CREATE_FAILED, "Could not create review", 500);
   }
 }

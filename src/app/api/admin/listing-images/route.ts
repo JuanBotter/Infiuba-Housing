@@ -1,5 +1,3 @@
-import { revalidateTag } from "next/cache";
-
 import {
   deleteAdminListingImage,
   getAdminListingImageDetail,
@@ -7,11 +5,20 @@ import {
   setAdminListingImageOrder,
   updateAdminListingDetails,
 } from "@/lib/admin-listing-images";
-import { canAccessAdmin, getAuthSessionFromRequest, getRoleFromRequestAsync } from "@/lib/auth";
-import { isDatabaseEnabled } from "@/lib/db";
-import { jsonNoStore, withNoStore } from "@/lib/http-cache";
-import { validateSameOriginRequest } from "@/lib/request-origin";
-import { asObject, parseOptionalNumber, parseString } from "@/lib/request-validation";
+import { requireAdminSession, requireDb, requireSameOrigin } from "@/lib/api-route-helpers";
+import {
+  revalidatePublicListing,
+  revalidatePublicListingWithApprovedReviews,
+} from "@/lib/cache-tags";
+import {
+  LISTING_ADDRESS_MAX_LENGTH,
+  LISTING_ID_MAX_LENGTH,
+  LISTING_NEIGHBORHOOD_MAX_LENGTH,
+  parseListingContactsFromUnknown,
+  toOptionalNumber,
+} from "@/lib/domain-constraints";
+import { jsonNoStore } from "@/lib/http-cache";
+import { asObject, parseString } from "@/lib/request-validation";
 import { recordSecurityAuditEvent } from "@/lib/security-audit";
 
 type AdminPublicationAction = "saveImageOrder" | "updatePublication" | "deleteImage";
@@ -33,25 +40,6 @@ function parseOrderedImageUrls(value: unknown) {
   return normalized;
 }
 
-function parseContacts(value: unknown) {
-  if (Array.isArray(value)) {
-    const normalized = value
-      .filter((entry): entry is string => typeof entry === "string")
-      .map((entry) => entry.trim())
-      .filter(Boolean);
-    return normalized.length === value.length ? normalized : null;
-  }
-
-  if (typeof value === "string") {
-    return value
-      .split(/[\n,;]/g)
-      .map((entry) => entry.trim())
-      .filter(Boolean);
-  }
-
-  return null;
-}
-
 function resolveAction(rawAction: string): AdminPublicationAction | "" {
   if (!rawAction) {
     return "saveImageOrder";
@@ -69,17 +57,19 @@ function resolveAction(rawAction: string): AdminPublicationAction | "" {
 }
 
 export async function GET(request: Request) {
-  if (!canAccessAdmin(await getRoleFromRequestAsync(request))) {
-    return jsonNoStore({ error: "Unauthorized" }, { status: 401 });
+  const adminSessionResult = await requireAdminSession(request);
+  if (!adminSessionResult.ok) {
+    return adminSessionResult.response;
   }
 
-  if (!isDatabaseEnabled()) {
-    return jsonNoStore({ error: "Database is required" }, { status: 503 });
+  const dbResponse = requireDb({ noStore: true });
+  if (dbResponse) {
+    return dbResponse;
   }
 
   const url = new URL(request.url);
   const listingId = parseString(url.searchParams.get("listingId"), {
-    maxLength: 200,
+    maxLength: LISTING_ID_MAX_LENGTH,
   });
 
   if (!listingId) {
@@ -96,23 +86,24 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const originValidation = validateSameOriginRequest(request);
-  if (!originValidation.ok) {
-    return withNoStore(originValidation.response);
+  const sameOriginResponse = requireSameOrigin(request, { noStore: true });
+  if (sameOriginResponse) {
+    return sameOriginResponse;
   }
 
-  if (!canAccessAdmin(await getRoleFromRequestAsync(request))) {
-    return jsonNoStore({ error: "Unauthorized" }, { status: 401 });
+  const adminSessionResult = await requireAdminSession(request);
+  if (!adminSessionResult.ok) {
+    return adminSessionResult.response;
   }
+  const { session } = adminSessionResult;
 
-  if (!isDatabaseEnabled()) {
-    return jsonNoStore({ error: "Database is required" }, { status: 503 });
+  const dbResponse = requireDb({ noStore: true });
+  if (dbResponse) {
+    return dbResponse;
   }
-
-  const session = await getAuthSessionFromRequest(request);
   const payload = asObject(await request.json().catch(() => null));
   const action = resolveAction(parseString(payload?.action, { maxLength: 40 }));
-  const listingId = parseString(payload?.listingId, { maxLength: 200 });
+  const listingId = parseString(payload?.listingId, { maxLength: LISTING_ID_MAX_LENGTH });
 
   if (!action || !listingId) {
     await recordSecurityAuditEvent({
@@ -161,17 +152,18 @@ export async function POST(request: Request) {
       },
     });
 
-    revalidateTag("public-listings", "max");
-    revalidateTag(`public-listing:${result.listingId}`, "max");
+    revalidatePublicListing(result.listingId);
 
     return jsonNoStore({ ok: true, listingId: result.listingId, orderedImages: result.orderedImages });
   }
 
   if (action === "updatePublication") {
-    const address = parseString(payload?.address, { maxLength: 180 });
-    const neighborhood = parseString(payload?.neighborhood, { maxLength: 80 });
-    const contacts = parseContacts(payload?.contacts);
-    const capacity = parseOptionalNumber(payload?.capacity);
+    const address = parseString(payload?.address, { maxLength: LISTING_ADDRESS_MAX_LENGTH });
+    const neighborhood = parseString(payload?.neighborhood, {
+      maxLength: LISTING_NEIGHBORHOOD_MAX_LENGTH,
+    });
+    const contacts = parseListingContactsFromUnknown(payload?.contacts);
+    const capacity = toOptionalNumber(payload?.capacity);
 
     if (!address || !neighborhood || !contacts) {
       await recordSecurityAuditEvent({
@@ -208,8 +200,7 @@ export async function POST(request: Request) {
       metadata: { listingId: result.listingId },
     });
 
-    revalidateTag("public-listings", "max");
-    revalidateTag(`public-listing:${result.listingId}`, "max");
+    revalidatePublicListing(result.listingId);
 
     return jsonNoStore({ ok: true, listingId: result.listingId });
   }
@@ -247,10 +238,7 @@ export async function POST(request: Request) {
     },
   });
 
-  revalidateTag("public-listings", "max");
-  revalidateTag(`public-listing:${result.listingId}`, "max");
-  revalidateTag("public-approved-reviews", "max");
-  revalidateTag(`public-approved-reviews:${result.listingId}`, "max");
+  revalidatePublicListingWithApprovedReviews(result.listingId);
 
   return jsonNoStore({
     ok: true,

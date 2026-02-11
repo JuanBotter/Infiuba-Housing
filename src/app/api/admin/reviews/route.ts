@@ -1,8 +1,6 @@
-import { revalidateTag } from "next/cache";
-
-import { canAccessAdmin, getAuthSessionFromRequest, getRoleFromRequestAsync } from "@/lib/auth";
-import { jsonNoStore, withNoStore } from "@/lib/http-cache";
-import { validateSameOriginRequest } from "@/lib/request-origin";
+import { requireAdminSession, requireSameOrigin } from "@/lib/api-route-helpers";
+import { revalidatePublicListingWithApprovedReviews } from "@/lib/cache-tags";
+import { jsonNoStore } from "@/lib/http-cache";
 import { asObject, parseEnum, parseString } from "@/lib/request-validation";
 import {
   getApprovedReviews,
@@ -12,8 +10,9 @@ import {
 import { recordSecurityAuditEvent } from "@/lib/security-audit";
 
 export async function GET(request: Request) {
-  if (!canAccessAdmin(await getRoleFromRequestAsync(request))) {
-    return jsonNoStore({ error: "Unauthorized" }, { status: 401 });
+  const adminSessionResult = await requireAdminSession(request);
+  if (!adminSessionResult.ok) {
+    return adminSessionResult.response;
   }
 
   const [pending, approved] = await Promise.all([getPendingReviews(), getApprovedReviews()]);
@@ -24,15 +23,16 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const originValidation = validateSameOriginRequest(request);
-  if (!originValidation.ok) {
-    return withNoStore(originValidation.response);
+  const sameOriginResponse = requireSameOrigin(request, { noStore: true });
+  if (sameOriginResponse) {
+    return sameOriginResponse;
   }
 
-  const session = await getAuthSessionFromRequest(request);
-  if (!canAccessAdmin(session.role)) {
-    return jsonNoStore({ error: "Unauthorized" }, { status: 401 });
+  const adminSessionResult = await requireAdminSession(request);
+  if (!adminSessionResult.ok) {
+    return adminSessionResult.response;
   }
+  const { session } = adminSessionResult;
 
   const payload = asObject(await request.json().catch(() => null));
   const action = parseEnum(payload?.action, ["approve", "reject"] as const);
@@ -76,10 +76,7 @@ export async function POST(request: Request) {
   });
 
   if (result.action === "approve") {
-    revalidateTag("public-listings", "max");
-    revalidateTag(`public-listing:${result.review.listingId}`, "max");
-    revalidateTag("public-approved-reviews", "max");
-    revalidateTag(`public-approved-reviews:${result.review.listingId}`, "max");
+    revalidatePublicListingWithApprovedReviews(result.review.listingId);
   }
 
   return jsonNoStore({ ok: true, action: result.action, reviewId });

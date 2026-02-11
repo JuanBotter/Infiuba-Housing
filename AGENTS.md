@@ -42,6 +42,8 @@ Do not defer AGENTS updates.
 - Sensitive auth/admin API responses explicitly send `Cache-Control: no-store` headers.
 - Stateful `POST`/`DELETE` API endpoints enforce same-origin checks (Origin/Referer must match request host) to reduce CSRF risk; `GET /api/session/magic` is a token-authenticated email-link exception.
 - API request parsing/normalization is centralized in `src/lib/request-validation.ts` and reused across session/reviews/admin endpoints.
+- Route guard/wrapper checks are centralized in `src/lib/api-route-helpers.ts` (`requireSameOrigin`, `requireAdminSession`, `requireDb`, `jsonError`) and reused across session/favorites/reviews/admin API handlers to reduce duplicated security and error-response boilerplate.
+- Shared listing/reviewer domain constraints and normalizers are centralized in `src/lib/domain-constraints.ts` (contacts/capacity limits, contact parsing+normalization, reviewer email-like normalization, and optional-number normalization) and reused across review/contact-edit/publication APIs plus listing/review data mappers.
 - In production, app-wide browser hardening headers are configured (`Content-Security-Policy`, `Strict-Transport-Security`, `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`) via `next.config.mjs`.
 - Reviewer contact email handling is hardened: `/api/reviews` validates strict email format for `studentEmail` and email-like `studentContact`, and listing detail renders `mailto:` only for strict emails using URI-encoded hrefs.
 - DB migrations are managed with node-pg-migrate (`migrations/` directory).
@@ -90,9 +92,10 @@ Do not defer AGENTS updates.
 - Selecting a listing from map markers keeps list/rail selection in sync and auto-scrolls the corresponding item into view when visible; when sort order changes in map mode, selection resets to the first result in the new order.
 - On desktop map layout, the left listing column uses viewport-capped internal scrolling (`max-height`), while the right panel keeps a matching viewport-based minimum height.
 - Map sidebar listing cards include extra inner spacing/insets so media badges, wrapped titles, stats text, and CTA links do not sit flush against card edges.
+- Map sidebar listing selection uses semantic `<button>` controls (instead of `div[role=button]`) while keeping a separate favorite button control on each card.
 - List-mode cards use equal-height stacks with two-line title clamping so long addresses do not break grid rhythm or misalign adjacent admin action links.
 - Header menus (language/access) are layered above map controls/popups to avoid overlap while using map view.
-- Top-bar menus (`language-menu`, `role-menu`) close when users click outside the open menu.
+- Top-bar menus (`language-menu`, `role-menu`) close when users click outside the open menu via shared hook `src/lib/use-details-outside-close.ts`.
 - In the OTP login popover, the "Remember me" checkbox and label stay aligned on a single row.
 
 ## Runtime and Commands
@@ -456,6 +459,8 @@ Submission:
 - Listing image URLs are not accepted from review submissions; listing/gallery media comes from approved review images only.
 - Creating a new listing through review submission revalidates public listing/dataset cache tags.
 - Review submission validates `studentEmail` and any email-like `studentContact` with strict email rules; invalid email input is rejected.
+- Cache-tag names and revalidation patterns are centralized in `src/lib/cache-tags.ts` and reused by reviews/admin moderation/contact-edit/publication APIs.
+- Review submission API errors are structured as `{ code, message }` (with legacy `error` alias for compatibility), and client-side review forms map errors by `code` with message fallback in `src/lib/review-form.ts`.
 - Permission enforced server-side: only `whitelisted` and `admin`
 
 Moderation:
@@ -510,7 +515,9 @@ Must remain true:
 - Root layout + theme bootstrap script loader: `src/app/layout.tsx`
 - Theme bootstrap script (static, beforeInteractive): `public/theme-init.js`
 - Request validation helpers: `src/lib/request-validation.ts`
+- Cache-tag invalidation helpers: `src/lib/cache-tags.ts`
 - Shared review payload helpers: `src/lib/review-form.ts`
+- Review API error codes/constants: `src/lib/review-api-errors.ts`
 - Review year helper: `src/lib/review-year.ts`
 - Phone input with country picker: `src/components/phone-input-with-country.tsx`
 - Contact edit request UI: `src/components/contact-edit-request-form.tsx`
@@ -526,6 +533,7 @@ Must remain true:
 - OTP email logo asset: `public/infiuba-logo.png` (sourced from `assets/infiuba color 1.png`; PNG is used for broad email-client compatibility). OTP logo URL can be overridden with `OTP_LOGO_URL`.
 - Review image helpers: `src/lib/review-images.ts`, `src/lib/review-image-upload.ts`
 - Review-image ordering helpers: `src/lib/review-image-order.ts`, `src/lib/admin-listing-images.ts`
+- Shared details-menu outside-close hook: `src/lib/use-details-outside-close.ts`
 - Favorites helpers: `src/lib/favorites.ts`
 - Data access: `src/lib/data.ts`
 - Reviews store: `src/lib/reviews-store.ts`

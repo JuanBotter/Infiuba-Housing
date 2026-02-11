@@ -1,14 +1,12 @@
 import {
-  canAccessAdmin,
   deleteUser,
-  getAuthSessionFromRequest,
   getDeletedUsers,
   getManagedUsers,
   updateUserRole,
   upsertUsers,
 } from "@/lib/auth";
-import { jsonNoStore, withNoStore } from "@/lib/http-cache";
-import { validateSameOriginRequest } from "@/lib/request-origin";
+import { requireAdminSession, requireSameOrigin } from "@/lib/api-route-helpers";
+import { jsonNoStore } from "@/lib/http-cache";
 import {
   asObject,
   isLikelyEmail,
@@ -20,9 +18,9 @@ import {
 import { recordSecurityAuditEvent } from "@/lib/security-audit";
 
 export async function GET(request: Request) {
-  const session = await getAuthSessionFromRequest(request);
-  if (!canAccessAdmin(session.role)) {
-    return jsonNoStore({ error: "Unauthorized" }, { status: 401 });
+  const adminSessionResult = await requireAdminSession(request);
+  if (!adminSessionResult.ok) {
+    return adminSessionResult.response;
   }
 
   const url = new URL(request.url);
@@ -49,15 +47,16 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const originValidation = validateSameOriginRequest(request);
-  if (!originValidation.ok) {
-    return withNoStore(originValidation.response);
+  const sameOriginResponse = requireSameOrigin(request, { noStore: true });
+  if (sameOriginResponse) {
+    return sameOriginResponse;
   }
 
-  const session = await getAuthSessionFromRequest(request);
-  if (!canAccessAdmin(session.role)) {
-    return jsonNoStore({ error: "Unauthorized" }, { status: 401 });
+  const adminSessionResult = await requireAdminSession(request);
+  if (!adminSessionResult.ok) {
+    return adminSessionResult.response;
   }
+  const { session } = adminSessionResult;
 
   const selfEmail = session.email ? session.email.toLowerCase() : "";
   const payload = asObject(await request.json().catch(() => null));

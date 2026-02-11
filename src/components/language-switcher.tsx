@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
 
 import { languageLabels, supportedLanguages } from "@/lib/i18n";
+import { useDetailsOutsideClose } from "@/lib/use-details-outside-close";
 import type { Lang } from "@/types";
 
 function replaceLanguageInPath(pathname: string, nextLang: Lang) {
@@ -41,28 +42,7 @@ function LanguageIcon() {
 export function LanguageSwitcher({ lang, label }: { lang: Lang; label: string }) {
   const pathname = usePathname();
   const detailsRef = useRef<HTMLDetailsElement | null>(null);
-
-  useEffect(() => {
-    const handlePointerDown = (event: PointerEvent) => {
-      if (!(event.target instanceof Node)) {
-        return;
-      }
-
-      const details = detailsRef.current;
-      if (!details || !details.hasAttribute("open")) {
-        return;
-      }
-
-      if (!details.contains(event.target)) {
-        details.removeAttribute("open");
-      }
-    };
-
-    document.addEventListener("pointerdown", handlePointerDown);
-    return () => {
-      document.removeEventListener("pointerdown", handlePointerDown);
-    };
-  }, []);
+  useDetailsOutsideClose(detailsRef);
 
   return (
     <details ref={detailsRef} className="language-menu">

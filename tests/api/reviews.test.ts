@@ -1,5 +1,7 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { REVIEW_API_ERROR_CODES } from "@/lib/review-api-errors";
+
 vi.mock("@/lib/auth", () => ({
   canSubmitReviews: vi.fn(),
   getRoleFromRequestAsync: vi.fn(),
@@ -68,6 +70,12 @@ describe("/api/reviews", () => {
 
     const response = await POST(request);
     expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toEqual(
+      expect.objectContaining({
+        code: REVIEW_API_ERROR_CODES.SUBMIT_NOT_ALLOWED,
+        message: "Only whitelisted students can submit reviews.",
+      }),
+    );
   });
 
   it("rejects invalid recommendation value", async () => {
@@ -98,6 +106,12 @@ describe("/api/reviews", () => {
 
     const response = await POST(request);
     expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual(
+      expect.objectContaining({
+        code: REVIEW_API_ERROR_CODES.INVALID_RATING,
+        message: "Invalid rating",
+      }),
+    );
   });
 
   it("rejects short comments", async () => {
@@ -158,6 +172,11 @@ describe("/api/reviews", () => {
       }),
     );
     expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual(
+      expect.objectContaining({
+        code: REVIEW_API_ERROR_CODES.CONTACT_SHARE_REQUIRES_CONTACT,
+      }),
+    );
   });
 
   it("rejects invalid listingId", async () => {
@@ -313,6 +332,27 @@ describe("/api/reviews", () => {
     expect(mockedReviews.appendPendingReview).toHaveBeenCalledWith(
       expect.objectContaining({
         imageUrls: ["https://example.com/review-photo.jpg"],
+      }),
+    );
+  });
+
+  it("returns structured code for too many review images", async () => {
+    mockedAuth.getRoleFromRequestAsync.mockResolvedValueOnce("whitelisted");
+    mockedAuth.canSubmitReviews.mockReturnValueOnce(true);
+
+    const response = await POST(
+      buildReviewRequest({
+        listingId: "listing-1",
+        confirmExistingDetails: true,
+        ...baseReviewPayload,
+        reviewImageUrls: Array.from({ length: 7 }, (_, index) => `https://example.com/${index}.jpg`),
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual(
+      expect.objectContaining({
+        code: REVIEW_API_ERROR_CODES.REVIEW_IMAGES_TOO_MANY,
       }),
     );
   });

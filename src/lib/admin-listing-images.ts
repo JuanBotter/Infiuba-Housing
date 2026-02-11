@@ -1,11 +1,17 @@
 import { dbQuery, withTransaction } from "@/lib/db";
 import {
+  LISTING_ADDRESS_MAX_LENGTH,
+  LISTING_CONTACTS_MAX_ITEMS,
+  LISTING_NEIGHBORHOOD_MAX_LENGTH,
+  hasListingContactTooLong,
+  isValidListingCapacity,
+  normalizeListingContacts,
+  toOptionalNumber,
+} from "@/lib/domain-constraints";
+import {
   applyStoredReviewImageOrder,
   getApprovedReviewImagesMap,
 } from "@/lib/review-image-order";
-
-const MAX_CONTACTS = 20;
-const MAX_CONTACT_LENGTH = 180;
 
 interface AdminListingImageSummaryRow {
   id: string;
@@ -56,14 +62,6 @@ export interface AdminListingDetailsInput {
   contacts: string[];
 }
 
-function toOptionalNumber(value: unknown) {
-  if (value === null || value === undefined || value === "") {
-    return undefined;
-  }
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : undefined;
-}
-
 function normalizeImageUrls(values: string[] | null | undefined) {
   if (!Array.isArray(values)) {
     return [];
@@ -72,19 +70,6 @@ function normalizeImageUrls(values: string[] | null | undefined) {
   return values
     .map((value) => value.trim())
     .filter(Boolean);
-}
-
-function normalizeContacts(values: string[]) {
-  const deduped = new Set<string>();
-  for (const value of values) {
-    const normalized = value.trim();
-    if (!normalized) {
-      continue;
-    }
-    deduped.add(normalized);
-  }
-
-  return Array.from(deduped);
 }
 
 async function queryApprovedImagesForListing(
@@ -174,7 +159,7 @@ export async function getAdminListingImageDetail(listingId: string) {
     address: row.address,
     neighborhood: row.neighborhood,
     capacity: toOptionalNumber(row.capacity),
-    contacts: normalizeContacts(row.contacts || []),
+    contacts: normalizeListingContacts(row.contacts || []),
     orderedImages,
   };
 
@@ -237,27 +222,26 @@ export async function updateAdminListingDetails(
   const normalizedListingId = listingId.trim();
   const normalizedAddress = details.address.trim();
   const normalizedNeighborhood = details.neighborhood.trim();
-  const normalizedContacts = normalizeContacts(details.contacts);
+  const normalizedContacts = normalizeListingContacts(details.contacts, {
+    maxItems: Number.MAX_SAFE_INTEGER,
+  });
 
   if (!normalizedListingId) {
     return { ok: false as const, reason: "not_found" as const };
   }
-  if (!normalizedAddress || normalizedAddress.length > 180) {
+  if (!normalizedAddress || normalizedAddress.length > LISTING_ADDRESS_MAX_LENGTH) {
     return { ok: false as const, reason: "invalid_address" as const };
   }
-  if (!normalizedNeighborhood || normalizedNeighborhood.length > 80) {
+  if (!normalizedNeighborhood || normalizedNeighborhood.length > LISTING_NEIGHBORHOOD_MAX_LENGTH) {
     return { ok: false as const, reason: "invalid_neighborhood" as const };
   }
-  if (normalizedContacts.length > MAX_CONTACTS) {
+  if (normalizedContacts.length > LISTING_CONTACTS_MAX_ITEMS) {
     return { ok: false as const, reason: "too_many_contacts" as const };
   }
-  if (normalizedContacts.some((contact) => contact.length > MAX_CONTACT_LENGTH)) {
+  if (hasListingContactTooLong(normalizedContacts)) {
     return { ok: false as const, reason: "contact_too_long" as const };
   }
-  if (
-    details.capacity !== undefined &&
-    (!Number.isFinite(details.capacity) || details.capacity <= 0 || details.capacity > 50)
-  ) {
+  if (!isValidListingCapacity(details.capacity)) {
     return { ok: false as const, reason: "invalid_capacity" as const };
   }
 

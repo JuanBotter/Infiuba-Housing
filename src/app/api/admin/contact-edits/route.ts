@@ -1,13 +1,8 @@
-import {
-  canAccessAdmin,
-  getAuthSessionFromRequest,
-  getRoleFromRequestAsync,
-} from "@/lib/auth";
-import { dbQuery, isDatabaseEnabled, withTransaction } from "@/lib/db";
-import { revalidateTag } from "next/cache";
+import { dbQuery, withTransaction } from "@/lib/db";
 
-import { jsonNoStore, withNoStore } from "@/lib/http-cache";
-import { validateSameOriginRequest } from "@/lib/request-origin";
+import { requireAdminSession, requireDb, requireSameOrigin } from "@/lib/api-route-helpers";
+import { revalidatePublicListing } from "@/lib/cache-tags";
+import { jsonNoStore } from "@/lib/http-cache";
 import { asObject, parseString } from "@/lib/request-validation";
 import { recordSecurityAuditEvent } from "@/lib/security-audit";
 
@@ -47,12 +42,14 @@ function mapRow(row: ContactEditRow) {
 }
 
 export async function GET(request: Request) {
-  if (!canAccessAdmin(await getRoleFromRequestAsync(request))) {
-    return jsonNoStore({ error: "Unauthorized" }, { status: 401 });
+  const adminSessionResult = await requireAdminSession(request);
+  if (!adminSessionResult.ok) {
+    return adminSessionResult.response;
   }
 
-  if (!isDatabaseEnabled()) {
-    return jsonNoStore({ error: "Database is required" }, { status: 503 });
+  const dbResponse = requireDb({ noStore: true });
+  if (dbResponse) {
+    return dbResponse;
   }
 
   const result = await dbQuery<ContactEditRow>(
@@ -88,20 +85,21 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const originValidation = validateSameOriginRequest(request);
-  if (!originValidation.ok) {
-    return withNoStore(originValidation.response);
+  const sameOriginResponse = requireSameOrigin(request, { noStore: true });
+  if (sameOriginResponse) {
+    return sameOriginResponse;
   }
 
-  if (!canAccessAdmin(await getRoleFromRequestAsync(request))) {
-    return jsonNoStore({ error: "Unauthorized" }, { status: 401 });
+  const adminSessionResult = await requireAdminSession(request);
+  if (!adminSessionResult.ok) {
+    return adminSessionResult.response;
   }
+  const { session } = adminSessionResult;
 
-  if (!isDatabaseEnabled()) {
-    return jsonNoStore({ error: "Database is required" }, { status: 503 });
+  const dbResponse = requireDb({ noStore: true });
+  if (dbResponse) {
+    return dbResponse;
   }
-
-  const session = await getAuthSessionFromRequest(request);
   if (!session.email) {
     return jsonNoStore({ error: "Email required" }, { status: 401 });
   }
@@ -216,8 +214,7 @@ export async function POST(request: Request) {
     });
 
     if (action === "approve" && result.request?.listing_id) {
-      revalidateTag("public-listings", "max");
-      revalidateTag(`public-listing:${result.request.listing_id}`, "max");
+      revalidatePublicListing(result.request.listing_id);
     }
 
     return jsonNoStore({ ok: true });

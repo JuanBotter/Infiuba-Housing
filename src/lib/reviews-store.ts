@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { unstable_cache } from "next/cache";
 
 import { dbQuery, withTransaction } from "@/lib/db";
+import { toOptionalNumber } from "@/lib/domain-constraints";
 import { getTranslatedCommentForLanguage } from "@/lib/review-translations";
 import type { ApprovedWebReview, Lang, PendingWebReview } from "@/types";
 
@@ -12,14 +13,6 @@ function toIsoString(value: string | Date) {
 
 function toOptionalText(value: string | null) {
   return value === null ? undefined : value;
-}
-
-function toOptionalNumber(value: string | number | null) {
-  if (value === null || value === undefined) {
-    return undefined;
-  }
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : undefined;
 }
 
 function toOptionalStringArray(value: unknown) {
