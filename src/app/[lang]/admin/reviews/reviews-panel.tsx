@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { ImageGalleryViewer } from "@/components/image-gallery-viewer";
+import { apiGetJson, apiPostJson, mapApiClientErrorMessage } from "@/lib/api-client";
 import { formatUsdAmount, getLocaleForLang } from "@/lib/format";
 import { getMessages } from "@/lib/i18n";
 import type { ApprovedWebReview, Lang, PendingWebReview } from "@/types";
@@ -40,22 +41,18 @@ export function ReviewsPanel({ lang, listingMap }: ReviewsPanelProps) {
     setLoading(true);
     setError("");
     try {
-      const response = await fetch("/api/admin/reviews");
-
-      if (response.status === 401) {
-        setError(messages.adminAuthError);
-        return;
-      }
-      if (!response.ok) {
-        setError(messages.adminError);
-        return;
-      }
-
-      const payload = (await response.json()) as ModerationPayload;
+      const payload = await apiGetJson<ModerationPayload>("/api/admin/reviews");
       setPendingReviews(payload.pending || []);
       setApprovedReviews((payload.approved || []).slice(0, 30));
-    } catch {
-      setError(messages.adminError);
+    } catch (error) {
+      setError(
+        mapApiClientErrorMessage(error, {
+          defaultMessage: messages.adminError,
+          statusMessages: {
+            401: messages.adminAuthError,
+          },
+        }),
+      );
     } finally {
       setLoading(false);
     }
@@ -65,26 +62,18 @@ export function ReviewsPanel({ lang, listingMap }: ReviewsPanelProps) {
     setBusyReviewId(reviewId);
     setError("");
     try {
-      const response = await fetch("/api/admin/reviews", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ action, reviewId }),
-      });
-
-      if (response.status === 401) {
-        setError(messages.adminAuthError);
-        return;
-      }
-      if (!response.ok) {
-        setError(messages.adminActionError);
-        return;
-      }
+      await apiPostJson<{ ok: boolean }>("/api/admin/reviews", { action, reviewId });
 
       await loadModerationData();
-    } catch {
-      setError(messages.adminActionError);
+    } catch (error) {
+      setError(
+        mapApiClientErrorMessage(error, {
+          defaultMessage: messages.adminActionError,
+          statusMessages: {
+            401: messages.adminAuthError,
+          },
+        }),
+      );
     } finally {
       setBusyReviewId("");
     }

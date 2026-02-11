@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
+import { apiGetJson, apiPostJson, mapApiClientErrorMessage } from "@/lib/api-client";
 import type { AdminListingImageSummary } from "@/lib/admin-listing-images";
 import type { Messages } from "@/i18n/messages";
 import type { Lang } from "@/types";
@@ -107,21 +108,25 @@ export function PublicationsPanel({
     setStatusMessage("");
   }
 
+  function mapPublicationError(error: unknown, fallbackMessage: string) {
+    return mapApiClientErrorMessage(error, {
+      defaultMessage: fallbackMessage,
+      statusMessages: {
+        401: messages.adminAuthError,
+      },
+    });
+  }
+
   async function refreshListings() {
     clearStatus();
     try {
-      const response = await fetch("/api/admin/publications");
-      if (!response.ok) {
-        setStatus("error");
-        setStatusMessage(messages.adminImagesLoadError);
-        return;
-      }
-
-      const payload = (await response.json()) as { listings?: AdminListingImageSummary[] };
+      const payload = await apiGetJson<{ listings?: AdminListingImageSummary[] }>(
+        "/api/admin/publications",
+      );
       setListings(payload.listings || []);
-    } catch {
+    } catch (error) {
       setStatus("error");
-      setStatusMessage(messages.adminImagesLoadError);
+      setStatusMessage(mapPublicationError(error, messages.adminImagesLoadError));
     }
   }
 
@@ -143,20 +148,9 @@ export function PublicationsPanel({
       setLoading(true);
       clearStatus();
       try {
-        const response = await fetch(
+        const payload = await apiGetJson<ListingPublicationDetail>(
           `/api/admin/publications?listingId=${encodeURIComponent(selectedListingId)}`,
         );
-        if (!response.ok) {
-          if (!isCancelled) {
-            setDetail(null);
-            setOrderedImages([]);
-            setStatus("error");
-            setStatusMessage(messages.adminImagesLoadError);
-          }
-          return;
-        }
-
-        const payload = (await response.json()) as ListingPublicationDetail;
         if (isCancelled) {
           return;
         }
@@ -171,12 +165,12 @@ export function PublicationsPanel({
         );
         setContactsInput(payload.contacts.join("\n"));
         setOrderedImages(payload.orderedImages || []);
-      } catch {
+      } catch (error) {
         if (!isCancelled) {
           setDetail(null);
           setOrderedImages([]);
           setStatus("error");
-          setStatusMessage(messages.adminImagesLoadError);
+          setStatusMessage(mapPublicationError(error, messages.adminImagesLoadError));
         }
       } finally {
         if (!isCancelled) {
@@ -201,33 +195,21 @@ export function PublicationsPanel({
 
     try {
       const contacts = parseContactsInput(contactsInput);
-      const response = await fetch("/api/admin/publications", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
+      await apiPostJson<{ ok: boolean }>("/api/admin/publications", {
           action: "updatePublication",
           listingId: detail.id,
           address,
           neighborhood,
           capacity: capacity.trim() ? Number(capacity) : null,
           contacts,
-        }),
       });
-
-      if (!response.ok) {
-        setStatus("error");
-        setStatusMessage(messages.adminImagesSaveError);
-        return;
-      }
 
       await refreshListings();
       setStatus("success");
       setStatusMessage(messages.adminImagesSaveSuccess);
-    } catch {
+    } catch (error) {
       setStatus("error");
-      setStatusMessage(messages.adminImagesSaveError);
+      setStatusMessage(mapPublicationError(error, messages.adminImagesSaveError));
     } finally {
       setSavingDetails(false);
     }
@@ -242,30 +224,18 @@ export function PublicationsPanel({
     clearStatus();
 
     try {
-      const response = await fetch("/api/admin/publications", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
+      await apiPostJson<{ ok: boolean }>("/api/admin/publications", {
           action: "saveImageOrder",
           listingId: detail.id,
           orderedImageUrls: orderedImages,
-        }),
       });
-
-      if (!response.ok) {
-        setStatus("error");
-        setStatusMessage(messages.adminImagesSaveError);
-        return;
-      }
 
       await refreshListings();
       setStatus("success");
       setStatusMessage(messages.adminImagesSaveSuccess);
-    } catch {
+    } catch (error) {
       setStatus("error");
-      setStatusMessage(messages.adminImagesSaveError);
+      setStatusMessage(mapPublicationError(error, messages.adminImagesSaveError));
     } finally {
       setSavingImages(false);
     }
@@ -279,28 +249,15 @@ export function PublicationsPanel({
     setDeletingImageUrl(imageUrl);
     clearStatus();
     try {
-      const response = await fetch("/api/admin/publications", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
+      const payload = await apiPostJson<{ orderedImages?: string[] }>(
+        "/api/admin/publications",
+        {
           action: "deleteImage",
           listingId: detail.id,
           imageUrl,
-        }),
-      });
-
-      if (!response.ok) {
-        setStatus("error");
-        setStatusMessage(messages.adminImagesSaveError);
-        return;
-      }
-
-      const payload = (await response.json().catch(() => null)) as
-        | { orderedImages?: string[] }
-        | null;
-      if (Array.isArray(payload?.orderedImages)) {
+        },
+      );
+      if (Array.isArray(payload.orderedImages)) {
         setOrderedImages(payload.orderedImages);
       } else {
         setOrderedImages((current) => current.filter((value) => value !== imageUrl));
@@ -308,9 +265,9 @@ export function PublicationsPanel({
       await refreshListings();
       setStatus("success");
       setStatusMessage(messages.adminImagesSaveSuccess);
-    } catch {
+    } catch (error) {
       setStatus("error");
-      setStatusMessage(messages.adminImagesSaveError);
+      setStatusMessage(mapPublicationError(error, messages.adminImagesSaveError));
     } finally {
       setDeletingImageUrl("");
     }

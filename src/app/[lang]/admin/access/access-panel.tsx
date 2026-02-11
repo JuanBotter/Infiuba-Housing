@@ -2,6 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 
+import {
+  apiGetJson,
+  apiPostJson,
+  getApiClientErrorPayload,
+  isApiClientError,
+  mapApiClientErrorMessage,
+} from "@/lib/api-client";
 import { getLocaleForLang } from "@/lib/format";
 import { getMessages } from "@/lib/i18n";
 import type { Lang } from "@/types";
@@ -96,26 +103,19 @@ export function AccessPanel({ lang }: AccessPanelProps) {
     setUsersLoading(true);
     setUsersError("");
     try {
-      const response = await fetch("/api/admin/users?limit=500");
-
-      if (response.status === 401) {
-        setUsersError(messages.adminAuthError);
-        return;
-      }
-      if (response.status === 503) {
-        setUsersError(messages.adminUsersUnavailableError);
-        return;
-      }
-      if (!response.ok) {
-        setUsersError(messages.adminUsersLoadError);
-        return;
-      }
-
-      const payload = (await response.json()) as ManagedUsersPayload;
+      const payload = await apiGetJson<ManagedUsersPayload>("/api/admin/users?limit=500");
       setActiveUsers(payload.active || []);
       setDeletedUsers(payload.deleted || []);
-    } catch {
-      setUsersError(messages.adminUsersLoadError);
+    } catch (error) {
+      setUsersError(
+        mapApiClientErrorMessage(error, {
+          defaultMessage: messages.adminUsersLoadError,
+          statusMessages: {
+            401: messages.adminAuthError,
+            503: messages.adminUsersUnavailableError,
+          },
+        }),
+      );
     } finally {
       setUsersLoading(false);
     }
@@ -128,44 +128,11 @@ export function AccessPanel({ lang }: AccessPanelProps) {
     setInvalidCreateEmails([]);
 
     try {
-      const response = await fetch("/api/admin/users", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
+      const payload = await apiPostJson<UpsertUsersPayload>("/api/admin/users", {
           action: "upsert",
           emails: createEmailsInput,
           role: createRole,
-        }),
       });
-
-      if (response.status === 400) {
-        const payload = (await response.json().catch(() => null)) as
-          | { invalidEmails?: string[] }
-          | null;
-        setCreateStatus("error");
-        setCreateError(messages.adminUsersInvalidEmailError);
-        setInvalidCreateEmails(payload?.invalidEmails || []);
-        return;
-      }
-      if (response.status === 401) {
-        setCreateStatus("error");
-        setCreateError(messages.adminAuthError);
-        return;
-      }
-      if (response.status === 503) {
-        setCreateStatus("error");
-        setCreateError(messages.adminUsersUnavailableError);
-        return;
-      }
-      if (!response.ok) {
-        setCreateStatus("error");
-        setCreateError(messages.adminUsersCreateError);
-        return;
-      }
-
-      const payload = (await response.json()) as UpsertUsersPayload;
       const processed = Number.isFinite(payload.processed) ? payload.processed : 0;
       setCreateStatus("success");
       setCreateCount(processed);
@@ -174,9 +141,27 @@ export function AccessPanel({ lang }: AccessPanelProps) {
         setCreateEmailsInput("");
       }
       await loadManagedUsers();
-    } catch {
+    } catch (error) {
+      if (isApiClientError(error) && error.status === 400) {
+        const payload = getApiClientErrorPayload(error);
+        const invalidEmails = Array.isArray(payload?.invalidEmails)
+          ? payload.invalidEmails.filter((item): item is string => typeof item === "string")
+          : [];
+        setCreateStatus("error");
+        setCreateError(messages.adminUsersInvalidEmailError);
+        setInvalidCreateEmails(invalidEmails);
+        return;
+      }
       setCreateStatus("error");
-      setCreateError(messages.adminUsersCreateError);
+      setCreateError(
+        mapApiClientErrorMessage(error, {
+          defaultMessage: messages.adminUsersCreateError,
+          statusMessages: {
+            401: messages.adminAuthError,
+            503: messages.adminUsersUnavailableError,
+          },
+        }),
+      );
     }
   }
 
@@ -186,44 +171,29 @@ export function AccessPanel({ lang }: AccessPanelProps) {
     setUsersStatus("");
 
     try {
-      const response = await fetch("/api/admin/users", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ action: "updateRole", email, role }),
-      });
-
-      if (response.status === 400) {
-        const payload = (await response.json().catch(() => null)) as { error?: string } | null;
-        if (payload?.error?.toLowerCase().includes("own account")) {
-          setUsersError(messages.adminUsersCannotEditSelfError);
-        } else {
-          setUsersError(messages.adminUsersActionError);
-        }
-        return;
-      }
-      if (response.status === 401) {
-        setUsersError(messages.adminAuthError);
-        return;
-      }
-      if (response.status === 404) {
-        setUsersError(messages.adminUsersNotFoundError);
-        return;
-      }
-      if (response.status === 503) {
-        setUsersError(messages.adminUsersUnavailableError);
-        return;
-      }
-      if (!response.ok) {
-        setUsersError(messages.adminUsersActionError);
-        return;
-      }
+      await apiPostJson<{ ok: boolean }>("/api/admin/users", { action: "updateRole", email, role });
 
       setUsersStatus(messages.adminUsersRoleUpdatedSuccess);
       await loadManagedUsers();
-    } catch {
-      setUsersError(messages.adminUsersActionError);
+    } catch (error) {
+      if (
+        isApiClientError(error) &&
+        error.status === 400 &&
+        error.serverMessage.toLowerCase().includes("own account")
+      ) {
+        setUsersError(messages.adminUsersCannotEditSelfError);
+        return;
+      }
+      setUsersError(
+        mapApiClientErrorMessage(error, {
+          defaultMessage: messages.adminUsersActionError,
+          statusMessages: {
+            401: messages.adminAuthError,
+            404: messages.adminUsersNotFoundError,
+            503: messages.adminUsersUnavailableError,
+          },
+        }),
+      );
     } finally {
       setUpdatingEmail("");
     }
@@ -239,44 +209,29 @@ export function AccessPanel({ lang }: AccessPanelProps) {
     setUsersStatus("");
 
     try {
-      const response = await fetch("/api/admin/users", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ action: "delete", email }),
-      });
-
-      if (response.status === 400) {
-        const payload = (await response.json().catch(() => null)) as { error?: string } | null;
-        if (payload?.error?.toLowerCase().includes("own account")) {
-          setUsersError(messages.adminUsersCannotEditSelfError);
-        } else {
-          setUsersError(messages.adminUsersDeleteError);
-        }
-        return;
-      }
-      if (response.status === 401) {
-        setUsersError(messages.adminAuthError);
-        return;
-      }
-      if (response.status === 404) {
-        setUsersError(messages.adminUsersNotFoundError);
-        return;
-      }
-      if (response.status === 503) {
-        setUsersError(messages.adminUsersUnavailableError);
-        return;
-      }
-      if (!response.ok) {
-        setUsersError(messages.adminUsersDeleteError);
-        return;
-      }
+      await apiPostJson<{ ok: boolean }>("/api/admin/users", { action: "delete", email });
 
       setUsersStatus(messages.adminUsersDeleteSuccess);
       await loadManagedUsers();
-    } catch {
-      setUsersError(messages.adminUsersDeleteError);
+    } catch (error) {
+      if (
+        isApiClientError(error) &&
+        error.status === 400 &&
+        error.serverMessage.toLowerCase().includes("own account")
+      ) {
+        setUsersError(messages.adminUsersCannotEditSelfError);
+        return;
+      }
+      setUsersError(
+        mapApiClientErrorMessage(error, {
+          defaultMessage: messages.adminUsersDeleteError,
+          statusMessages: {
+            401: messages.adminAuthError,
+            404: messages.adminUsersNotFoundError,
+            503: messages.adminUsersUnavailableError,
+          },
+        }),
+      );
     } finally {
       setDeletingEmail("");
     }

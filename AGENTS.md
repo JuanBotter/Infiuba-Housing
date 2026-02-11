@@ -44,6 +44,7 @@ Do not defer AGENTS updates.
 - Same-origin validation failures now return structured payloads (`code`, `message`) with legacy `error` alias (`request_origin_validation_failed`, `request_origin_invalid`, `request_origin_missing`) for client-safe error mapping.
 - API request parsing/normalization is centralized in `src/lib/request-validation.ts` and reused across session/reviews/admin endpoints.
 - Route guard/wrapper checks are centralized in `src/lib/api-route-helpers.ts` (`requireSameOrigin`, `requireAdminSession`, `requireDb`, `jsonError`) and reused across session/favorites/reviews/admin API handlers to reduce duplicated security and error-response boilerplate.
+- Client-side API calls for admin/auth UI flows are standardized via `src/lib/api-client.ts` (`apiGetJson`, `apiPostJson`, typed `ApiClientError`, and reusable status/code error mapping).
 - Shared listing/reviewer domain constraints and normalizers are centralized in `src/lib/domain-constraints.ts` (contacts/capacity limits, contact parsing+normalization, reviewer email-like normalization, and optional-number normalization) and reused across review/contact-edit/publication APIs plus listing/review data mappers.
 - In production, app-wide browser hardening headers are configured (`Content-Security-Policy`, `Strict-Transport-Security`, `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`) via `next.config.mjs`.
 - Reviewer contact email handling is hardened: `/api/reviews` validates strict email format for `studentEmail` and email-like `studentContact`, and listing detail renders `mailto:` only for strict emails using URI-encoded hrefs.
@@ -516,6 +517,7 @@ Must remain true:
 - Root layout + theme bootstrap script loader: `src/app/layout.tsx`
 - Theme bootstrap script (static, beforeInteractive): `public/theme-init.js`
 - Request validation helpers: `src/lib/request-validation.ts`
+- Frontend API client helpers: `src/lib/api-client.ts`
 - Cache-tag invalidation helpers: `src/lib/cache-tags.ts`
 - Shared review payload helpers: `src/lib/review-form.ts`
 - Review API error codes/constants: `src/lib/review-api-errors.ts`

@@ -3,6 +3,13 @@
 import { FormEvent, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import {
+  apiPostJson,
+  apiRequestJson,
+  getApiClientErrorPayload,
+  isApiClientError,
+  mapApiClientErrorMessage,
+} from "@/lib/api-client";
 import { getMessages } from "@/lib/i18n";
 import { useDetailsOutsideClose } from "@/lib/use-details-outside-close";
 import type { Lang, UserRole } from "@/types";
@@ -65,31 +72,24 @@ export function RoleSwitcher({ lang, role, email }: RoleSwitcherProps) {
     setInfo("");
 
     try {
-      const response = await fetch("/api/session", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ action: "requestOtp", email: loginEmail, lang }),
+      const payload = await apiPostJson<{ email?: string }>("/api/session", {
+        action: "requestOtp",
+        email: loginEmail,
+        lang,
       });
-
-      if (response.status === 400) {
-        setStatus("error");
-        setError(t.accessProvideCredentialsError);
-        return;
+      if (payload?.email) {
+        setLoginEmail(payload.email);
       }
-      if (response.status === 403) {
-        setStatus("error");
-        setError(t.accessNotAllowedError);
-        return;
-      }
-      if (response.status === 429) {
-        const payload = (await response.json().catch(() => null)) as
-          | { retryAfterSeconds?: number }
-          | null;
+      setOtpStep("verify");
+      setStatus("success");
+      setInfo(t.accessOtpSentSuccess);
+    } catch (error) {
+      if (isApiClientError(error) && error.status === 429) {
+        const payload = getApiClientErrorPayload(error);
+        const retryAfterRaw = payload?.retryAfterSeconds;
         const retryAfterSeconds =
-          payload && Number.isFinite(payload.retryAfterSeconds)
-            ? Math.max(1, Math.floor(payload.retryAfterSeconds || 0))
+          typeof retryAfterRaw === "number" && Number.isFinite(retryAfterRaw)
+            ? Math.max(1, Math.floor(retryAfterRaw))
             : undefined;
         setStatus("error");
         setError(
@@ -99,27 +99,17 @@ export function RoleSwitcher({ lang, role, email }: RoleSwitcherProps) {
         );
         return;
       }
-      if (response.status === 503) {
-        setStatus("error");
-        setError(t.accessLoginUnavailableError);
-        return;
-      }
-      if (!response.ok) {
-        setStatus("error");
-        setError(t.accessUnknownError);
-        return;
-      }
-
-      const payload = (await response.json().catch(() => null)) as { email?: string } | null;
-      if (payload?.email) {
-        setLoginEmail(payload.email);
-      }
-      setOtpStep("verify");
-      setStatus("success");
-      setInfo(t.accessOtpSentSuccess);
-    } catch {
       setStatus("error");
-      setError(t.accessUnknownError);
+      setError(
+        mapApiClientErrorMessage(error, {
+          defaultMessage: t.accessUnknownError,
+          statusMessages: {
+            400: t.accessProvideCredentialsError,
+            403: t.accessNotAllowedError,
+            503: t.accessLoginUnavailableError,
+          },
+        }),
+      );
     }
   }
 
@@ -135,47 +125,36 @@ export function RoleSwitcher({ lang, role, email }: RoleSwitcherProps) {
     setInfo("");
 
     try {
-      const response = await fetch("/api/session", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ action: "verifyOtp", email: loginEmail, otpCode, trustDevice }),
+      await apiPostJson<{
+        ok: boolean;
+        role: UserRole;
+        authMethod: string;
+        email?: string;
+        trustDevice?: boolean;
+      }>("/api/session", {
+        action: "verifyOtp",
+        email: loginEmail,
+        otpCode,
+        trustDevice,
       });
-
-      if (response.status === 400) {
-        setStatus("error");
-        setError(t.accessProvideCredentialsError);
-        return;
-      }
-      if (response.status === 401) {
-        setStatus("error");
-        setError(t.accessOtpInvalidError);
-        return;
-      }
-      if (response.status === 403) {
-        setStatus("error");
-        setError(t.accessNotAllowedError);
-        return;
-      }
-      if (response.status === 503) {
-        setStatus("error");
-        setError(t.accessLoginUnavailableError);
-        return;
-      }
-      if (!response.ok) {
-        setStatus("error");
-        setError(t.accessUnknownError);
-        return;
-      }
 
       resetVisitorState();
       setLoginEmail("");
       detailsRef.current?.removeAttribute("open");
       router.refresh();
-    } catch {
+    } catch (error) {
       setStatus("error");
-      setError(t.accessUnknownError);
+      setError(
+        mapApiClientErrorMessage(error, {
+          defaultMessage: t.accessUnknownError,
+          statusMessages: {
+            400: t.accessProvideCredentialsError,
+            401: t.accessOtpInvalidError,
+            403: t.accessNotAllowedError,
+            503: t.accessLoginUnavailableError,
+          },
+        }),
+      );
     }
   }
 
@@ -185,13 +164,17 @@ export function RoleSwitcher({ lang, role, email }: RoleSwitcherProps) {
     setInfo("");
 
     try {
-      await fetch("/api/session", { method: "DELETE" });
+      await apiRequestJson<{ ok: boolean }>("/api/session", { method: "DELETE" });
       setStatus("idle");
       detailsRef.current?.removeAttribute("open");
       router.refresh();
-    } catch {
+    } catch (error) {
       setStatus("error");
-      setError(t.accessUnknownError);
+      setError(
+        mapApiClientErrorMessage(error, {
+          defaultMessage: t.accessUnknownError,
+        }),
+      );
     }
   }
 

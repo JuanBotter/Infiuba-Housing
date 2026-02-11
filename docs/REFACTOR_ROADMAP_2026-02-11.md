@@ -93,6 +93,7 @@ Scope: repository-wide refactors focused on reducing duplication, improving main
 - Effort: `M`
 - Depends on: `R03`
 - Goal: standardize fetch behavior and HTTP status mapping in client components.
+- Status: `Done` (2026-02-11) - Added typed `src/lib/api-client.ts` with reusable request/error mapping helpers and migrated admin access/reviews/contact-edits/publications panels plus role switcher auth actions to use it.
 - Primary files:
   - `src/app/[lang]/admin/access/access-panel.tsx`
   - `src/app/[lang]/admin/reviews/reviews-panel.tsx`

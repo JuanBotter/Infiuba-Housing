@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
+import { apiGetJson, apiPostJson, mapApiClientErrorMessage } from "@/lib/api-client";
 import { getLocaleForLang } from "@/lib/format";
 import type { ContactEditRequest, Lang } from "@/types";
 import type { Messages } from "@/i18n/messages";
@@ -44,21 +45,18 @@ export function ContactEditsPanel({ lang, messages }: ContactEditsPanelProps) {
     setLoading(true);
     setError("");
     try {
-      const response = await fetch("/api/admin/contact-edits");
-      if (response.status === 401) {
-        setError(messages.adminAuthError);
-        return;
-      }
-      if (!response.ok) {
-        setError(messages.adminContactEditsError);
-        return;
-      }
-
-      const payload = (await response.json()) as ContactEditsPayload;
+      const payload = await apiGetJson<ContactEditsPayload>("/api/admin/contact-edits");
       setPendingRequests(payload.pending || []);
       setHistoryRequests(payload.history || []);
-    } catch {
-      setError(messages.adminContactEditsError);
+    } catch (error) {
+      setError(
+        mapApiClientErrorMessage(error, {
+          defaultMessage: messages.adminContactEditsError,
+          statusMessages: {
+            401: messages.adminAuthError,
+          },
+        }),
+      );
     } finally {
       setLoading(false);
     }
@@ -68,26 +66,18 @@ export function ContactEditsPanel({ lang, messages }: ContactEditsPanelProps) {
     setBusyId(requestId);
     setError("");
     try {
-      const response = await fetch("/api/admin/contact-edits", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ action, requestId }),
-      });
-
-      if (response.status === 401) {
-        setError(messages.adminAuthError);
-        return;
-      }
-      if (!response.ok) {
-        setError(messages.adminContactEditsActionError);
-        return;
-      }
+      await apiPostJson<{ ok: boolean }>("/api/admin/contact-edits", { action, requestId });
 
       await loadRequests();
-    } catch {
-      setError(messages.adminContactEditsActionError);
+    } catch (error) {
+      setError(
+        mapApiClientErrorMessage(error, {
+          defaultMessage: messages.adminContactEditsActionError,
+          statusMessages: {
+            401: messages.adminAuthError,
+          },
+        }),
+      );
     } finally {
       setBusyId("");
     }
