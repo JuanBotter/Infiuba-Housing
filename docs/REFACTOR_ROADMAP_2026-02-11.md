@@ -215,6 +215,19 @@ Scope: repository-wide refactors focused on reducing duplication, improving main
 - Deliverable:
   - lint/format CI step + tests for missing route families (`contact-edits`, `admin/contact-edits`, `admin/listing-images/publications`, `admin/security`).
 
+### R16 - Structured Same-Origin Guard Errors
+- Priority: `P1`
+- Effort: `S`
+- Depends on: `R01`, `R03`
+- Goal: ensure shared origin-validation failures return typed `code` payloads so clients can map them without string matching.
+- Status: `Done` (2026-02-11) - `validateSameOriginRequest` now returns structured `{ code, message }` payloads with legacy `error` alias; covered by updated request-origin tests.
+- Primary files:
+  - `src/lib/request-origin.ts`
+  - `src/lib/api-route-helpers.ts`
+  - `tests/lib/request-origin.test.ts`
+- Deliverable:
+  - origin validation emits typed error codes (`request_origin_validation_failed`, `request_origin_invalid`, `request_origin_missing`).
+
 ## Suggested Sprint Order
 
 ### Sprint 1 (Stabilize Foundation)

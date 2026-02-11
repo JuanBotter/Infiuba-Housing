@@ -12,12 +12,41 @@ function tryParseOrigin(value: string | null | undefined) {
   }
 }
 
+export const REQUEST_ORIGIN_ERROR_CODES = {
+  VALIDATION_FAILED: "request_origin_validation_failed",
+  INVALID: "request_origin_invalid",
+  MISSING: "request_origin_missing",
+} as const;
+
+type RequestOriginErrorCode =
+  (typeof REQUEST_ORIGIN_ERROR_CODES)[keyof typeof REQUEST_ORIGIN_ERROR_CODES];
+
+function buildOriginErrorResponse(
+  code: RequestOriginErrorCode,
+  message: string,
+  status: number,
+) {
+  return NextResponse.json(
+    {
+      code,
+      message,
+      // Compatibility alias for legacy clients still reading `error`.
+      error: message,
+    },
+    { status },
+  );
+}
+
 export function validateSameOriginRequest(request: Request) {
   const expectedOrigin = tryParseOrigin(request.url);
   if (!expectedOrigin) {
     return {
       ok: false as const,
-      response: NextResponse.json({ error: "Could not validate request origin" }, { status: 400 }),
+      response: buildOriginErrorResponse(
+        REQUEST_ORIGIN_ERROR_CODES.VALIDATION_FAILED,
+        "Could not validate request origin",
+        400,
+      ),
     };
   }
 
@@ -29,7 +58,11 @@ export function validateSameOriginRequest(request: Request) {
 
     return {
       ok: false as const,
-      response: NextResponse.json({ error: "Invalid request origin" }, { status: 403 }),
+      response: buildOriginErrorResponse(
+        REQUEST_ORIGIN_ERROR_CODES.INVALID,
+        "Invalid request origin",
+        403,
+      ),
     };
   }
 
@@ -41,6 +74,10 @@ export function validateSameOriginRequest(request: Request) {
 
   return {
     ok: false as const,
-    response: NextResponse.json({ error: "Missing request origin" }, { status: 403 }),
+    response: buildOriginErrorResponse(
+      REQUEST_ORIGIN_ERROR_CODES.MISSING,
+      "Missing request origin",
+      403,
+    ),
   };
 }

@@ -41,6 +41,7 @@ Do not defer AGENTS updates.
 - Structured security audit events are recorded for OTP request/verify and admin-sensitive actions (user access changes, review moderation, publication edits including image reordering/removal, contact edit moderation, and contact edit submissions).
 - Sensitive auth/admin API responses explicitly send `Cache-Control: no-store` headers.
 - Stateful `POST`/`DELETE` API endpoints enforce same-origin checks (Origin/Referer must match request host) to reduce CSRF risk; `GET /api/session/magic` is a token-authenticated email-link exception.
+- Same-origin validation failures now return structured payloads (`code`, `message`) with legacy `error` alias (`request_origin_validation_failed`, `request_origin_invalid`, `request_origin_missing`) for client-safe error mapping.
 - API request parsing/normalization is centralized in `src/lib/request-validation.ts` and reused across session/reviews/admin endpoints.
 - Route guard/wrapper checks are centralized in `src/lib/api-route-helpers.ts` (`requireSameOrigin`, `requireAdminSession`, `requireDb`, `jsonError`) and reused across session/favorites/reviews/admin API handlers to reduce duplicated security and error-response boilerplate.
 - Shared listing/reviewer domain constraints and normalizers are centralized in `src/lib/domain-constraints.ts` (contacts/capacity limits, contact parsing+normalization, reviewer email-like normalization, and optional-number normalization) and reused across review/contact-edit/publication APIs plus listing/review data mappers.
