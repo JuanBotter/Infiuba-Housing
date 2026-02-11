@@ -22,7 +22,8 @@ Do not defer AGENTS updates.
 - Theme: light/dark with persisted browser preference.
 - Typography: Stitch-aligned sans stacks are loaded globally (`Plus Jakarta Sans` baseline, with `Work Sans` for admin-heavy surfaces and `Inter` for security telemetry modules; `Avenir Next` remains fallback).
 - Visual system: Stitch-aligned editorial look across explorer/detail/review/auth/admin with warm ivory surfaces, dark cocoa dark-mode base (`#221510`), rounded cards, image-forward listing/media blocks, and high-contrast pill controls.
-- Dark-mode contrast guardrails are enforced in the global theme layer so top-bar popovers, filters/cards/map panels, listing-detail metric chips, and admin/security surfaces switch to dark high-contrast backgrounds with readable text/field contrast.
+- Dark-mode contrast guardrails are enforced in the global theme layer so top-bar popovers, filters/cards/map panels, listing-detail metric chips, and admin/security surfaces switch to dark high-contrast backgrounds with readable text/field contrast; rent histogram sliders also override dark global input styles to keep transparent tracks and readable bars/thumbs.
+- Base page gradients use three non-repeating fixed-height layers (`100% 320vh` each) rendered as `background-image` over a solid fallback color, with direction enforced as brighter at the top and darker as users scroll down; fallback color matches the darkest ramp end to prevent inversion/seams when filtering reduces content height.
 - Core domain: listings, owner contacts, survey reviews, web reviews with moderation, multilingual review text, and review-level rent history.
 - Listings and reviews support photo galleries backed by Vercel Blob uploads. Review-level images (`reviews.image_urls`) are canonical, while listing-level gallery display is derived from approved review images and can be admin-ordered via listing image-order metadata (`listings.image_urls`).
 - Listing cards in list mode render image overlays for neighborhood + rent + rating and include a heart favorite control; favorites persist per logged-in user, while visitor clicks show a sign-in hint and do not save.
@@ -62,7 +63,11 @@ Do not defer AGENTS updates.
 - New listing fields in the add-review flow omit coordinates; latitude/longitude are not collected from users.
 - Add-review flow uses neighborhood autocomplete suggestions from known neighborhood values.
 - Main listings UI uses a view toggle: `Map` (default), `List`, and (for whitelisted/admin) `Add review`.
-- Cards/Map filters include search, neighborhood, recommendation, min/max price, minimum rating, sorting (default: newest), and a logged-in `Favorites` slider toggle rendered as the last filter control; active filter chips support one-click removal plus clear-all.
+- Cards/Map filters include search, neighborhood, recommendation, a dataset-driven dual-handle rent range slider (bounded to current review-rent min/max values) with histogram bars derived from review-rent distribution and active-range highlighting, minimum rating, sorting (default: newest), and a logged-in `Favorites` slider toggle rendered as the last filter control; the rent slider spans two filter columns on desktop and reverts to full-width on narrow screens. The range inputs suppress the global input focus halo and keep focus affordance on slider thumbs. Active filter chips support one-click removal plus clear-all and render inline with result count in a shared summary row that always reserves the inline-filters footprint (hidden when empty) to avoid layout shift when filters are toggled.
+- Rent-slider persistence uses a versioned key in filter localStorage so pre-slider numeric min/max values are ignored on migration; first load after migration defaults to the full dataset price range.
+- Desktop filter-grid arrangement is fixed to two rows: row 1 ends with minimum rating in the top-right slot, row 2 places rent-range slider on the left (two columns), sort in the next slot, and favorites in the last slot.
+- Rent filtering includes listings without review-rent data whenever the slider minimum is at the dataset floor; when the floored lower bound has no exact listing price, the first real slider step is still treated as an unfiltered minimum. Slider stepping uses `1` so the max handle can always reach the exact dataset ceiling value.
+- When min/max rent handles overlap, drag direction is preserved from the merged thumb for the duration of the current drag gesture: dragging down moves the minimum handle, dragging up moves the maximum handle.
 - Price filtering is review-history based: with a min/max rent filter active, a listing matches only when at least one approved review `price_usd` falls within the selected bounds.
 - `price_asc` sorting uses the listing's lowest approved-review rent value (listings without review rents sort after priced listings).
 - Listing-level `price_usd` is treated as legacy/deprecated at runtime; list/detail/map rent display no longer falls back to listing-level values.
@@ -434,7 +439,7 @@ Integrity hardening (enforced in `migrations/20260206090000000_initial_schema.sq
   - `POST /api/favorites` with `{ action: "add" | "remove", listingId }` updates favorites (same-origin protected, no-store).
   - When favorites schema is missing (migration not applied), API returns `503` with a migration-required error.
 - List/map favorite heart controls show a sign-in hint when visitors click, and show inline error feedback instead of silently failing when favorite reads/writes fail.
-- Listings filters include a `Favorites` slider toggle that is available for logged-in users and persisted with the same shared filter storage key.
+- Listings filters include a `Favorites` slider toggle that is available for logged-in users and persisted with the same shared filter storage key; the slider uses a neutral track in both states and indicates state by knob position.
 
 ## Review and Moderation Flow
 
