@@ -203,6 +203,7 @@ Scope: repository-wide refactors focused on reducing duplication, improving main
 - Effort: `S`
 - Depends on: `R09`
 - Goal: simplify routing and remove unnecessary indirections once clients are migrated.
+- Status: `Done` (2026-02-11) - Removed legacy admin route aliases (`/api/admin/listing-images`, `/{lang}/admin/images`, `/{lang}/admin/moderation`) and kept canonical `publications`/`reviews` routes only; added canonical publications API route coverage.
 - Primary files:
   - `src/app/api/admin/publications/route.ts`
   - `src/app/[lang]/admin/images/page.tsx`

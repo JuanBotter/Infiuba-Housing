@@ -440,7 +440,7 @@ Integrity hardening (enforced in `migrations/20260206090000000_initial_schema.sq
   - `GET /api/admin/publications` lists listings + review-image counts.
   - `GET /api/admin/publications?listingId=<id>` returns publication details (address/neighborhood/capacity/contacts + ordered images).
   - `POST /api/admin/publications` supports publication updates (`updatePublication`), image reorder (`saveImageOrder`), and image deletion (`deleteImage`).
-  - Legacy compatibility alias: `/api/admin/listing-images` maps to the same handlers.
+- Legacy alias routes were removed: do not reintroduce `/api/admin/listing-images`, `/{lang}/admin/images`, or `/{lang}/admin/moderation`.
 
 ## Favorites Data Model
 
@@ -510,13 +510,10 @@ Must remain true:
 - Admin access page: `src/app/[lang]/admin/access/page.tsx`
 - Admin security telemetry page: `src/app/[lang]/admin/security/page.tsx`
 - Admin publication editor page/panel: `src/app/[lang]/admin/publications/page.tsx`, `src/app/[lang]/admin/publications/publications-panel.tsx`
-- Legacy admin images path redirect: `src/app/[lang]/admin/images/page.tsx` -> `/{lang}/admin/publications`
-- Legacy moderation path redirect: `src/app/[lang]/admin/moderation/page.tsx` -> `/{lang}/admin/reviews`
 - Admin users API: `src/app/api/admin/users/route.ts`
   - `GET` managed users (`active` + `deleted`)
   - `POST` update roles, delete, or bulk upsert users
 - Admin publications API: `src/app/api/admin/publications/route.ts`
-- Legacy listing-images API alias: `src/app/api/admin/listing-images/route.ts`
 - Favorites API: `src/app/api/favorites/route.ts`
 - Contact edit request API: `src/app/api/contact-edits/route.ts`
 - Admin contact edits API: `src/app/api/admin/contact-edits/route.ts`
