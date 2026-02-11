@@ -20,7 +20,7 @@ Do not defer AGENTS updates.
 - Languages: `en`, `es`, `fr`, `de`, `pt`, `it`, `no`.
 - Default landing language is Spanish (`/` redirects to `/es`).
 - Theme: light/dark with persisted browser preference.
-- Typography: Stitch-aligned sans stacks are loaded globally (`Plus Jakarta Sans` baseline, with `Work Sans` for admin-heavy surfaces and `Inter` for security telemetry modules; `Avenir Next` remains fallback).
+- Typography: Stitch-aligned sans stacks are loaded via `next/font` in `src/app/layout.tsx` (`Plus Jakarta Sans` baseline, with `Work Sans` for admin-heavy surfaces and `Inter` for security telemetry modules; `Avenir Next` remains fallback in CSS token stacks).
 - Visual system: Stitch-aligned editorial look across explorer/detail/review/auth/admin with warm ivory surfaces, dark cocoa dark-mode base (`#221510`), rounded cards, image-forward listing/media blocks, and high-contrast pill controls.
 - Dark-mode contrast guardrails are enforced in the global theme layer so top-bar popovers, filters/cards/map panels, listing-detail metric chips, and admin/security surfaces switch to dark high-contrast backgrounds with readable text/field contrast; rent histogram sliders also override dark global input styles to keep transparent tracks and readable bars/thumbs.
 - Base page gradients use three non-repeating fixed-height layers (`100% 320vh` each) rendered as `background-image` over a solid fallback color, with direction enforced as brighter at the top and darker as users scroll down; fallback color matches the darkest ramp end to prevent inversion/seams when filtering reduces content height.
@@ -79,6 +79,7 @@ Do not defer AGENTS updates.
 - `price_asc` sorting uses the listing's lowest approved-review rent value (listings without review rents sort after priced listings).
 - Listing-level `price_usd` is treated as legacy/deprecated at runtime; list/detail/map rent display no longer falls back to listing-level values.
 - Place-filters/map UI is modularized with dedicated helpers/hooks/components (`place-filters-price.ts`, `use-place-filters-state.ts`, `use-favorites.ts`, `use-price-filter.ts`, `map-listing-sidebar-item.tsx`), and map styles are split into `globals-map.css` imported from `globals.css`.
+- Global stylesheet architecture is split by feature: `globals.css` imports `styles/theme-tokens.css`, `styles/foundation.css`, and `styles/top-bar.css` plus `globals-map.css`.
 - Cards/Map filter state (including selected view mode) is persisted in browser `localStorage` using shared key `infiuba:filters:v2` so navigation/reloads and language switches keep the same filters/view; legacy per-language keys are auto-migrated on read.
 - Filter persistence loading is gated so initial render defaults never overwrite stored filters before hydration applies them.
 - Visitor-safe listing/detail reads use short-lived server cache (`unstable_cache`); cache tags are revalidated when public listing data changes (new listing creation, review approval).
@@ -553,6 +554,8 @@ Must remain true:
 - Reviews store: `src/lib/reviews-store.ts`
 - Messages/i18n: `src/i18n/messages.ts`, `src/lib/i18n.ts`, `src/lib/i18n-config.ts`
 - CI checks workflow: `.github/workflows/ci.yml`
+- Global style entrypoint: `src/app/globals.css`
+- Global style partials: `src/app/styles/theme-tokens.css`, `src/app/styles/foundation.css`, `src/app/styles/top-bar.css`
 - Global map styles partial: `src/app/globals-map.css`
 
 ## Agent Best Practices for This Repo

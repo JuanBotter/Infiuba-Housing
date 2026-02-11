@@ -1,0 +1,71 @@
+:root {
+  --font-base-sans:
+    var(--font-plus-jakarta-sans), "Avenir Next", "Trebuchet MS", "Segoe UI", sans-serif;
+  --font-admin-sans: var(--font-work-sans), var(--font-base-sans);
+  --font-security-sans: var(--font-inter), var(--font-base-sans);
+  --font-heading: var(--font-base-sans);
+  --font-body: var(--font-base-sans);
+  --font-admin: var(--font-admin-sans);
+  --font-security: var(--font-security-sans);
+  --white: #ffffff;
+  --on-primary: #ffffff;
+  --ink: #1c110d;
+  --ink-soft: #8b6a5f;
+  --muted: #8b6a5f;
+  --surface: rgba(255, 255, 255, 0.92);
+  --surface-strong: var(--white);
+  --line: rgba(48, 27, 21, 0.14);
+  --primary: #ec4913;
+  --primary-deep: #d63e0e;
+  --secondary: #c0504d;
+  --accent: #ec4913;
+  --warm: #f1834e;
+  --danger: #bd3f38;
+  --success: #548235;
+  --shadow-soft: 0 14px 26px rgba(34, 21, 16, 0.11);
+  --shadow-heavy: 0 30px 62px rgba(34, 21, 16, 0.2);
+  --page-bg:
+    radial-gradient(circle at 8% 8%, rgba(236, 73, 19, 0.12), transparent 34%),
+    radial-gradient(circle at 92% 16%, rgba(236, 73, 19, 0.09), transparent 36%),
+    linear-gradient(180deg, #f8f6f6 0%, #f6f4f3 50%, #f4efed 100%);
+  --page-bg-solid: #f4efed;
+  --topbar-bg: rgba(248, 246, 246, 0.92);
+  --field-bg: var(--white);
+  --chip-bg: rgba(255, 251, 250, 0.96);
+  --subtle-bg: rgba(255, 255, 255, 0.82);
+  --surface-gradient: linear-gradient(180deg, rgba(255, 255, 255, 0.95), var(--white));
+  --review-bg: var(--white);
+  --map-panel-bg: rgba(255, 255, 255, 0.94);
+  --page-glow-cool: #1b7f92;
+  --page-glow-warm: #ef8d4b;
+  --menu-active-bg: rgba(19, 139, 132, 0.14);
+  --topbar-role-gradient: linear-gradient(120deg, #5f7081, #8498aa);
+  --topbar-admin-gradient: linear-gradient(120deg, #a24f2c, #d47c4a);
+}
+
+:root[data-theme="dark"] {
+  --ink: #f3eae7;
+  --ink-soft: #c9a092;
+  --muted: #c9a092;
+  --surface: rgba(34, 21, 16, 0.9);
+  --surface-strong: #2d1b15;
+  --line: rgba(201, 160, 146, 0.2);
+  --primary: #ec4913;
+  --primary-deep: #c83709;
+  --secondary: #d77052;
+  --accent: #ec4913;
+  --shadow-soft: 0 18px 34px rgba(10, 6, 5, 0.48);
+  --shadow-heavy: 0 30px 66px rgba(10, 6, 5, 0.58);
+  --page-bg:
+    radial-gradient(circle at 7% 8%, rgba(236, 73, 19, 0.17), transparent 34%),
+    radial-gradient(circle at 92% 15%, rgba(236, 73, 19, 0.1), transparent 38%),
+    linear-gradient(180deg, #2d1c15 0%, #271913 56%, #221510 100%);
+  --page-bg-solid: #221510;
+  --topbar-bg: rgba(34, 21, 16, 0.9);
+  --field-bg: rgba(43, 27, 21, 0.95);
+  --chip-bg: rgba(54, 33, 25, 0.9);
+  --subtle-bg: rgba(49, 31, 24, 0.88);
+  --surface-gradient: linear-gradient(180deg, rgba(53, 33, 25, 0.95), rgba(45, 27, 21, 0.96));
+  --review-bg: rgba(45, 27, 21, 0.95);
+  --map-panel-bg: rgba(45, 27, 21, 0.94);
+}

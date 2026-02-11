@@ -1,0 +1,260 @@
+.top-bar {
+  position: sticky;
+  top: 0.75rem;
+  z-index: 1200;
+  width: min(1120px, 92vw);
+  margin: 0.75rem auto 0;
+  padding: 0.78rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  backdrop-filter: blur(14px);
+  background: var(--topbar-bg);
+  box-shadow: var(--shadow-soft);
+}
+
+.top-bar__brand {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
+
+.top-bar__logo {
+  width: auto;
+  height: 2rem;
+  display: block;
+  image-rendering: auto;
+}
+
+.top-bar__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.top-bar__admin {
+  padding: 0.42rem 0.66rem;
+  border-radius: 999px;
+  text-decoration: none;
+  font-size: 0.76rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--ink);
+  background: var(--subtle-bg);
+  border: 1px solid var(--line);
+}
+
+.top-bar__language,
+.top-bar__role,
+.theme-toggle {
+  width: 2.1rem;
+  height: 2.1rem;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  cursor: pointer;
+  transition: transform 120ms ease, filter 120ms ease;
+}
+
+.top-bar__language {
+  color: var(--on-primary);
+  border: 0;
+  background: linear-gradient(120deg, var(--primary-deep), var(--primary));
+}
+
+.top-bar__role {
+  color: var(--on-primary);
+  border: 0;
+  background: var(--topbar-role-gradient);
+}
+
+.top-bar__role--whitelisted {
+  background: linear-gradient(120deg, var(--primary-deep), var(--primary));
+}
+
+.top-bar__role--admin {
+  background: var(--topbar-admin-gradient);
+}
+
+.top-bar__language::-webkit-details-marker {
+  display: none;
+}
+
+.top-bar__role::-webkit-details-marker {
+  display: none;
+}
+
+.top-bar__language::marker {
+  content: "";
+}
+
+.top-bar__role::marker {
+  content: "";
+}
+
+.theme-toggle {
+  background: var(--subtle-bg);
+  color: var(--ink);
+}
+
+.top-bar__language svg,
+.top-bar__role svg,
+.theme-toggle svg {
+  width: 1.06rem;
+  height: 1.06rem;
+}
+
+.top-bar__language:hover,
+.top-bar__role:hover,
+.theme-toggle:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.04);
+}
+
+.language-menu {
+  position: relative;
+}
+
+.role-menu {
+  position: relative;
+}
+
+.language-menu__popover {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.38rem);
+  min-width: 170px;
+  padding: 0.3rem;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--surface-strong);
+  box-shadow: var(--shadow-soft);
+  display: none;
+  z-index: 20;
+}
+
+.language-menu[open] .language-menu__popover {
+  display: grid;
+}
+
+.role-menu__popover {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.38rem);
+  min-width: 240px;
+  padding: 0.55rem;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--surface-strong);
+  box-shadow: var(--shadow-soft);
+  display: none;
+  z-index: 20;
+}
+
+.role-menu[open] .role-menu__popover {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.role-menu__current {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+}
+
+.role-menu__current strong {
+  color: var(--ink);
+}
+
+.role-menu__hint {
+  margin: 0;
+  font-size: 0.77rem;
+  color: var(--ink-soft);
+}
+
+.role-menu__divider {
+  margin: 0;
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--ink-soft);
+  text-align: center;
+}
+
+.role-menu__form {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.role-menu__form label {
+  display: grid;
+  gap: 0.38rem;
+}
+
+.role-menu__form span {
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
+.role-menu__form label.role-menu__checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0;
+  line-height: 1.2;
+  font-size: 0.77rem;
+  color: var(--ink-soft);
+}
+
+.role-menu__checkbox input {
+  flex: 0 0 auto;
+  width: 0.95rem;
+  height: 0.95rem;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.role-menu__checkbox span {
+  text-transform: none;
+  letter-spacing: normal;
+  font-size: 0.77rem;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.language-menu__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.42rem 0.5rem;
+  border-radius: 8px;
+  text-decoration: none;
+  color: var(--ink);
+  font-size: 0.82rem;
+}
+
+.language-menu__item strong {
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  color: var(--ink-soft);
+}
+
+.language-menu__item:hover {
+  background: var(--subtle-bg);
+}
+
+.language-menu__item.is-active {
+  background: var(--menu-active-bg);
+}

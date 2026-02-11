@@ -178,6 +178,7 @@ Scope: repository-wide refactors focused on reducing duplication, improving main
 - Effort: `L`
 - Depends on: `R04`, `R05` (recommended)
 - Goal: reduce monolithic global stylesheet risk and improve design token consistency.
+- Status: `Done` (2026-02-11) - Split global styles into feature imports (`theme-tokens`, `foundation`, `top-bar`) while preserving map/style ordering, migrated global typography loading to `next/font/google` in root layout, and normalized admin/security font usage plus shared white/role/menu color tokens.
 - Primary files:
   - `src/app/globals.css`
   - `src/app/globals-map.css`
