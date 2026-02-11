@@ -151,6 +151,7 @@ Scope: repository-wide refactors focused on reducing duplication, improving main
 - Effort: `M`
 - Depends on: `R06` (recommended), `R09` (recommended)
 - Goal: reduce over-fetching and add pagination where lists can grow.
+- Status: `Done` (2026-02-11) - Admin reviews API now supports approved-review pagination (`approvedLimit`/`approvedOffset` + `approvedTotal`), admin review UI added page navigation controls, and admin reviews page switched to lightweight listing-address map loading.
 - Primary files:
   - `src/app/[lang]/admin/reviews/page.tsx`
   - `src/lib/data.ts`

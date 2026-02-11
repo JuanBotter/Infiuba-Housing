@@ -234,6 +234,60 @@ export async function getApprovedReviews() {
   return result.rows.map(mapApprovedReviewRow);
 }
 
+export async function getApprovedReviewsPage(limit: number, offset: number) {
+  const boundedLimit = Math.max(1, Math.floor(limit));
+  const boundedOffset = Math.max(0, Math.floor(offset));
+
+  const result = await dbQuery<ReviewRow>(
+    `
+      SELECT
+        id,
+        listing_id,
+        rating,
+        price_usd,
+        recommended,
+        comment,
+        comment_en,
+        comment_es,
+        comment_fr,
+        comment_de,
+        comment_pt,
+        comment_it,
+        comment_no,
+        semester,
+        student_contact,
+        student_name,
+        student_email,
+        allow_contact_sharing,
+        image_urls,
+        created_at,
+        approved_at
+      FROM reviews
+      WHERE source = 'web'
+        AND status = 'approved'
+      ORDER BY approved_at DESC NULLS LAST, created_at DESC
+      LIMIT $1
+      OFFSET $2
+    `,
+    [boundedLimit, boundedOffset],
+  );
+  return result.rows.map(mapApprovedReviewRow);
+}
+
+export async function getApprovedReviewsTotal() {
+  const result = await dbQuery<{ total: string | number }>(
+    `
+      SELECT COUNT(*) AS total
+      FROM reviews
+      WHERE source = 'web'
+        AND status = 'approved'
+    `,
+  );
+  const rawTotal = result.rows[0]?.total;
+  const parsedTotal = typeof rawTotal === "number" ? rawTotal : Number(rawTotal);
+  return Number.isFinite(parsedTotal) ? parsedTotal : 0;
+}
+
 export interface NewReviewInput {
   listingId: string;
   rating: number;

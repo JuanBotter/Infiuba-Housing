@@ -3,7 +3,8 @@ import { revalidatePublicListingWithApprovedReviews } from "@/lib/cache-tags";
 import { jsonNoStore } from "@/lib/http-cache";
 import { asObject, parseEnum, parseString } from "@/lib/request-validation";
 import {
-  getApprovedReviews,
+  getApprovedReviewsPage,
+  getApprovedReviewsTotal,
   getPendingReviews,
   moderatePendingReview,
 } from "@/lib/reviews-store";
@@ -15,11 +16,30 @@ export async function GET(request: Request) {
     return adminSessionResult.response;
   }
 
-  const [pending, approved] = await Promise.all([getPendingReviews(), getApprovedReviews()]);
-  pending.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-  approved.sort((a, b) => b.approvedAt.localeCompare(a.approvedAt));
+  const searchParams = new URL(request.url).searchParams;
+  const approvedLimitRaw = Number(searchParams.get("approvedLimit"));
+  const approvedOffsetRaw = Number(searchParams.get("approvedOffset"));
+  const approvedLimit = Number.isFinite(approvedLimitRaw)
+    ? Math.max(1, Math.min(100, Math.floor(approvedLimitRaw)))
+    : 30;
+  const approvedOffset = Number.isFinite(approvedOffsetRaw)
+    ? Math.max(0, Math.floor(approvedOffsetRaw))
+    : 0;
 
-  return jsonNoStore({ pending, approved });
+  const [pending, approved, approvedTotal] = await Promise.all([
+    getPendingReviews(),
+    getApprovedReviewsPage(approvedLimit, approvedOffset),
+    getApprovedReviewsTotal(),
+  ]);
+  pending.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+
+  return jsonNoStore({
+    pending,
+    approved,
+    approvedTotal,
+    approvedLimit,
+    approvedOffset,
+  });
 }
 
 export async function POST(request: Request) {

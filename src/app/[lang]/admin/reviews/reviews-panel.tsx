@@ -17,6 +17,9 @@ interface ReviewsPanelProps {
 interface ModerationPayload {
   pending: PendingWebReview[];
   approved: ApprovedWebReview[];
+  approvedTotal?: number;
+  approvedLimit?: number;
+  approvedOffset?: number;
 }
 
 function formatOptionalValue(value?: string) {
@@ -24,19 +27,36 @@ function formatOptionalValue(value?: string) {
 }
 
 export function ReviewsPanel({ lang, listingMap, messages }: ReviewsPanelProps) {
+  const approvedPageSize = 30;
   const [pendingReviews, setPendingReviews] = useState<PendingWebReview[]>([]);
   const [approvedReviews, setApprovedReviews] = useState<ApprovedWebReview[]>([]);
+  const [approvedTotal, setApprovedTotal] = useState(0);
+  const [approvedOffset, setApprovedOffset] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [busyReviewId, setBusyReviewId] = useState("");
 
-  async function loadModerationData() {
+  async function loadModerationData(nextApprovedOffset = approvedOffset) {
     setLoading(true);
     setError("");
     try {
-      const payload = await apiGetJson<ModerationPayload>("/api/admin/reviews");
+      const query = new URLSearchParams({
+        approvedLimit: String(approvedPageSize),
+        approvedOffset: String(Math.max(0, nextApprovedOffset)),
+      });
+      const payload = await apiGetJson<ModerationPayload>(`/api/admin/reviews?${query.toString()}`);
       setPendingReviews(payload.pending || []);
-      setApprovedReviews((payload.approved || []).slice(0, 30));
+      setApprovedReviews(payload.approved || []);
+      setApprovedTotal(
+        typeof payload.approvedTotal === "number"
+          ? payload.approvedTotal
+          : (payload.approved || []).length,
+      );
+      setApprovedOffset(
+        typeof payload.approvedOffset === "number"
+          ? payload.approvedOffset
+          : Math.max(0, nextApprovedOffset),
+      );
     } catch (error) {
       setError(
         mapApiClientErrorMessage(error, {
@@ -57,7 +77,7 @@ export function ReviewsPanel({ lang, listingMap, messages }: ReviewsPanelProps) 
     try {
       await apiPostJson<{ ok: boolean }>("/api/admin/reviews", { action, reviewId });
 
-      await loadModerationData();
+      await loadModerationData(approvedOffset);
     } catch (error) {
       setError(
         mapApiClientErrorMessage(error, {
@@ -73,14 +93,23 @@ export function ReviewsPanel({ lang, listingMap, messages }: ReviewsPanelProps) 
   }
 
   useEffect(() => {
-    void loadModerationData();
+    void loadModerationData(0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const approvedStart = approvedReviews.length > 0 ? approvedOffset + 1 : 0;
+  const approvedEnd = approvedOffset + approvedReviews.length;
+  const canLoadPreviousApproved = approvedOffset > 0;
+  const canLoadNextApproved = approvedOffset + approvedReviews.length < approvedTotal;
 
   return (
     <>
       <article className="detail-card moderation-toolbar moderation-toolbar--admin">
-        <button type="button" className="button-link" onClick={() => void loadModerationData()}>
+        <button
+          type="button"
+          className="button-link"
+          onClick={() => void loadModerationData(approvedOffset)}
+        >
           {loading ? messages.adminLoading : messages.adminRefresh}
         </button>
       </article>
@@ -205,6 +234,29 @@ export function ReviewsPanel({ lang, listingMap, messages }: ReviewsPanelProps) 
 
         <article className="detail-card admin-moderation-column">
           <h2>{messages.adminApprovedTitle}</h2>
+          <div className="moderation-toolbar moderation-toolbar--inline">
+            <button
+              type="button"
+              className="button-link"
+              disabled={!canLoadPreviousApproved || loading}
+              onClick={() =>
+                void loadModerationData(Math.max(0, approvedOffset - approvedPageSize))
+              }
+            >
+              ←
+            </button>
+            <p className="review-item__meta">
+              {approvedStart}-{approvedEnd}/{approvedTotal}
+            </p>
+            <button
+              type="button"
+              className="button-link"
+              disabled={!canLoadNextApproved || loading}
+              onClick={() => void loadModerationData(approvedOffset + approvedPageSize)}
+            >
+              →
+            </button>
+          </div>
           {!loading && approvedReviews.length === 0 ? <p>{messages.adminEmptyApproved}</p> : null}
           <ul className="review-list">
             {approvedReviews.map((review) => (

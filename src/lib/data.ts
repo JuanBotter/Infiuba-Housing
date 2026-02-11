@@ -44,6 +44,12 @@ interface ListingRow {
   review_prices: (string | number)[] | null;
 }
 
+interface ListingAddressRow {
+  id: string;
+  address: string;
+  neighborhood: string;
+}
+
 interface ListingPrivacyOptions {
   // Legacy option: when provided, applies to both owner and reviewer contacts.
   includePrivateContactInfo?: boolean;
@@ -299,6 +305,20 @@ export async function getListings(options: ListingPrivacyOptions = {}) {
   return listings.map((listing) =>
     applyPrivacy(listing, includeOwnerContactInfo, includeReviewerContactInfo),
   );
+}
+
+export async function getListingAddressMap() {
+  const result = await dbQuery<ListingAddressRow>(
+    `
+      SELECT id, address, neighborhood
+      FROM listings
+      ORDER BY neighborhood ASC, address ASC
+    `,
+  );
+
+  return Object.fromEntries(
+    result.rows.map((row) => [row.id, `${row.address} · ${row.neighborhood}`]),
+  ) as Record<string, string>;
 }
 
 export async function getListingById(

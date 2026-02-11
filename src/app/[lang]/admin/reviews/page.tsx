@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 
 import { ReviewsPanel } from "@/app/[lang]/admin/reviews/reviews-panel";
-import { getListings } from "@/lib/data";
+import { getListingAddressMap } from "@/lib/data";
 import { getMessages, isSupportedLanguage } from "@/lib/i18n";
 import type { Lang } from "@/types";
 
@@ -19,10 +19,7 @@ export default async function ReviewsPage({ params }: ReviewsPageProps) {
 
   const lang = resolvedParams.lang as Lang;
   const messages = getMessages(lang);
-  const listings = await getListings({ includePrivateContactInfo: true });
-  const listingMap = Object.fromEntries(
-    listings.map((listing) => [listing.id, `${listing.address} · ${listing.neighborhood}`]),
-  );
+  const listingMap = await getListingAddressMap();
 
   return <ReviewsPanel lang={lang} listingMap={listingMap} messages={messages} />;
 }
