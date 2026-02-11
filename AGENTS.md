@@ -35,6 +35,7 @@ Do not defer AGENTS updates.
 - OTP delivery supports a console-only email override for local testing (`mock@email.com` by default outside production).
 - OTP mailer logs provider availability and send failures (redacted recipient) to server logs for troubleshooting.
 - Testing: Vitest unit tests mock DB/email/Next cache for API routes and auth helpers.
+- API route test coverage includes session/session-magic, reviews, favorites, review-images, admin users/reviews/publications, contact-edits, admin contact-edits, and admin security endpoints.
 - OTP request/verify API responses are intentionally enumeration-safe: request responses are generic for allowed/not-allowed/rate-limited outcomes, and verify failures return a generic invalid-code response for auth failures.
 - OTP abuse controls are DB-backed and layered: OTP requests are rate limited by IP/subnet/global windows, and OTP verify failures are rate limited by IP and email+IP windows.
 - OTP emails are localized using the user-selected UI language (`requestOtp` payload `lang`) and include branded HTML (two-column layout with logo panel + styled content), a one-click magic login link, and the numeric OTP code as fallback.
@@ -113,6 +114,8 @@ Do not defer AGENTS updates.
 - Test suite: `npm run test`
 - Test coverage: `npm run test:coverage`
 - Test watch: `npm run test:watch`
+- Lint (typecheck gate): `npm run lint`
+- Format check (tracked-file whitespace/newline gate): `npm run format:check`
 - Integration tests (Docker Postgres): `npm run test:integration:docker`
 - Integration tests (existing DB): set `DATABASE_URL` then `npm run test:integration`
 - Dev server: `npm run dev`
@@ -564,8 +567,9 @@ Must remain true:
 2. Preserve multilingual parity: if adding/changing a message key, update all languages.
 3. Keep visitor-safe defaults when uncertain.
 4. Run checks after significant changes:
+   - `npm run lint`
+   - `npm run format:check`
    - `npm test`
-   - `npx tsc --noEmit`
    - `npm run build`
 5. Keep runtime DB-only behavior; do not reintroduce file fallback paths.
 6. Avoid schema drift: update `migrations/` (and any future migrations), `scripts/db-seed.mjs`, and this file together.

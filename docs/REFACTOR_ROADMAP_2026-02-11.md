@@ -1,6 +1,6 @@
 # Refactor Roadmap (Code Repetition + Best Practices)
 
-Date: 2026-02-11  
+Date: 2026-02-11
 Scope: repository-wide refactors focused on reducing duplication, improving maintainability, and standardizing engineering patterns.
 
 ## Estimation Model
@@ -217,6 +217,7 @@ Scope: repository-wide refactors focused on reducing duplication, improving main
 - Effort: `M`
 - Depends on: start now; expand after `R03/R04/R05/R10`
 - Goal: enforce code quality and close test gaps on key API surfaces.
+- Status: `Done` (2026-02-11) - Added CI quality gates for `lint` (`tsc --noEmit`) and `format:check` (tracked-file whitespace/newline guard), and expanded API coverage with new tests for `contact-edits`, `admin/contact-edits`, and `admin/security` (plus canonical `admin/publications` coverage added in `R14`).
 - Primary files:
   - `.github/workflows/ci.yml`
   - `package.json`
