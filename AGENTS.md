@@ -39,7 +39,7 @@ Do not defer AGENTS updates.
 - OTP request/verify API responses are intentionally enumeration-safe: request responses are generic for allowed/not-allowed/rate-limited outcomes, and verify failures return a generic invalid-code response for auth failures.
 - OTP abuse controls are DB-backed and layered: OTP requests are rate limited by IP/subnet/global windows, and OTP verify failures are rate limited by IP and email+IP windows.
 - OTP emails are localized using the user-selected UI language (`requestOtp` payload `lang`) and include branded HTML (two-column layout with logo panel + styled content), a one-click magic login link, and the numeric OTP code as fallback.
-- Structured security audit events are recorded for OTP request/verify and admin-sensitive actions (user access changes, review moderation, publication edits including image reordering/removal, contact edit moderation, and contact edit submissions).
+- Structured security audit events are recorded for OTP request/verify and admin-sensitive actions (user access changes, review moderation + review edits, publication edits including image reordering/removal, contact edit moderation, and contact edit submissions).
 - Sensitive auth/admin API responses explicitly send `Cache-Control: no-store` headers.
 - Stateful `POST`/`DELETE` API endpoints enforce same-origin checks (Origin/Referer must match request host) to reduce CSRF risk; `GET /api/session/magic` is a token-authenticated email-link exception.
 - Same-origin validation failures now return structured payloads (`code`, `message`) with legacy `error` alias (`request_origin_validation_failed`, `request_origin_invalid`, `request_origin_missing`) for client-safe error mapping.
@@ -480,9 +480,11 @@ Moderation:
 - Page: `/{lang}/admin/reviews`
 - API: `/api/admin/reviews` (`GET`, `POST`)
 - Permission enforced server-side: `admin` only
+- Admin review edits are available from review cards in listing detail and map-selected historical-reviews views for admins, and edit saves are submitted through `POST /api/admin/reviews` with `action: \"edit\"`.
+- Admin review edits can update approved reviews (web + survey), including review text/metadata and review image URLs; image uploads reuse `POST /api/review-images` before save.
 - On approve action, listing aggregates are refreshed in `listings` from all approved reviews for that listing.
 - On approve action, public listing/review cache tags are revalidated (`public-listings`, `public-listing:<id>`, `public-approved-reviews`).
-- Moderation actions and outcomes are recorded in `security_audit_events`.
+- Moderation/edit actions and outcomes are recorded in `security_audit_events`.
 
 ## Contact Privacy Rules
 

@@ -6,7 +6,7 @@ import { ImageGalleryViewer } from "@/components/image-gallery-viewer";
 import { apiGetJson, apiPostJson, mapApiClientErrorMessage } from "@/lib/api-client";
 import { formatDateTime, formatUsdAmount } from "@/lib/format";
 import type { Messages } from "@/i18n/messages";
-import type { ApprovedWebReview, Lang, PendingWebReview } from "@/types";
+import type { AdminEditableReview, Lang, PendingWebReview } from "@/types";
 
 interface ReviewsPanelProps {
   lang: Lang;
@@ -16,7 +16,7 @@ interface ReviewsPanelProps {
 
 interface ModerationPayload {
   pending: PendingWebReview[];
-  approved: ApprovedWebReview[];
+  approved: AdminEditableReview[];
   approvedTotal?: number;
   approvedLimit?: number;
   approvedOffset?: number;
@@ -26,10 +26,14 @@ function formatOptionalValue(value?: string) {
   return value?.trim() || "-";
 }
 
+function getReviewSourceLabel(source: AdminEditableReview["source"], messages: Messages) {
+  return source === "survey" ? messages.reviewSourceSurvey : messages.reviewSourceWeb;
+}
+
 export function ReviewsPanel({ lang, listingMap, messages }: ReviewsPanelProps) {
   const approvedPageSize = 30;
   const [pendingReviews, setPendingReviews] = useState<PendingWebReview[]>([]);
-  const [approvedReviews, setApprovedReviews] = useState<ApprovedWebReview[]>([]);
+  const [approvedReviews, setApprovedReviews] = useState<AdminEditableReview[]>([]);
   const [approvedTotal, setApprovedTotal] = useState(0);
   const [approvedOffset, setApprovedOffset] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -76,7 +80,6 @@ export function ReviewsPanel({ lang, listingMap, messages }: ReviewsPanelProps) 
     setError("");
     try {
       await apiPostJson<{ ok: boolean }>("/api/admin/reviews", { action, reviewId });
-
       await loadModerationData(approvedOffset);
     } catch (error) {
       setError(
@@ -265,7 +268,7 @@ export function ReviewsPanel({ lang, listingMap, messages }: ReviewsPanelProps) 
                   {listingMap[review.listingId] || messages.adminUnknownListing}
                 </p>
                 <p className="review-item__meta">
-                  {formatDateTime(review.approvedAt, lang)} · {review.rating}/5 ·{" "}
+                  {getReviewSourceLabel(review.source, messages)} · {formatDateTime(review.approvedAt || review.createdAt, lang)} · {review.rating}/5 ·{" "}
                   {review.recommended ? messages.yes : messages.no}
                 </p>
                 <p>{review.comment}</p>

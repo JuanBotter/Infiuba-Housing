@@ -9,7 +9,7 @@ import {
   getTranslatedCommentForLanguage,
   type ReviewTranslationColumns,
 } from "@/lib/review-translations";
-import type { ApprovedWebReview, Lang, PendingWebReview } from "@/types";
+import type { AdminEditableReview, ApprovedWebReview, Lang, PendingWebReview } from "@/types";
 
 function toIsoString(value: string | Date) {
   return typeof value === "string" ? value : value.toISOString();
@@ -33,6 +33,9 @@ function toOptionalStringArray(value: unknown) {
 interface ReviewRow extends ReviewTranslationColumns {
   id: string;
   listing_id: string;
+  source?: "survey" | "web";
+  status?: "pending" | "approved" | "rejected";
+  year?: string | number | null;
   rating: string | number | null;
   price_usd: string | number | null;
   recommended: boolean | null;
@@ -72,6 +75,22 @@ function mapApprovedReviewRow(row: ReviewRow): ApprovedWebReview {
   return {
     ...mapPendingReviewRow(row),
     approvedAt: row.approved_at ? toIsoString(row.approved_at) : toIsoString(row.created_at),
+  };
+}
+
+function mapAdminEditableReviewRow(row: ReviewRow): AdminEditableReview {
+  const source = row.source === "survey" ? "survey" : "web";
+  const status =
+    row.status === "pending" || row.status === "rejected" || row.status === "approved"
+      ? row.status
+      : "approved";
+
+  return {
+    ...mapPendingReviewRow(row),
+    source,
+    status,
+    year: toOptionalNumber(row.year),
+    approvedAt: row.approved_at ? toIsoString(row.approved_at) : undefined,
   };
 }
 
@@ -194,6 +213,9 @@ export async function getApprovedReviews() {
       SELECT
         id,
         listing_id,
+        source,
+        status,
+        year,
         rating,
         price_usd,
         recommended,
@@ -208,12 +230,11 @@ export async function getApprovedReviews() {
         created_at,
         approved_at
       FROM reviews
-      WHERE source = 'web'
-        AND status = 'approved'
+      WHERE status = 'approved'
       ORDER BY approved_at DESC NULLS LAST, created_at DESC
     `,
   );
-  return result.rows.map(mapApprovedReviewRow);
+  return result.rows.map(mapAdminEditableReviewRow);
 }
 
 export async function getApprovedReviewsPage(limit: number, offset: number) {
@@ -225,6 +246,9 @@ export async function getApprovedReviewsPage(limit: number, offset: number) {
       SELECT
         id,
         listing_id,
+        source,
+        status,
+        year,
         rating,
         price_usd,
         recommended,
@@ -239,15 +263,14 @@ export async function getApprovedReviewsPage(limit: number, offset: number) {
         created_at,
         approved_at
       FROM reviews
-      WHERE source = 'web'
-        AND status = 'approved'
+      WHERE status = 'approved'
       ORDER BY approved_at DESC NULLS LAST, created_at DESC
       LIMIT $1
       OFFSET $2
     `,
     [boundedLimit, boundedOffset],
   );
-  return result.rows.map(mapApprovedReviewRow);
+  return result.rows.map(mapAdminEditableReviewRow);
 }
 
 export async function getApprovedReviewsTotal() {
@@ -255,13 +278,57 @@ export async function getApprovedReviewsTotal() {
     `
       SELECT COUNT(*) AS total
       FROM reviews
-      WHERE source = 'web'
-        AND status = 'approved'
+      WHERE status = 'approved'
     `,
   );
   const rawTotal = result.rows[0]?.total;
   const parsedTotal = typeof rawTotal === "number" ? rawTotal : Number(rawTotal);
   return Number.isFinite(parsedTotal) ? parsedTotal : 0;
+}
+
+async function refreshListingAggregates(client: {
+  query: (sql: string, params?: unknown[]) => Promise<unknown>;
+}, listingId: string) {
+  await client.query(
+    `
+      UPDATE listings
+      SET
+        average_rating = (
+          SELECT AVG(rating)
+          FROM reviews
+          WHERE listing_id = $1
+            AND status = 'approved'
+            AND rating IS NOT NULL
+        ),
+        recommendation_rate = (
+          SELECT CASE
+            WHEN COUNT(*) FILTER (WHERE recommended IS NOT NULL) = 0 THEN NULL
+            ELSE
+              COUNT(*) FILTER (WHERE recommended = TRUE)::numeric
+              / COUNT(*) FILTER (WHERE recommended IS NOT NULL)::numeric
+          END
+          FROM reviews
+          WHERE listing_id = $1
+            AND status = 'approved'
+        ),
+        total_reviews = (
+          SELECT COUNT(*)::integer
+          FROM reviews
+          WHERE listing_id = $1
+            AND status = 'approved'
+        ),
+        recent_year = (
+          SELECT MAX(year)
+          FROM reviews
+          WHERE listing_id = $1
+            AND status = 'approved'
+            AND year IS NOT NULL
+        ),
+        updated_at = NOW()
+      WHERE id = $1
+    `,
+    [listingId],
+  );
 }
 
 export interface NewReviewInput {
@@ -383,46 +450,7 @@ export async function moderatePendingReview(
         [reviewId],
       );
 
-      await client.query(
-        `
-          UPDATE listings
-          SET
-            average_rating = (
-              SELECT AVG(rating)
-              FROM reviews
-              WHERE listing_id = $1
-                AND status = 'approved'
-                AND rating IS NOT NULL
-            ),
-            recommendation_rate = (
-              SELECT CASE
-                WHEN COUNT(*) FILTER (WHERE recommended IS NOT NULL) = 0 THEN NULL
-                ELSE
-                  COUNT(*) FILTER (WHERE recommended = TRUE)::numeric
-                  / COUNT(*) FILTER (WHERE recommended IS NOT NULL)::numeric
-              END
-              FROM reviews
-              WHERE listing_id = $1
-                AND status = 'approved'
-            ),
-            total_reviews = (
-              SELECT COUNT(*)::integer
-              FROM reviews
-              WHERE listing_id = $1
-                AND status = 'approved'
-            ),
-            recent_year = (
-              SELECT MAX(year)
-              FROM reviews
-              WHERE listing_id = $1
-                AND status = 'approved'
-                AND year IS NOT NULL
-            ),
-            updated_at = NOW()
-          WHERE id = $1
-        `,
-        [reviewRow.listing_id],
-      );
+      await refreshListingAggregates(client, reviewRow.listing_id);
 
       const approved = await client.query<ReviewRow>(
         `
@@ -469,6 +497,143 @@ export async function moderatePendingReview(
       ok: true as const,
       action: "reject" as const,
       review: mapPendingReviewRow(reviewRow),
+    };
+  });
+}
+
+export interface AdminReviewUpdateInput {
+  rating?: number;
+  priceUsd?: number;
+  recommended?: boolean;
+  comment?: string;
+  semester?: string;
+  year?: number;
+  studentName?: string;
+  studentContact?: string;
+  studentEmail?: string;
+  shareContactInfo?: boolean;
+  imageUrls: string[];
+}
+
+export async function updateReviewByAdmin(reviewId: string, input: AdminReviewUpdateInput) {
+  return withTransaction(async (client) => {
+    const selected = await client.query<ReviewRow>(
+      `
+        SELECT
+          id,
+          listing_id,
+          source,
+          status,
+          year,
+          rating,
+          price_usd,
+          recommended,
+          comment,
+          ${REVIEW_TRANSLATION_COLUMNS_SQL},
+          semester,
+          student_contact,
+          student_name,
+          student_email,
+          allow_contact_sharing,
+          image_urls,
+          created_at,
+          approved_at
+        FROM reviews
+        WHERE id = $1
+          AND status = 'approved'
+        FOR UPDATE
+      `,
+      [reviewId],
+    );
+
+    if (selected.rowCount === 0) {
+      return { ok: false as const, reason: "not_found" as const };
+    }
+
+    const existing = selected.rows[0];
+    const nextStudentName = input.studentName ?? toOptionalText(existing.student_name);
+    const nextStudentContact = input.studentContact ?? toOptionalText(existing.student_contact);
+    const nextStudentEmail = input.studentEmail ?? toOptionalText(existing.student_email);
+    const nextRating = input.rating ?? toOptionalNumber(existing.rating);
+    const nextRecommended =
+      typeof input.recommended === "boolean"
+        ? input.recommended
+        : existing.recommended === null
+          ? null
+          : Boolean(existing.recommended);
+    const nextComment = input.comment ?? existing.comment ?? "";
+    const nextShareContactInfo =
+      typeof input.shareContactInfo === "boolean"
+        ? input.shareContactInfo
+        : Boolean(existing.allow_contact_sharing);
+    const nextPriceUsd = input.priceUsd ?? toOptionalNumber(existing.price_usd);
+    const nextSemester = input.semester ?? toOptionalText(existing.semester);
+    const nextYear = input.year ?? toOptionalNumber(existing.year);
+
+    await client.query(
+      `
+        UPDATE reviews
+        SET rating = $2,
+            price_usd = $3,
+            recommended = $4,
+            comment = $5,
+            semester = $6,
+            year = $7,
+            student_name = $8,
+            student_contact = $9,
+            student_email = $10,
+            allow_contact_sharing = $11,
+            image_urls = $12::text[]
+        WHERE id = $1
+      `,
+      [
+        reviewId,
+        nextRating ?? null,
+        nextPriceUsd ?? null,
+        nextRecommended,
+        nextComment,
+        nextSemester ?? null,
+        nextYear ?? null,
+        nextStudentName ?? null,
+        nextStudentContact ?? null,
+        nextStudentEmail ?? null,
+        nextShareContactInfo,
+        input.imageUrls,
+      ],
+    );
+
+    await refreshListingAggregates(client, existing.listing_id);
+
+    const updated = await client.query<ReviewRow>(
+      `
+        SELECT
+          id,
+          listing_id,
+          source,
+          status,
+          year,
+          rating,
+          price_usd,
+          recommended,
+          comment,
+          ${REVIEW_TRANSLATION_COLUMNS_SQL},
+          semester,
+          student_contact,
+          student_name,
+          student_email,
+          allow_contact_sharing,
+          image_urls,
+          created_at,
+          approved_at
+        FROM reviews
+        WHERE id = $1
+      `,
+      [reviewId],
+    );
+
+    return {
+      ok: true as const,
+      review: mapAdminEditableReviewRow(updated.rows[0]),
     };
   });
 }

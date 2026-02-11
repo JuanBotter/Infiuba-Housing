@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { ReviewComment } from "@/app/[lang]/place/[id]/review-comment";
 import { ReviewForm } from "@/app/[lang]/place/[id]/review-form";
+import { AdminReviewEditForm } from "@/components/admin-review-edit-form";
 import { ContactRichText } from "@/components/contact-rich-text";
 import { ContactEditRequestForm } from "@/components/contact-edit-request-form";
 import { ImageGalleryViewer } from "@/components/image-gallery-viewer";
@@ -74,6 +75,8 @@ export default async function PlaceDetailPage({ params }: PlaceDetailPageProps) 
       semester: review.semester,
       studentName: review.studentName,
       studentContact: review.studentContact,
+      studentEmail: review.studentEmail,
+      shareContactInfo: review.shareContactInfo,
       imageUrls: review.imageUrls,
       createdAt: review.createdAt,
     })),
@@ -240,6 +243,9 @@ export default async function PlaceDetailPage({ params }: PlaceDetailPageProps) 
                           return <span key={`${part.text}-${index}`}>{part.text}</span>;
                         })}
                       </p>
+                    ) : null}
+                    {isAdmin ? (
+                      <AdminReviewEditForm lang={lang} messages={messages} review={review} />
                     ) : null}
                   </li>
                 );

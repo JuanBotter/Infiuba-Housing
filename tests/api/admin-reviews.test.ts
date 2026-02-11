@@ -10,6 +10,7 @@ vi.mock("@/lib/reviews-store", () => ({
   getApprovedReviewsPage: vi.fn(),
   getApprovedReviewsTotal: vi.fn(),
   moderatePendingReview: vi.fn(),
+  updateReviewByAdmin: vi.fn(),
 }));
 
 vi.mock("@/lib/cache-tags", () => ({
@@ -21,12 +22,14 @@ vi.mock("@/lib/security-audit", () => ({
 }));
 
 let GET: typeof import("@/app/api/admin/reviews/route").GET;
+let POST: typeof import("@/app/api/admin/reviews/route").POST;
 let mockedRouteHelpers: typeof import("@/lib/api-route-helpers");
 let mockedReviewsStore: typeof import("@/lib/reviews-store");
 
 beforeAll(async () => {
   const route = await import("@/app/api/admin/reviews/route");
   GET = route.GET;
+  POST = route.POST;
   mockedRouteHelpers = vi.mocked(await import("@/lib/api-route-helpers"));
   mockedReviewsStore = vi.mocked(await import("@/lib/reviews-store"));
 });
@@ -46,6 +49,8 @@ describe("/api/admin/reviews GET", () => {
       {
         id: "review-1",
         listingId: "listing-1",
+        source: "survey",
+        status: "approved",
         rating: 5,
         recommended: true,
         comment: "Great stay.",
@@ -85,5 +90,75 @@ describe("/api/admin/reviews GET", () => {
 
     expect(response.status).toBe(200);
     expect(mockedReviewsStore.getApprovedReviewsPage).toHaveBeenCalledWith(100, 0);
+  });
+});
+
+describe("/api/admin/reviews POST", () => {
+  function buildRequest(body: Record<string, unknown>) {
+    return new Request("http://localhost/api/admin/reviews", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        origin: "http://localhost",
+      },
+      body: JSON.stringify(body),
+    });
+  }
+
+  it("rejects edit payload with invalid rating", async () => {
+    mockedRouteHelpers.requireAdminSession.mockResolvedValueOnce({
+      ok: true,
+      session: { role: "admin", email: "admin@example.com" },
+    });
+
+    const response = await POST(
+      buildRequest({ action: "edit", reviewId: "review-1", rating: 99 }),
+    );
+
+    expect(response.status).toBe(400);
+  });
+
+  it("updates approved reviews with edit action", async () => {
+    mockedRouteHelpers.requireAdminSession.mockResolvedValueOnce({
+      ok: true,
+      session: { role: "admin", email: "admin@example.com" },
+    });
+    mockedReviewsStore.updateReviewByAdmin.mockResolvedValueOnce({
+      ok: true,
+      review: {
+        id: "review-1",
+        listingId: "listing-1",
+        source: "survey",
+        status: "approved",
+      },
+    } as never);
+
+    const response = await POST(
+      buildRequest({
+        action: "edit",
+        reviewId: "review-1",
+        rating: 4,
+        recommended: true,
+        comment: "Updated review text",
+        semester: "1C-2026",
+        priceUsd: 1300,
+        studentName: "Jane Doe",
+        studentContact: "+54 11 1234 1234",
+        studentEmail: "jane@example.com",
+        shareContactInfo: true,
+        reviewImageUrls: ["https://example.com/review-1.jpg"],
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(mockedReviewsStore.updateReviewByAdmin).toHaveBeenCalledWith(
+      "review-1",
+      expect.objectContaining({
+        rating: 4,
+        recommended: true,
+        comment: "Updated review text",
+        imageUrls: ["https://example.com/review-1.jpg"],
+      }),
+    );
   });
 });

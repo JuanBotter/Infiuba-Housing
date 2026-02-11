@@ -20,6 +20,7 @@ import {
 import { usePriceFilter } from "@/app/[lang]/use-price-filter";
 import { ReviewComment } from "@/app/[lang]/place/[id]/review-comment";
 import { ReviewForm } from "@/app/[lang]/place/[id]/review-form";
+import { AdminReviewEditForm } from "@/components/admin-review-edit-form";
 import { ContactRichText } from "@/components/contact-rich-text";
 import { ContactEditRequestForm } from "@/components/contact-edit-request-form";
 import {
@@ -1036,6 +1037,9 @@ export function PlaceFilters({
                                   return <span key={`${part.text}-${index}`}>{part.text}</span>;
                                 })}
                               </p>
+                            ) : null}
+                            {isAdmin ? (
+                              <AdminReviewEditForm lang={lang} messages={messages} review={review} />
                             ) : null}
                           </li>
                         );

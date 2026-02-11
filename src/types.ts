@@ -16,6 +16,8 @@ export interface Review {
   translatedComment?: string;
   studentContact?: string;
   studentName?: string;
+  studentEmail?: string;
+  shareContactInfo?: boolean;
   semester?: string;
   imageUrls?: string[];
   createdAt: string;
@@ -67,6 +69,13 @@ export interface PendingWebReview {
 
 export interface ApprovedWebReview extends PendingWebReview {
   approvedAt: string;
+}
+
+export interface AdminEditableReview extends PendingWebReview {
+  source: ReviewSource;
+  status: "pending" | "approved" | "rejected";
+  year?: number;
+  approvedAt?: string;
 }
 
 export type ContactEditStatus = "pending" | "approved" | "rejected";

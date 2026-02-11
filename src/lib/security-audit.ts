@@ -12,6 +12,7 @@ export type SecurityAuditEventType =
   | "admin.user.delete"
   | "admin.user.upsert"
   | "admin.review.moderate"
+  | "admin.review.edit"
   | "admin.listing_images.reorder"
   | "admin.publication.update"
   | "admin.publication.delete_image";
