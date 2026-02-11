@@ -9,7 +9,7 @@ import {
   isApiClientError,
   mapApiClientErrorMessage,
 } from "@/lib/api-client";
-import { getLocaleForLang } from "@/lib/format";
+import { formatDateTime } from "@/lib/format";
 import { getMessages } from "@/lib/i18n";
 import type { Lang } from "@/types";
 
@@ -40,13 +40,6 @@ interface UpsertUsersPayload {
 
 interface AccessPanelProps {
   lang: Lang;
-}
-
-function formatDate(value: string, lang: Lang) {
-  return new Intl.DateTimeFormat(getLocaleForLang(lang), {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(new Date(value));
 }
 
 export function AccessPanel({ lang }: AccessPanelProps) {
@@ -345,10 +338,10 @@ export function AccessPanel({ lang }: AccessPanelProps) {
                         </select>
                       </label>
                       <p className="review-item__meta">
-                        {messages.adminUsersCreatedAtLabel}: {formatDate(user.createdAt, lang)}
+                        {messages.adminUsersCreatedAtLabel}: {formatDateTime(user.createdAt, lang)}
                       </p>
                       <p className="review-item__meta">
-                        {messages.adminUsersUpdatedAtLabel}: {formatDate(user.updatedAt, lang)}
+                        {messages.adminUsersUpdatedAtLabel}: {formatDateTime(user.updatedAt, lang)}
                       </p>
                       <div className="moderation-actions">
                         <button
@@ -392,7 +385,7 @@ export function AccessPanel({ lang }: AccessPanelProps) {
                     >
                       <p className="review-item__meta">{user.email}</p>
                       <p className="review-item__meta">
-                        {messages.adminUsersUpdatedAtLabel}: {formatDate(user.deletedAt, lang)}
+                        {messages.adminUsersUpdatedAtLabel}: {formatDateTime(user.deletedAt, lang)}
                       </p>
                     </li>
                   );

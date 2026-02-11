@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { ImageGalleryViewer } from "@/components/image-gallery-viewer";
 import { apiGetJson, apiPostJson, mapApiClientErrorMessage } from "@/lib/api-client";
-import { formatUsdAmount, getLocaleForLang } from "@/lib/format";
+import { formatDateTime, formatUsdAmount } from "@/lib/format";
 import { getMessages } from "@/lib/i18n";
 import type { ApprovedWebReview, Lang, PendingWebReview } from "@/types";
 
@@ -16,13 +16,6 @@ interface ReviewsPanelProps {
 interface ModerationPayload {
   pending: PendingWebReview[];
   approved: ApprovedWebReview[];
-}
-
-function formatDate(value: string, lang: Lang) {
-  return new Intl.DateTimeFormat(getLocaleForLang(lang), {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(new Date(value));
 }
 
 function formatOptionalValue(value?: string) {
@@ -113,7 +106,7 @@ export function ReviewsPanel({ lang, listingMap }: ReviewsPanelProps) {
                   <p className="moderation-review-title">
                     {listingMap[review.listingId] || messages.adminUnknownListing}
                   </p>
-                  <p className="review-item__meta">{formatDate(review.createdAt, lang)}</p>
+                  <p className="review-item__meta">{formatDateTime(review.createdAt, lang)}</p>
                   <dl className="moderation-review-fields">
                     <div>
                       <dt>{messages.ratingLabel}</dt>
@@ -220,7 +213,7 @@ export function ReviewsPanel({ lang, listingMap }: ReviewsPanelProps) {
                   {listingMap[review.listingId] || messages.adminUnknownListing}
                 </p>
                 <p className="review-item__meta">
-                  {formatDate(review.approvedAt, lang)} · {review.rating}/5 ·{" "}
+                  {formatDateTime(review.approvedAt, lang)} · {review.rating}/5 ·{" "}
                   {review.recommended ? messages.yes : messages.no}
                 </p>
                 <p>{review.comment}</p>

@@ -12,7 +12,7 @@ import {
 } from "@/lib/review-form";
 import { uploadReviewImageFiles } from "@/lib/review-image-upload";
 import { MAX_REVIEW_IMAGE_COUNT } from "@/lib/review-images";
-import { splitContactParts } from "@/lib/contact-links";
+import { ContactRichText } from "@/components/contact-rich-text";
 import { SEMESTER_OPTIONS } from "@/lib/semester-options";
 import { StarRating } from "@/components/star-rating";
 import { ImageGalleryViewer } from "@/components/image-gallery-viewer";
@@ -34,25 +34,6 @@ function normalizeText(value: string) {
     .toLowerCase()
     .normalize("NFD")
     .replace(/\p{Diacritic}/gu, "");
-}
-
-function renderContactValue(contact: string) {
-  return splitContactParts(contact).map((part, index) => {
-    if (part.type === "link") {
-      const isExternal = part.kind === "url";
-      return (
-        <a
-          key={`${part.text}-${index}`}
-          href={part.href}
-          target={isExternal ? "_blank" : undefined}
-          rel={isExternal ? "noreferrer" : undefined}
-        >
-          {part.text}
-        </a>
-      );
-    }
-    return <span key={`${part.text}-${index}`}>{part.text}</span>;
-  });
 }
 
 export function AddStayReviewForm({ lang, listings, neighborhoods }: AddStayReviewFormProps) {
@@ -379,7 +360,7 @@ export function AddStayReviewForm({ lang, listings, neighborhoods }: AddStayRevi
                   {selectedListing.contacts.length > 0 ? (
                     selectedListing.contacts.map((contact, index) => (
                       <span key={contact}>
-                        {renderContactValue(contact)}
+                        <ContactRichText contact={contact} />
                         {index < selectedListing.contacts.length - 1 ? " · " : ""}
                       </span>
                     ))

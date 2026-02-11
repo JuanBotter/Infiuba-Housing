@@ -85,6 +85,8 @@ Do not defer AGENTS updates.
 - Map mode has favorites parity with list mode: sidebar cards and selected-listing details include favorite controls (visitor clicks show a sign-in hint and do not save), and map sidebar image overlays/rail summaries show quick neighborhood + rating visibility.
 - When owner contacts are hidden by permissions, listing detail and map-selected panels show a small colored hint prompting login to view contact info.
 - Owner contact strings are linkified in UI (email/phone/url detection) for detail pages, map view, and review form context.
+- Contact rich-text rendering for owner contacts is centralized in `src/components/contact-rich-text.tsx` and reused by listing detail, map-selected details, add-review matched-listing context, and contact-edit request UI.
+- Admin access/reviews/contact-edits panels share localized date+time formatting through `formatDateTime` in `src/lib/format.ts` (instead of local per-panel formatters).
 - Whitelisted/admin users can request owner-contact and max-students updates from listing views; requests are reviewed in the admin contact edits view before applying changes.
 - Reviewer contact info is shown under map comments when available/consented, linkifying each email and phone separately (phones open WhatsApp; emails use mailto).
 - Review rating inputs use a 5-star control with whole-star increments and start unselected (0) until the user picks a value; recommendation radio buttons also start unselected and must be chosen. Review forms use client-side validation (no native browser validation) and highlight missing required fields with inline error text plus a shared error summary. Reported rent paid is required for all reviews; new listings also require owner contact info and max students. Contact fields are grouped under a contact section in review forms.
@@ -523,6 +525,7 @@ Must remain true:
 - Review API error codes/constants: `src/lib/review-api-errors.ts`
 - Review year helper: `src/lib/review-year.ts`
 - Phone input with country picker: `src/components/phone-input-with-country.tsx`
+- Shared contact rich-text renderer: `src/components/contact-rich-text.tsx`
 - Contact edit request UI: `src/components/contact-edit-request-form.tsx`
 - Shared image gallery/lightbox UI: `src/components/image-gallery-viewer.tsx`
 - Role/auth helpers: `src/lib/auth.ts`
@@ -538,6 +541,7 @@ Must remain true:
 - Review-image ordering helpers: `src/lib/review-image-order.ts`, `src/lib/admin-listing-images.ts`
 - Shared details-menu outside-close hook: `src/lib/use-details-outside-close.ts`
 - Favorites helpers: `src/lib/favorites.ts`
+- Shared date/time formatter helper: `src/lib/format.ts`
 - Data access: `src/lib/data.ts`
 - Reviews store: `src/lib/reviews-store.ts`
 - Messages/i18n: `src/i18n/messages.ts`

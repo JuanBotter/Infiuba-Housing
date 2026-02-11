@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { apiGetJson, apiPostJson, mapApiClientErrorMessage } from "@/lib/api-client";
-import { getLocaleForLang } from "@/lib/format";
+import { formatDateTime } from "@/lib/format";
 import type { ContactEditRequest, Lang } from "@/types";
 import type { Messages } from "@/i18n/messages";
 
@@ -15,13 +15,6 @@ interface ContactEditsPanelProps {
 interface ContactEditsPayload {
   pending: ContactEditRequest[];
   history: ContactEditRequest[];
-}
-
-function formatDate(value: string, lang: Lang) {
-  return new Intl.DateTimeFormat(getLocaleForLang(lang), {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(new Date(value));
 }
 
 function formatCapacity(value: number | undefined, messages: Messages) {
@@ -113,7 +106,7 @@ export function ContactEditsPanel({ lang, messages }: ContactEditsPanelProps) {
                   {request.listingNeighborhood ? ` · ${request.listingNeighborhood}` : ""}
                 </p>
                 <p className="review-item__meta">
-                  {formatDate(request.createdAt, lang)} · {request.requesterEmail}
+                  {formatDateTime(request.createdAt, lang)} · {request.requesterEmail}
                 </p>
                 <div className="contact-edit-block">
                   <p className="contact-edit-block__label">{messages.adminContactEditsCurrent}</p>
@@ -194,13 +187,13 @@ export function ContactEditsPanel({ lang, messages }: ContactEditsPanelProps) {
                   {request.listingNeighborhood ? ` · ${request.listingNeighborhood}` : ""}
                 </p>
                 <p className="review-item__meta">
-                  {formatDate(request.createdAt, lang)} · {request.requesterEmail}
+                  {formatDateTime(request.createdAt, lang)} · {request.requesterEmail}
                 </p>
                 <p className="review-item__meta">
                   {request.status === "approved"
                     ? messages.adminContactEditsApproved
                     : messages.adminContactEditsRejected}
-                  {request.reviewedAt ? ` · ${formatDate(request.reviewedAt, lang)}` : ""}
+                  {request.reviewedAt ? ` · ${formatDateTime(request.reviewedAt, lang)}` : ""}
                 </p>
                 <div className="contact-edit-block">
                   <p className="contact-edit-block__label">{messages.adminContactEditsRequested}</p>

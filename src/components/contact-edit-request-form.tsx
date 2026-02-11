@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-import { splitContactParts } from "@/lib/contact-links";
+import { ContactRichText } from "@/components/contact-rich-text";
 import type { Messages } from "@/i18n/messages";
 
 interface ContactEditRequestFormProps {
@@ -11,25 +11,6 @@ interface ContactEditRequestFormProps {
   currentCapacity?: number;
   messages: Messages;
   compact?: boolean;
-}
-
-function renderContactValue(contact: string) {
-  return splitContactParts(contact).map((part, index) => {
-    if (part.type === "link") {
-      const isExternal = part.kind === "url";
-      return (
-        <a
-          key={`${part.text}-${index}`}
-          href={part.href}
-          target={isExternal ? "_blank" : undefined}
-          rel={isExternal ? "noreferrer" : undefined}
-        >
-          {part.text}
-        </a>
-      );
-    }
-    return <span key={`${part.text}-${index}`}>{part.text}</span>;
-  });
 }
 
 export function ContactEditRequestForm({
@@ -149,7 +130,9 @@ export function ContactEditRequestForm({
             {currentContacts.length > 0 ? (
               <ul className="contact-list contact-edit__list">
                 {currentContacts.map((contact) => (
-                  <li key={contact}>{renderContactValue(contact)}</li>
+                  <li key={contact}>
+                    <ContactRichText contact={contact} />
+                  </li>
                 ))}
               </ul>
             ) : (

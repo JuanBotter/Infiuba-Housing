@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { ReviewComment } from "@/app/[lang]/place/[id]/review-comment";
 import { ReviewForm } from "@/app/[lang]/place/[id]/review-form";
+import { ContactRichText } from "@/components/contact-rich-text";
 import { ContactEditRequestForm } from "@/components/contact-edit-request-form";
 import { ImageGalleryViewer } from "@/components/image-gallery-viewer";
 import {
@@ -13,7 +14,6 @@ import {
 } from "@/lib/auth";
 import { getCachedPublicListingById, getListingById } from "@/lib/data";
 import { splitReviewerContactParts } from "@/lib/reviewer-contact";
-import { splitContactParts } from "@/lib/contact-links";
 import { formatDecimal, formatPercent, formatUsd, formatUsdRangePlain } from "@/lib/format";
 import { getMessages, isSupportedLanguage } from "@/lib/i18n";
 import { getReviewDisplayYear } from "@/lib/review-year";
@@ -27,25 +27,6 @@ export const dynamic = "force-dynamic";
 
 interface PlaceDetailPageProps {
   params: Promise<{ lang: string; id: string }>;
-}
-
-function renderContactValue(contact: string) {
-  return splitContactParts(contact).map((part, index) => {
-    if (part.type === "link") {
-      const isExternal = part.kind === "url";
-      return (
-        <a
-          key={`${part.text}-${index}`}
-          href={part.href}
-          target={isExternal ? "_blank" : undefined}
-          rel={isExternal ? "noreferrer" : undefined}
-        >
-          {part.text}
-        </a>
-      );
-    }
-    return <span key={`${part.text}-${index}`}>{part.text}</span>;
-  });
 }
 
 export default async function PlaceDetailPage({ params }: PlaceDetailPageProps) {
@@ -167,7 +148,9 @@ export default async function PlaceDetailPage({ params }: PlaceDetailPageProps) 
           listing.contacts.length > 0 ? (
             <ul className="contact-list">
               {listing.contacts.map((contact) => (
-                <li key={contact}>{renderContactValue(contact)}</li>
+                <li key={contact}>
+                  <ContactRichText contact={contact} />
+                </li>
               ))}
             </ul>
           ) : (

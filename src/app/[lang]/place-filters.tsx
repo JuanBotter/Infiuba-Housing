@@ -13,8 +13,8 @@ import {
 } from "@/app/[lang]/place-filters-price";
 import { ReviewComment } from "@/app/[lang]/place/[id]/review-comment";
 import { ReviewForm } from "@/app/[lang]/place/[id]/review-form";
+import { ContactRichText } from "@/components/contact-rich-text";
 import { ContactEditRequestForm } from "@/components/contact-edit-request-form";
-import { splitContactParts } from "@/lib/contact-links";
 import {
   formatDecimal,
   formatPercent,
@@ -105,25 +105,6 @@ function normalizeSortBy(value: string | undefined): SortBy {
     return value;
   }
   return "recent_desc";
-}
-
-function renderContactValue(contact: string) {
-  return splitContactParts(contact).map((part, index) => {
-    if (part.type === "link") {
-      const isExternal = part.kind === "url";
-      return (
-        <a
-          key={`${part.text}-${index}`}
-          href={part.href}
-          target={isExternal ? "_blank" : undefined}
-          rel={isExternal ? "noreferrer" : undefined}
-        >
-          {part.text}
-        </a>
-      );
-    }
-    return <span key={`${part.text}-${index}`}>{part.text}</span>;
-  });
 }
 
 export function PlaceFilters({
@@ -1395,7 +1376,9 @@ export function PlaceFilters({
                       {selectedMapListing.contacts.length > 0 ? (
                         <ul className="contact-list map-selected-details__contacts">
                           {selectedMapListing.contacts.map((contact) => (
-                            <li key={contact}>{renderContactValue(contact)}</li>
+                            <li key={contact}>
+                              <ContactRichText contact={contact} />
+                            </li>
                           ))}
                         </ul>
                       ) : (

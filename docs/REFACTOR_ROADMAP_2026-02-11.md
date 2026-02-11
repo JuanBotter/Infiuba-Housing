@@ -119,6 +119,7 @@ Scope: repository-wide refactors focused on reducing duplication, improving main
 - Effort: `S`
 - Depends on: none
 - Goal: remove repeated `renderContactValue` and `formatDate` implementations.
+- Status: `Done` (2026-02-11) - Added reusable `ContactRichText` plus shared `formatDateTime`, and migrated place/add-review/map/contact-edit/admin panels to the shared utilities with new unit coverage.
 - Primary files:
   - `src/app/[lang]/place/[id]/page.tsx`
   - `src/app/[lang]/add-stay-review-form.tsx`

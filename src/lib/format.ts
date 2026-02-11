@@ -99,3 +99,11 @@ export function formatDecimal(value: number, lang: Lang) {
     maximumFractionDigits: 1,
   }).format(value);
 }
+
+export function formatDateTime(value: string | Date, lang: Lang) {
+  const date = value instanceof Date ? value : new Date(value);
+  return new Intl.DateTimeFormat(getLocaleForLang(lang), {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(date);
+}
