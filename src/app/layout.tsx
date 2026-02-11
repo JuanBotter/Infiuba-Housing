@@ -32,14 +32,14 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  const fontVariablesClassName = `${plusJakartaSans.variable} ${workSans.variable} ${inter.variable}`;
+
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning className={fontVariablesClassName}>
       <head>
         <Script src="/theme-init.js" strategy="beforeInteractive" />
       </head>
-      <body className={`${plusJakartaSans.variable} ${workSans.variable} ${inter.variable}`}>
-        {children}
-      </body>
+      <body>{children}</body>
     </html>
   );
 }

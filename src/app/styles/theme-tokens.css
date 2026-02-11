@@ -1,8 +1,9 @@
 :root {
   --font-base-sans:
-    var(--font-plus-jakarta-sans), "Avenir Next", "Trebuchet MS", "Segoe UI", sans-serif;
-  --font-admin-sans: var(--font-work-sans), var(--font-base-sans);
-  --font-security-sans: var(--font-inter), var(--font-base-sans);
+    var(--font-plus-jakarta-sans, "Plus Jakarta Sans"), "Avenir Next", "Trebuchet MS",
+    "Segoe UI", sans-serif;
+  --font-admin-sans: var(--font-work-sans, "Work Sans"), var(--font-base-sans);
+  --font-security-sans: var(--font-inter, "Inter"), var(--font-base-sans);
   --font-heading: var(--font-base-sans);
   --font-body: var(--font-base-sans);
   --font-admin: var(--font-admin-sans);

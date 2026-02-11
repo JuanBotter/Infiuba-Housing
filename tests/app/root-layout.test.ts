@@ -26,7 +26,7 @@ beforeAll(async () => {
 });
 
 describe("RootLayout", () => {
-  it("applies loaded font variables to body className", () => {
+  it("applies loaded font variables to html className", () => {
     const markup = renderToStaticMarkup(
       React.createElement(
         RootLayout,
@@ -35,7 +35,7 @@ describe("RootLayout", () => {
       ),
     );
 
-    expect(markup).toContain('class="font-plus-jakarta font-work-sans font-inter"');
+    expect(markup).toContain('<html lang="en" class="font-plus-jakarta font-work-sans font-inter">');
     expect(markup).toContain('<script src="/theme-init.js"></script>');
     expect(markup).toContain("<main>content</main>");
     expect(plusJakartaMock).toHaveBeenCalledTimes(1);
