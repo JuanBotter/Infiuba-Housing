@@ -1,12 +1,24 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { getMessages } from "@/lib/i18n";
 import { REVIEW_API_ERROR_CODES } from "@/lib/review-api-errors";
-import { mapReviewApiErrorMessage, readApiErrorMessage } from "@/lib/review-form";
+import { MAX_REVIEW_IMAGE_COUNT } from "@/lib/review-images";
+import {
+  createInitialReviewDraft,
+  mapReviewApiErrorMessage,
+  readApiErrorMessage,
+  submitReview,
+  uploadReviewDraftImages,
+  validateReviewDraft,
+} from "@/lib/review-form";
 
 const messages = getMessages("en");
 
 describe("review-form api error mapping", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("reads structured code/message payloads", async () => {
     const response = new Response(
       JSON.stringify({
@@ -66,5 +78,66 @@ describe("review-form api error mapping", () => {
         messages,
       ),
     ).toBe(messages.accessNotAllowedError);
+  });
+
+  it("validates required review fields and contact-sharing rules", () => {
+    const draft = createInitialReviewDraft();
+    draft.shareContactInfo = true;
+
+    expect(validateReviewDraft(draft, messages)).toEqual({
+      rating: messages.formRequiredField,
+      recommended: messages.formRequiredField,
+      priceUsd: messages.formRequiredField,
+      comment: messages.formRequiredField,
+      semester: messages.formRequiredField,
+      contactShare: messages.formContactShareError,
+    });
+  });
+
+  it("returns unavailable result for 503 review submissions", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response("unavailable", { status: 503 }));
+
+    await expect(submitReview({ listingId: "abc" }, messages)).resolves.toEqual({
+      ok: false,
+      kind: "unavailable",
+      message: "",
+    });
+  });
+
+  it("maps API errors for failed review submissions", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          code: REVIEW_API_ERROR_CODES.SUBMIT_NOT_ALLOWED,
+          message: "Only whitelisted students can submit reviews.",
+        }),
+        { status: 403, headers: { "Content-Type": "application/json" } },
+      ),
+    );
+
+    await expect(submitReview({ listingId: "abc" }, messages)).resolves.toEqual({
+      ok: false,
+      kind: "api",
+      message: messages.accessNotAllowedError,
+    });
+  });
+
+  it("returns network error result when review submit request throws", async () => {
+    vi.spyOn(globalThis, "fetch").mockRejectedValueOnce(new Error("network"));
+
+    await expect(submitReview({ listingId: "abc" }, messages)).resolves.toEqual({
+      ok: false,
+      kind: "network",
+      message: "",
+    });
+  });
+
+  it("returns max-images error before upload when no slots remain", async () => {
+    await expect(
+      uploadReviewDraftImages([{} as File], MAX_REVIEW_IMAGE_COUNT, messages),
+    ).resolves.toEqual({
+      ok: false,
+      message: messages.formPhotosMaxError.replace("{count}", String(MAX_REVIEW_IMAGE_COUNT)),
+    });
   });
 });

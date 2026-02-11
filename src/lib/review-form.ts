@@ -1,5 +1,6 @@
 import type { Messages } from "@/i18n/messages";
 import { REVIEW_API_ERROR_CODES } from "@/lib/review-api-errors";
+import { uploadReviewImageFiles } from "@/lib/review-image-upload";
 import { MAX_REVIEW_IMAGE_COUNT } from "@/lib/review-images";
 
 export interface ReviewDraft {
@@ -47,6 +48,35 @@ export function buildReviewPayload(draft: ReviewDraft) {
   };
 }
 
+export function validateReviewDraft(draft: ReviewDraft, messages: Messages) {
+  const nextErrors: Record<string, string> = {};
+  const ratingValue = Number(draft.rating);
+  const hasRating = Number.isFinite(ratingValue) && ratingValue > 0;
+  const hasRecommendation = draft.recommended === "yes" || draft.recommended === "no";
+  const priceValue = Number(draft.priceUsd);
+
+  if (!hasRating) {
+    nextErrors.rating = messages.formRequiredField;
+  }
+  if (!hasRecommendation) {
+    nextErrors.recommended = messages.formRequiredField;
+  }
+  if (!Number.isFinite(priceValue) || priceValue <= 0) {
+    nextErrors.priceUsd = messages.formRequiredField;
+  }
+  if (draft.comment.trim().length < 12) {
+    nextErrors.comment = messages.formRequiredField;
+  }
+  if (!draft.semester.trim()) {
+    nextErrors.semester = messages.formRequiredField;
+  }
+  if (draft.shareContactInfo && !draft.studentEmail.trim() && !draft.studentContact.trim()) {
+    nextErrors.contactShare = messages.formContactShareError;
+  }
+
+  return nextErrors;
+}
+
 export interface ReviewApiErrorResponse {
   code: string;
   message: string;
@@ -67,6 +97,76 @@ export async function readApiErrorMessage(response: Response): Promise<ReviewApi
     code,
     message: messageValue.trim(),
   };
+}
+
+export type SubmitReviewResult =
+  | { ok: true }
+  | { ok: false; kind: "unavailable" | "api" | "network"; message: string };
+
+export async function submitReview(
+  payload: Record<string, unknown>,
+  messages: Messages,
+): Promise<SubmitReviewResult> {
+  try {
+    const response = await fetch("/api/reviews", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (response.status === 503) {
+      return { ok: false, kind: "unavailable", message: "" };
+    }
+
+    if (!response.ok) {
+      const apiError = await readApiErrorMessage(response);
+      return {
+        ok: false,
+        kind: "api",
+        message: mapReviewApiErrorMessage(apiError, messages),
+      };
+    }
+
+    return { ok: true };
+  } catch {
+    return { ok: false, kind: "network", message: "" };
+  }
+}
+
+export async function uploadReviewDraftImages(
+  files: File[],
+  existingImageCount: number,
+  messages: Messages,
+) {
+  const remainingSlots = MAX_REVIEW_IMAGE_COUNT - existingImageCount;
+  if (remainingSlots <= 0) {
+    return {
+      ok: false as const,
+      message: messages.formPhotosMaxError.replace("{count}", String(MAX_REVIEW_IMAGE_COUNT)),
+    };
+  }
+
+  try {
+    const uploaded = await uploadReviewImageFiles(files.slice(0, remainingSlots));
+    if (!uploaded.ok) {
+      return {
+        ok: false as const,
+        message: uploaded.error,
+      };
+    }
+
+    return {
+      ok: true as const,
+      urls: uploaded.urls.slice(0, remainingSlots),
+    };
+  } catch {
+    return {
+      ok: false as const,
+      message: "Image upload failed",
+    };
+  }
 }
 
 export function mapReviewApiErrorMessage(apiError: ReviewApiErrorResponse, messages: Messages) {

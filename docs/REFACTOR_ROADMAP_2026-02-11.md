@@ -69,6 +69,7 @@ Scope: repository-wide refactors focused on reducing duplication, improving main
 - Effort: `L`
 - Depends on: `R02`, `R03`
 - Goal: deduplicate submission, validation, and upload logic across add-review/detail-review flows.
+- Status: `Done` (2026-02-11) - Added shared review-core hook/component architecture (`useReviewFormCore`, `ReviewCoreFields`) plus centralized submit/validate/upload helpers in `review-form`, and migrated both add-review/detail-review flows to the shared path with expanded tests.
 - Primary files:
   - `src/app/[lang]/add-stay-review-form.tsx`
   - `src/app/[lang]/place/[id]/review-form.tsx`

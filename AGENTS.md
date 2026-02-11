@@ -63,7 +63,7 @@ Do not defer AGENTS updates.
 - Listing/detail/map review metadata uses localized review-source labels (`web`/`survey`), shows a review year derived from `year`, then `semester`, then `createdAt`, and includes per-review reported rent when available.
 - Shared image gallery/lightbox controls and labels are localized by UI language (fit/fill, zoom, open-original, close, previous/next, thumbnails, and fallback remove text).
 - Admin bulk user upsert uses set-based SQL (`DELETE ... WHERE email = ANY(...)` + `INSERT ... SELECT FROM UNNEST(...)`) in one transaction.
-- Add-review and detail-review flows share common review payload/state helpers in `src/lib/review-form.ts`, including client-side mapping of server review errors to localized UI copy (unknown server errors fall back to generic localized form errors).
+- Add-review and detail-review flows now share a unified review-form core: centralized validation/submission/upload helpers in `src/lib/review-form.ts`, shared client hook state in `src/lib/use-review-form-core.ts`, and shared field rendering via `src/components/review-core-fields.tsx`; client-side review error mapping still resolves localized UI copy with generic fallback for unknown server errors.
 - New listing fields in the add-review flow omit coordinates; latitude/longitude are not collected from users.
 - Add-review flow uses neighborhood autocomplete suggestions from known neighborhood values.
 - Main listings UI uses a view toggle: `Map` (default), `List`, and (for whitelisted/admin) `Add review`.
@@ -522,6 +522,8 @@ Must remain true:
 - Frontend API client helpers: `src/lib/api-client.ts`
 - Cache-tag invalidation helpers: `src/lib/cache-tags.ts`
 - Shared review payload helpers: `src/lib/review-form.ts`
+- Shared review-form state hook: `src/lib/use-review-form-core.ts`
+- Shared review form field sections component: `src/components/review-core-fields.tsx`
 - Review API error codes/constants: `src/lib/review-api-errors.ts`
 - Review year helper: `src/lib/review-year.ts`
 - Phone input with country picker: `src/components/phone-input-with-country.tsx`
