@@ -165,6 +165,7 @@ Scope: repository-wide refactors focused on reducing duplication, improving main
 - Effort: `M`
 - Depends on: none
 - Goal: reduce repeated `comment_en/.../comment_no` SQL lists and row typing duplication.
+- Status: `Done` (2026-02-11) - Translation-column constants/builders are centralized in `review-translations`; `data.ts`, `reviews-store.ts`, and `db-seed` now use shared translation-column SQL/value builders instead of duplicated hardcoded lists.
 - Primary files:
   - `src/lib/data.ts`
   - `src/lib/reviews-store.ts`

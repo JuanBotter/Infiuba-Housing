@@ -4,7 +4,11 @@ import { unstable_cache } from "next/cache";
 
 import { dbQuery, withTransaction } from "@/lib/db";
 import { toOptionalNumber } from "@/lib/domain-constraints";
-import { getTranslatedCommentForLanguage } from "@/lib/review-translations";
+import {
+  buildReviewTranslationSelectSql,
+  getTranslatedCommentForLanguage,
+  type ReviewTranslationColumns,
+} from "@/lib/review-translations";
 import type { ApprovedWebReview, Lang, PendingWebReview } from "@/types";
 
 function toIsoString(value: string | Date) {
@@ -26,20 +30,13 @@ function toOptionalStringArray(value: unknown) {
   return normalized.length ? normalized : undefined;
 }
 
-interface ReviewRow {
+interface ReviewRow extends ReviewTranslationColumns {
   id: string;
   listing_id: string;
   rating: string | number | null;
   price_usd: string | number | null;
   recommended: boolean | null;
   comment: string | null;
-  comment_en: string | null;
-  comment_es: string | null;
-  comment_fr: string | null;
-  comment_de: string | null;
-  comment_pt: string | null;
-  comment_it: string | null;
-  comment_no: string | null;
   semester: string | null;
   student_contact: string | null;
   student_name: string | null;
@@ -49,6 +46,9 @@ interface ReviewRow {
   created_at: string | Date;
   approved_at: string | Date | null;
 }
+
+const REVIEW_TRANSLATION_COLUMNS_SQL = buildReviewTranslationSelectSql();
+const REVIEW_TRANSLATION_COLUMNS_SQL_R = buildReviewTranslationSelectSql("r");
 
 function mapPendingReviewRow(row: ReviewRow): PendingWebReview {
   return {
@@ -120,13 +120,7 @@ export async function getApprovedReviewsForListing(
         price_usd,
         recommended,
         comment,
-        comment_en,
-        comment_es,
-        comment_fr,
-        comment_de,
-        comment_pt,
-        comment_it,
-        comment_no,
+        ${REVIEW_TRANSLATION_COLUMNS_SQL},
         semester,
         student_contact,
         student_name,
@@ -176,13 +170,7 @@ export async function getPendingReviews() {
         r.price_usd,
         r.recommended,
         r.comment,
-        r.comment_en,
-        r.comment_es,
-        r.comment_fr,
-        r.comment_de,
-        r.comment_pt,
-        r.comment_it,
-        r.comment_no,
+        ${REVIEW_TRANSLATION_COLUMNS_SQL_R},
         r.semester,
         r.student_contact,
         r.student_name,
@@ -210,13 +198,7 @@ export async function getApprovedReviews() {
         price_usd,
         recommended,
         comment,
-        comment_en,
-        comment_es,
-        comment_fr,
-        comment_de,
-        comment_pt,
-        comment_it,
-        comment_no,
+        ${REVIEW_TRANSLATION_COLUMNS_SQL},
         semester,
         student_contact,
         student_name,
@@ -247,13 +229,7 @@ export async function getApprovedReviewsPage(limit: number, offset: number) {
         price_usd,
         recommended,
         comment,
-        comment_en,
-        comment_es,
-        comment_fr,
-        comment_de,
-        comment_pt,
-        comment_it,
-        comment_no,
+        ${REVIEW_TRANSLATION_COLUMNS_SQL},
         semester,
         student_contact,
         student_name,
@@ -372,13 +348,7 @@ export async function moderatePendingReview(
           price_usd,
           recommended,
           comment,
-          comment_en,
-          comment_es,
-          comment_fr,
-          comment_de,
-          comment_pt,
-          comment_it,
-          comment_no,
+          ${REVIEW_TRANSLATION_COLUMNS_SQL},
           semester,
           student_contact,
           student_name,
@@ -463,13 +433,7 @@ export async function moderatePendingReview(
             price_usd,
             recommended,
             comment,
-            comment_en,
-            comment_es,
-            comment_fr,
-            comment_de,
-            comment_pt,
-            comment_it,
-            comment_no,
+            ${REVIEW_TRANSLATION_COLUMNS_SQL},
             semester,
             student_contact,
             student_name,

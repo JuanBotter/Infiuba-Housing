@@ -1,5 +1,15 @@
 import type { Lang } from "@/types";
 
+export const REVIEW_TRANSLATION_COLUMNS = [
+  "comment_en",
+  "comment_es",
+  "comment_fr",
+  "comment_de",
+  "comment_pt",
+  "comment_it",
+  "comment_no",
+] as const;
+
 export interface ReviewTranslationColumns {
   comment_en?: string | null;
   comment_es?: string | null;
@@ -8,6 +18,10 @@ export interface ReviewTranslationColumns {
   comment_pt?: string | null;
   comment_it?: string | null;
   comment_no?: string | null;
+}
+
+export function buildReviewTranslationSelectSql(prefix?: string) {
+  return REVIEW_TRANSLATION_COLUMNS.map((column) => (prefix ? `${prefix}.${column}` : column)).join(",\n            ");
 }
 
 const TRANSLATION_COLUMN_BY_LANG: Record<Lang, keyof ReviewTranslationColumns> = {

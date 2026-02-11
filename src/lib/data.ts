@@ -8,7 +8,11 @@ import {
   applyStoredReviewImageOrder,
   getApprovedReviewImagesMap,
 } from "@/lib/review-image-order";
-import { getTranslatedCommentForLanguage } from "@/lib/review-translations";
+import {
+  buildReviewTranslationSelectSql,
+  getTranslatedCommentForLanguage,
+  type ReviewTranslationColumns,
+} from "@/lib/review-translations";
 import type { Lang, Listing, Review } from "@/types";
 
 function normalizeText(value: string) {
@@ -96,7 +100,7 @@ function mapListingRow(row: ListingRow): Listing {
   };
 }
 
-interface ReviewRow {
+interface ReviewRow extends ReviewTranslationColumns {
   id: string;
   source: "survey" | "web";
   year: number | null;
@@ -104,13 +108,6 @@ interface ReviewRow {
   price_usd: string | number | null;
   recommended: boolean | null;
   comment: string | null;
-  comment_en: string | null;
-  comment_es: string | null;
-  comment_fr: string | null;
-  comment_de: string | null;
-  comment_pt: string | null;
-  comment_it: string | null;
-  comment_no: string | null;
   allow_contact_sharing: boolean | null;
   student_contact: string | null;
   student_name: string | null;
@@ -118,6 +115,8 @@ interface ReviewRow {
   image_urls: string[] | null;
   created_at: string | Date;
 }
+
+const REVIEW_TRANSLATION_COLUMNS_SQL = buildReviewTranslationSelectSql();
 
 function mapReviewRow(
   row: ReviewRow,
@@ -233,13 +232,7 @@ export async function getListings(options: ListingPrivacyOptions = {}) {
             price_usd,
             recommended,
             comment,
-            comment_en,
-            comment_es,
-            comment_fr,
-            comment_de,
-            comment_pt,
-            comment_it,
-            comment_no,
+            ${REVIEW_TRANSLATION_COLUMNS_SQL},
             allow_contact_sharing,
             student_contact,
             student_name,
@@ -265,13 +258,7 @@ export async function getListings(options: ListingPrivacyOptions = {}) {
           price_usd,
           recommended,
           comment,
-          comment_en,
-          comment_es,
-          comment_fr,
-          comment_de,
-          comment_pt,
-          comment_it,
-          comment_no,
+          ${REVIEW_TRANSLATION_COLUMNS_SQL},
           allow_contact_sharing,
           student_contact,
           student_name,
@@ -379,13 +366,7 @@ export async function getListingById(
         price_usd,
         recommended,
         comment,
-        comment_en,
-        comment_es,
-        comment_fr,
-        comment_de,
-        comment_pt,
-        comment_it,
-        comment_no,
+        ${REVIEW_TRANSLATION_COLUMNS_SQL},
         allow_contact_sharing,
         student_contact,
         student_name,

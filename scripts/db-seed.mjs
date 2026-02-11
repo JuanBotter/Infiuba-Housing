@@ -10,6 +10,8 @@ const DATASET_FILE = path.join(ROOT, "src", "data", "accommodations.json");
 const PENDING_REVIEWS_FILE = path.join(ROOT, "data", "reviews.pending.json");
 const APPROVED_REVIEWS_FILE = path.join(ROOT, "data", "reviews.approved.json");
 const REVIEW_LANGUAGES = ["en", "es", "fr", "de", "pt", "it", "no"];
+const REVIEW_TRANSLATION_COLUMNS = REVIEW_LANGUAGES.map((lang) => `comment_${lang}`);
+const REVIEW_TRANSLATION_COLUMNS_SQL = REVIEW_TRANSLATION_COLUMNS.join(",\n          ");
 
 if (!process.env.DATABASE_URL) {
   throw new Error("DATABASE_URL is required to seed Postgres.");
@@ -37,15 +39,9 @@ function normalizeCreatedAt(value, fallback = "1970-01-01T00:00:00.000Z") {
 }
 
 function normalizeTranslations(value) {
-  const normalized = {
-    comment_en: null,
-    comment_es: null,
-    comment_fr: null,
-    comment_de: null,
-    comment_pt: null,
-    comment_it: null,
-    comment_no: null,
-  };
+  const normalized = Object.fromEntries(
+    REVIEW_TRANSLATION_COLUMNS.map((column) => [column, null]),
+  );
 
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return normalized;
@@ -65,6 +61,19 @@ function normalizeTranslations(value) {
 
   return normalized;
 }
+
+function translationValues(translations) {
+  return REVIEW_TRANSLATION_COLUMNS.map((column) => translations[column] ?? null);
+}
+
+function placeholders(startIndex, count) {
+  return Array.from({ length: count }, (_, index) => `$${startIndex + index}`).join(", ");
+}
+
+const TRANSLATION_PLACEHOLDERS_FROM_12 = placeholders(12, REVIEW_TRANSLATION_COLUMNS.length);
+const IMAGE_PLACEHOLDER_AFTER_TRANSLATIONS = `$${12 + REVIEW_TRANSLATION_COLUMNS.length}`;
+const CREATED_AT_PLACEHOLDER_AFTER_TRANSLATIONS = `$${13 + REVIEW_TRANSLATION_COLUMNS.length}`;
+const APPROVED_AT_PLACEHOLDER_AFTER_TRANSLATIONS = `$${14 + REVIEW_TRANSLATION_COLUMNS.length}`;
 
 function normalizeImageUrls(value, maxCount) {
   if (!Array.isArray(value)) {
@@ -95,13 +104,7 @@ async function run() {
       `
         SELECT
           id,
-          comment_en,
-          comment_es,
-          comment_fr,
-          comment_de,
-          comment_pt,
-          comment_it,
-          comment_no
+          ${REVIEW_TRANSLATION_COLUMNS_SQL}
         FROM reviews
       `,
     );
@@ -200,17 +203,11 @@ async function run() {
               student_name,
               allow_contact_sharing,
               semester,
-              comment_en,
-              comment_es,
-              comment_fr,
-              comment_de,
-              comment_pt,
-              comment_it,
-              comment_no,
+              ${REVIEW_TRANSLATION_COLUMNS_SQL},
               image_urls,
               created_at,
               approved_at
-            ) VALUES ($1, $2, 'survey', 'approved', $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $20)
+            ) VALUES ($1, $2, 'survey', 'approved', $3, $4, $5, $6, $7, $8, $9, $10, $11, ${TRANSLATION_PLACEHOLDERS_FROM_12}, ${IMAGE_PLACEHOLDER_AFTER_TRANSLATIONS}, ${CREATED_AT_PLACEHOLDER_AFTER_TRANSLATIONS}, ${CREATED_AT_PLACEHOLDER_AFTER_TRANSLATIONS})
             ON CONFLICT (id) DO NOTHING
           `,
           [
@@ -225,13 +222,7 @@ async function run() {
             review.studentName ?? null,
             Boolean(review.studentContact),
             review.semester ?? null,
-            translations.comment_en,
-            translations.comment_es,
-            translations.comment_fr,
-            translations.comment_de,
-            translations.comment_pt,
-            translations.comment_it,
-            translations.comment_no,
+            ...translationValues(translations),
             normalizeImageUrls(review.imageUrls, 6),
             normalizeCreatedAt(review.createdAt),
           ],
@@ -260,17 +251,11 @@ async function run() {
             student_name,
             student_email,
             allow_contact_sharing,
-            comment_en,
-            comment_es,
-            comment_fr,
-            comment_de,
-            comment_pt,
-            comment_it,
-            comment_no,
+            ${REVIEW_TRANSLATION_COLUMNS_SQL},
             image_urls,
             created_at,
             approved_at
-          ) VALUES ($1, $2, 'web', 'approved', $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
+          ) VALUES ($1, $2, 'web', 'approved', $3, $4, $5, $6, $7, $8, $9, $10, $11, ${TRANSLATION_PLACEHOLDERS_FROM_12}, ${IMAGE_PLACEHOLDER_AFTER_TRANSLATIONS}, ${CREATED_AT_PLACEHOLDER_AFTER_TRANSLATIONS}, ${APPROVED_AT_PLACEHOLDER_AFTER_TRANSLATIONS})
           ON CONFLICT (id) DO NOTHING
         `,
         [
@@ -285,13 +270,7 @@ async function run() {
           review.studentName ?? null,
           review.studentEmail ?? null,
           Boolean(review.shareContactInfo),
-          translations.comment_en,
-          translations.comment_es,
-          translations.comment_fr,
-          translations.comment_de,
-          translations.comment_pt,
-          translations.comment_it,
-          translations.comment_no,
+          ...translationValues(translations),
           normalizeImageUrls(review.imageUrls, 6),
           normalizeCreatedAt(review.createdAt),
           normalizeCreatedAt(review.approvedAt, normalizeCreatedAt(review.createdAt)),
@@ -320,16 +299,10 @@ async function run() {
             student_name,
             student_email,
             allow_contact_sharing,
-            comment_en,
-            comment_es,
-            comment_fr,
-            comment_de,
-            comment_pt,
-            comment_it,
-            comment_no,
+            ${REVIEW_TRANSLATION_COLUMNS_SQL},
             image_urls,
             created_at
-          ) VALUES ($1, $2, 'web', 'pending', $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+          ) VALUES ($1, $2, 'web', 'pending', $3, $4, $5, $6, $7, $8, $9, $10, $11, ${TRANSLATION_PLACEHOLDERS_FROM_12}, ${IMAGE_PLACEHOLDER_AFTER_TRANSLATIONS}, ${CREATED_AT_PLACEHOLDER_AFTER_TRANSLATIONS})
           ON CONFLICT (id) DO NOTHING
         `,
         [
@@ -344,13 +317,7 @@ async function run() {
           review.studentName ?? null,
           review.studentEmail ?? null,
           Boolean(review.shareContactInfo),
-          translations.comment_en,
-          translations.comment_es,
-          translations.comment_fr,
-          translations.comment_de,
-          translations.comment_pt,
-          translations.comment_it,
-          translations.comment_no,
+          ...translationValues(translations),
           normalizeImageUrls(review.imageUrls, 6),
           normalizeCreatedAt(review.createdAt),
         ],

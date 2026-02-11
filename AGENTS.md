@@ -94,6 +94,7 @@ Do not defer AGENTS updates.
 - Reviewer contact info is shown under map comments when available/consented, linkifying each email and phone separately (phones open WhatsApp; emails use mailto).
 - Review rating inputs use a 5-star control with whole-star increments and start unselected (0) until the user picks a value; recommendation radio buttons also start unselected and must be chosen. Review forms use client-side validation (no native browser validation) and highlight missing required fields with inline error text plus a shared error summary. Reported rent paid is required for all reviews; new listings also require owner contact info and max students. Contact fields are grouped under a contact section in review forms.
 - Review forms use a searchable country-code phone picker (flag + localized country name + dial code) for reviewer phone input in both add-review and detail-review flows; stored reviewer phone values are normalized to `+<country-code> <number>`. Default country is Argentina (`+54`) for English and Spanish UI.
+- Review translation columns (`comment_en` … `comment_no`) are centralized via `REVIEW_TRANSLATION_COLUMNS` and SQL builders in `src/lib/review-translations.ts`, and reused by listing/review data queries plus seeding scripts to avoid hardcoded per-query column lists.
 - On mobile/narrow layouts (`<=1100px`), map mode is map-first: a horizontal property rail sits under the map, and the full results list opens as a bottom-sheet drawer with backdrop.
 - In map mode, selected listing details (stats + owner contacts when visible to role + details link) render under the map panel content; on mobile/narrow layouts they appear under the horizontal rail.
 - Selecting a listing from map markers keeps list/rail selection in sync and auto-scrolls the corresponding item into view when visible; when sort order changes in map mode, selection resets to the first result in the new order.
@@ -531,6 +532,7 @@ Must remain true:
 - Shared review-form state hook: `src/lib/use-review-form-core.ts`
 - Shared review form field sections component: `src/components/review-core-fields.tsx`
 - Review API error codes/constants: `src/lib/review-api-errors.ts`
+- Review translation-column helpers: `src/lib/review-translations.ts`
 - Review year helper: `src/lib/review-year.ts`
 - Phone input with country picker: `src/components/phone-input-with-country.tsx`
 - Shared contact rich-text renderer: `src/components/contact-rich-text.tsx`
