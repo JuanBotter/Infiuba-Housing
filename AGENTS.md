@@ -75,7 +75,7 @@ Do not defer AGENTS updates.
 - Price filtering is review-history based: with a min/max rent filter active, a listing matches only when at least one approved review `price_usd` falls within the selected bounds.
 - `price_asc` sorting uses the listing's lowest approved-review rent value (listings without review rents sort after priced listings).
 - Listing-level `price_usd` is treated as legacy/deprecated at runtime; list/detail/map rent display no longer falls back to listing-level values.
-- Place-filters/map UI is modularized with dedicated helper/components (`place-filters-price.ts`, `map-listing-sidebar-item.tsx`), and map styles are split into `globals-map.css` imported from `globals.css`.
+- Place-filters/map UI is modularized with dedicated helpers/hooks/components (`place-filters-price.ts`, `use-place-filters-state.ts`, `use-favorites.ts`, `use-price-filter.ts`, `map-listing-sidebar-item.tsx`), and map styles are split into `globals-map.css` imported from `globals.css`.
 - Cards/Map filter state (including selected view mode) is persisted in browser `localStorage` using shared key `infiuba:filters:v2` so navigation/reloads and language switches keep the same filters/view; legacy per-language keys are auto-migrated on read.
 - Filter persistence loading is gated so initial render defaults never overwrite stored filters before hydration applies them.
 - Visitor-safe listing/detail reads use short-lived server cache (`unstable_cache`); cache tags are revalidated when public listing data changes (new listing creation, review approval).
@@ -492,6 +492,9 @@ Must remain true:
 - Listing page: `src/app/[lang]/page.tsx`
 - Filters + map/cards UI: `src/app/[lang]/place-filters.tsx`
 - Price filter/sort helper module: `src/app/[lang]/place-filters-price.ts`
+- Place filter persisted-state hook: `src/app/[lang]/use-place-filters-state.ts`
+- Place favorites hook: `src/app/[lang]/use-favorites.ts`
+- Place price-filter hook: `src/app/[lang]/use-price-filter.ts`
 - Map sidebar item component: `src/app/[lang]/map-listing-sidebar-item.tsx`
 - Listing detail page: `src/app/[lang]/place/[id]/page.tsx`
 - Add review flow: `src/app/[lang]/add-stay-review-form.tsx`

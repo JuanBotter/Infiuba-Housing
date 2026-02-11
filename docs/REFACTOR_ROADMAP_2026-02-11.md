@@ -83,6 +83,7 @@ Scope: repository-wide refactors focused on reducing duplication, improving main
 - Effort: `XL`
 - Depends on: `R02` (recommended)
 - Goal: split state, persistence, filtering, sorting, favorites, and map selection into focused units.
+- Status: `Done` (2026-02-11) - Extracted `usePlaceFiltersState`, `useFavorites`, and `usePriceFilter` hooks to centralize persisted filter state, favorites behavior, and rent-slider/histogram logic while keeping `place-filters.tsx` focused on composition/rendering.
 - Primary files:
   - `src/app/[lang]/place-filters.tsx`
   - `src/app/[lang]/map-listing-sidebar-item.tsx`
