@@ -650,7 +650,12 @@ export function PlaceFilters({
       ) : null}
 
       {isReviewMode ? (
-        <AddStayReviewForm lang={lang} listings={listings} neighborhoods={neighborhoods} />
+        <AddStayReviewForm
+          lang={lang}
+          messages={messages}
+          listings={listings}
+          neighborhoods={neighborhoods}
+        />
       ) : filteredAndSorted.length === 0 ? (
         <p className="empty-state">{messages.noResults}</p>
       ) : viewMode === "cards" ? (
@@ -823,7 +828,7 @@ export function PlaceFilters({
                 <h3>{selectedMapListing.address}</h3>
                 <p>{selectedMapListing.neighborhood}</p>
                 <ListingsMap
-                  lang={lang}
+                  messages={{ reviewsLabel: messages.reviewsLabel }}
                   listings={filteredAndSorted}
                   selectedListingId={selectedMapListing.id}
                   onSelectListing={setSelectedMapListingId}
@@ -1047,6 +1052,7 @@ export function PlaceFilters({
                       key={`map-review-${selectedMapListing.id}`}
                       lang={lang}
                       listingId={selectedMapListing.id}
+                      messages={messages}
                     />
                   </section>
                 ) : null}

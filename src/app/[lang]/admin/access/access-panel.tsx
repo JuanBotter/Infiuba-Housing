@@ -10,7 +10,7 @@ import {
   mapApiClientErrorMessage,
 } from "@/lib/api-client";
 import { formatDateTime } from "@/lib/format";
-import { getMessages } from "@/lib/i18n";
+import type { Messages } from "@/i18n/messages";
 import type { Lang } from "@/types";
 
 interface ManagedUserItem {
@@ -40,10 +40,10 @@ interface UpsertUsersPayload {
 
 interface AccessPanelProps {
   lang: Lang;
+  messages: Messages;
 }
 
-export function AccessPanel({ lang }: AccessPanelProps) {
-  const messages = useMemo(() => getMessages(lang), [lang]);
+export function AccessPanel({ lang, messages }: AccessPanelProps) {
   const [activeUsers, setActiveUsers] = useState<ManagedUserItem[]>([]);
   const [deletedUsers, setDeletedUsers] = useState<DeletedUserItem[]>([]);
   const [createEmailsInput, setCreateEmailsInput] = useState("");

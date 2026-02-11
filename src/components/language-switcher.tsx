@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useRef } from "react";
 
-import { languageLabels, supportedLanguages } from "@/lib/i18n";
+import { languageLabels, supportedLanguages } from "@/lib/i18n-config";
 import { useDetailsOutsideClose } from "@/lib/use-details-outside-close";
 import type { Lang } from "@/types";
 

@@ -110,6 +110,7 @@ Scope: repository-wide refactors focused on reducing duplication, improving main
 - Effort: `M`
 - Depends on: none
 - Goal: stop importing full `messages` object into client components.
+- Status: `Done` (2026-02-11) - Client components no longer call `getMessages`; server boundaries now pass message props to review/admin/auth/theme/map clients (with scoped slices where practical, e.g. `ThemeToggle` and `ListingsMap`).
 - Primary files:
   - `src/lib/i18n.ts`
   - client components currently calling `getMessages(...)`

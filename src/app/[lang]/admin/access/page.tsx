@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 
 import { AccessPanel } from "@/app/[lang]/admin/access/access-panel";
-import { isSupportedLanguage } from "@/lib/i18n";
+import { getMessages, isSupportedLanguage } from "@/lib/i18n";
 import type { Lang } from "@/types";
 
 export const dynamic = "force-dynamic";
@@ -16,5 +16,7 @@ export default async function AccessPage({ params }: AccessPageProps) {
     notFound();
   }
 
-  return <AccessPanel lang={resolvedParams.lang as Lang} />;
+  const lang = resolvedParams.lang as Lang;
+  const messages = getMessages(lang);
+  return <AccessPanel lang={lang} messages={messages} />;
 }

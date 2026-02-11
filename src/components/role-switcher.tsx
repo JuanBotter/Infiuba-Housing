@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useMemo, useRef, useState } from "react";
+import { FormEvent, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import {
@@ -10,7 +10,7 @@ import {
   isApiClientError,
   mapApiClientErrorMessage,
 } from "@/lib/api-client";
-import { getMessages } from "@/lib/i18n";
+import type { Messages } from "@/i18n/messages";
 import { useDetailsOutsideClose } from "@/lib/use-details-outside-close";
 import type { Lang, UserRole } from "@/types";
 
@@ -18,6 +18,7 @@ interface RoleSwitcherProps {
   lang: Lang;
   role: UserRole;
   email?: string;
+  messages: Messages;
 }
 
 function UserIcon() {
@@ -40,8 +41,8 @@ function UserIcon() {
 type AccessStatus = "idle" | "sending" | "error" | "success";
 type OtpStep = "request" | "verify";
 
-export function RoleSwitcher({ lang, role, email }: RoleSwitcherProps) {
-  const t = useMemo(() => getMessages(lang), [lang]);
+export function RoleSwitcher({ lang, role, email, messages }: RoleSwitcherProps) {
+  const t = messages;
   const router = useRouter();
   const detailsRef = useRef<HTMLDetailsElement | null>(null);
   const [loginEmail, setLoginEmail] = useState("");

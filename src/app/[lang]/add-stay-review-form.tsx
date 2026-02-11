@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 
 import { ContactRichText } from "@/components/contact-rich-text";
 import { ReviewCoreFields } from "@/components/review-core-fields";
-import { getMessages } from "@/lib/i18n";
+import type { Messages } from "@/i18n/messages";
 import {
   buildReviewPayload,
   submitReview,
@@ -15,6 +15,7 @@ import type { Lang, Listing } from "@/types";
 
 interface AddStayReviewFormProps {
   lang: Lang;
+  messages: Messages;
   listings: Listing[];
   neighborhoods: string[];
 }
@@ -30,8 +31,8 @@ function normalizeText(value: string) {
     .replace(/\p{Diacritic}/gu, "");
 }
 
-export function AddStayReviewForm({ lang, listings, neighborhoods }: AddStayReviewFormProps) {
-  const t = useMemo(() => getMessages(lang), [lang]);
+export function AddStayReviewForm({ lang, messages, listings, neighborhoods }: AddStayReviewFormProps) {
+  const t = messages;
   const router = useRouter();
 
   const [address, setAddress] = useState("");

@@ -1,9 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
-import { getMessages } from "@/lib/i18n";
-import type { Lang } from "@/types";
+import type { Messages } from "@/i18n/messages";
 
 const STORAGE_KEY = "infiuba-theme";
 
@@ -57,8 +56,11 @@ function readTheme(): Theme {
   return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
-export function ThemeToggle({ lang }: { lang: Lang }) {
-  const messages = useMemo(() => getMessages(lang), [lang]);
+interface ThemeToggleProps {
+  messages: Pick<Messages, "themeToggleLabel" | "themeLight" | "themeDark">;
+}
+
+export function ThemeToggle({ messages }: ThemeToggleProps) {
   const [theme, setTheme] = useState<Theme>("light");
 
   useEffect(() => {

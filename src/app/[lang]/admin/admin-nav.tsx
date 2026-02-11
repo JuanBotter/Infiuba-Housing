@@ -3,15 +3,23 @@
 import Link from "next/link";
 import { useSelectedLayoutSegment } from "next/navigation";
 
-import { getMessages } from "@/lib/i18n";
+import type { Messages } from "@/i18n/messages";
 import type { Lang } from "@/types";
 
 interface AdminNavProps {
   lang: Lang;
+  messages: Pick<
+    Messages,
+    | "adminLabel"
+    | "adminNavReviews"
+    | "adminNavContactEdits"
+    | "adminNavAccess"
+    | "adminNavSecurity"
+    | "adminNavImages"
+  >;
 }
 
-export function AdminNav({ lang }: AdminNavProps) {
-  const messages = getMessages(lang);
+export function AdminNav({ lang, messages }: AdminNavProps) {
   const segment = useSelectedLayoutSegment();
 
   return (

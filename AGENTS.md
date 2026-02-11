@@ -55,6 +55,7 @@ Do not defer AGENTS updates.
 - Admin header copy is tab-aware: reviews/contact-edits/access/security/publications each show contextual title/description instead of a single reviews-only subtitle.
 - Admin security telemetry view is presented as a dashboard with KPI cards, alert cards, per-window outcome summaries, and a recent audit-events table (still fed by `getSecurityTelemetrySnapshot` and no-store APIs); security dashboard uses a local blue/green alert palette distinct from the orange public theme, matching Stitch references.
 - Security telemetry dashboard labels/descriptions are localized for all supported languages.
+- Client components avoid importing `getMessages` directly; server boundaries pass selected-language message props (including scoped slices for small clients like `ThemeToggle` and `ListingsMap`) into client UIs such as review forms, admin panels, and auth/theme controls.
 - Admin reviews pending cards surface structured moderation context (submitted-at timestamp, rating/recommendation/rent/semester/photo count facts, full comment block, inline listing/review image galleries when present, and submitter contact/share-consent fields); when no reviewer phone/email is provided, cards show an explicit "no contact information provided" state.
 - Listings hero helper copy now emphasizes comparing neighborhoods, rent ranges, and recent student experiences (instead of implementation-oriented wording).
 - Non-admin UX copy is standardized across listings/detail/review/auth flows: map/list hints, empty states, owner-contact prompts, OTP guidance/errors, and add-review matching prompts now use user-task language in all supported locales.
@@ -549,7 +550,7 @@ Must remain true:
 - Shared date/time formatter helper: `src/lib/format.ts`
 - Data access: `src/lib/data.ts`
 - Reviews store: `src/lib/reviews-store.ts`
-- Messages/i18n: `src/i18n/messages.ts`
+- Messages/i18n: `src/i18n/messages.ts`, `src/lib/i18n.ts`, `src/lib/i18n-config.ts`
 - CI checks workflow: `.github/workflows/ci.yml`
 - Global map styles partial: `src/app/globals-map.css`
 

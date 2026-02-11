@@ -6,7 +6,7 @@ import { RoleSwitcher } from "@/components/role-switcher";
 import { ThemeLogo } from "@/components/theme-logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { canAccessAdmin, getCurrentAuthSession } from "@/lib/auth";
-import { getMessages, isSupportedLanguage, supportedLanguages } from "@/lib/i18n";
+import { getMessages, isSupportedLanguage, pickMessages, supportedLanguages } from "@/lib/i18n";
 import type { Lang } from "@/types";
 
 export function generateStaticParams() {
@@ -40,6 +40,7 @@ export default async function LanguageLayout({ children, params }: LayoutProps) 
             lang={lang}
             role={role}
             email={authSession.email}
+            messages={t}
           />
           {canAccessAdmin(role) ? (
             <Link className="top-bar__admin" href={`/${lang}/admin/reviews`}>
@@ -47,7 +48,9 @@ export default async function LanguageLayout({ children, params }: LayoutProps) 
             </Link>
           ) : null}
           <LanguageSwitcher lang={lang} label={t.languageSwitch} />
-          <ThemeToggle lang={lang} />
+          <ThemeToggle
+            messages={pickMessages(t, ["themeToggleLabel", "themeDark", "themeLight"] as const)}
+          />
         </div>
       </header>
       <main>{children}</main>

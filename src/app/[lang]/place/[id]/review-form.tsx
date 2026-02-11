@@ -1,9 +1,9 @@
 "use client";
 
-import { ChangeEvent, FormEvent, useMemo, useState } from "react";
+import { ChangeEvent, FormEvent, useState } from "react";
 
 import { ReviewCoreFields } from "@/components/review-core-fields";
-import { getMessages } from "@/lib/i18n";
+import type { Messages } from "@/i18n/messages";
 import {
   buildReviewPayload,
   submitReview,
@@ -14,10 +14,11 @@ import type { Lang } from "@/types";
 interface ReviewFormProps {
   lang: Lang;
   listingId: string;
+  messages: Messages;
 }
 
-export function ReviewForm({ lang, listingId }: ReviewFormProps) {
-  const t = useMemo(() => getMessages(lang), [lang]);
+export function ReviewForm({ lang, listingId, messages }: ReviewFormProps) {
+  const t = messages;
   const {
     reviewDraft,
     setReviewDraft,

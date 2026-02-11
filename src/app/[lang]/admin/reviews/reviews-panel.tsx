@@ -1,16 +1,17 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { ImageGalleryViewer } from "@/components/image-gallery-viewer";
 import { apiGetJson, apiPostJson, mapApiClientErrorMessage } from "@/lib/api-client";
 import { formatDateTime, formatUsdAmount } from "@/lib/format";
-import { getMessages } from "@/lib/i18n";
+import type { Messages } from "@/i18n/messages";
 import type { ApprovedWebReview, Lang, PendingWebReview } from "@/types";
 
 interface ReviewsPanelProps {
   lang: Lang;
   listingMap: Record<string, string>;
+  messages: Messages;
 }
 
 interface ModerationPayload {
@@ -22,8 +23,7 @@ function formatOptionalValue(value?: string) {
   return value?.trim() || "-";
 }
 
-export function ReviewsPanel({ lang, listingMap }: ReviewsPanelProps) {
-  const messages = useMemo(() => getMessages(lang), [lang]);
+export function ReviewsPanel({ lang, listingMap, messages }: ReviewsPanelProps) {
   const [pendingReviews, setPendingReviews] = useState<PendingWebReview[]>([]);
   const [approvedReviews, setApprovedReviews] = useState<ApprovedWebReview[]>([]);
   const [loading, setLoading] = useState(true);

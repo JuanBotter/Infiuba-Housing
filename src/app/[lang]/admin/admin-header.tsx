@@ -39,7 +39,7 @@ export function AdminHeader({ lang, messages }: AdminHeaderProps) {
     <article className="detail-card detail-card--admin-header">
       <h1>{activeHeader.title}</h1>
       <p>{activeHeader.subtitle}</p>
-      <AdminNav lang={lang} />
+      <AdminNav lang={lang} messages={messages} />
     </article>
   );
 }

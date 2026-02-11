@@ -252,7 +252,7 @@ export default async function PlaceDetailPage({ params }: PlaceDetailPageProps) 
         <article className="detail-card detail-card--form">
           <h2>{messages.leaveReviewTitle}</h2>
           <p>{messages.leaveReviewSubtitle}</p>
-          <ReviewForm lang={lang} listingId={listing.id} />
+          <ReviewForm lang={lang} listingId={listing.id} messages={messages} />
         </article>
       ) : null}
     </section>

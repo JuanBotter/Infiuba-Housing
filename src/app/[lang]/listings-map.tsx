@@ -3,12 +3,12 @@
 import L from "leaflet";
 import { useEffect, useMemo, useRef } from "react";
 
-import { getMessages } from "@/lib/i18n";
+import type { Messages } from "@/i18n/messages";
 import { getListingPoints } from "@/lib/map-points";
-import type { Lang, Listing } from "@/types";
+import type { Listing } from "@/types";
 
 interface ListingsMapProps {
-  lang: Lang;
+  messages: Pick<Messages, "reviewsLabel">;
   listings: Listing[];
   selectedListingId: string | null;
   onSelectListing: (listingId: string) => void;
@@ -38,7 +38,7 @@ function markerOptions(selected: boolean): L.CircleMarkerOptions {
 }
 
 export function ListingsMap({
-  lang,
+  messages,
   listings,
   selectedListingId,
   onSelectListing,
@@ -46,7 +46,6 @@ export function ListingsMap({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
   const markersRef = useRef(new Map<string, L.CircleMarker>());
-  const messages = useMemo(() => getMessages(lang), [lang]);
   const points = useMemo(() => getListingPoints(listings), [listings]);
 
   useEffect(() => {
