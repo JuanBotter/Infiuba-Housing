@@ -766,6 +766,7 @@ export function ImageGalleryViewer({
                 className="image-viewer__action image-viewer__action--toggle"
                 onClick={toggleFitMode}
                 aria-label={text.toggleFitModeAria}
+                aria-pressed={fitMode === "cover"}
                 title={fitMode === "contain" ? text.fillFrameTitle : text.fitImageTitle}
               >
                 {fitMode === "contain" ? text.fillButton : text.fitButton}
@@ -838,7 +839,7 @@ export function ImageGalleryViewer({
                 aria-label={text.previousAria}
                 title={text.previousTitle}
               >
-                ‹
+                <ChevronIcon direction="prev" />
               </button>
             ) : (
               <span className="image-viewer__nav-spacer" aria-hidden="true" />
@@ -899,7 +900,7 @@ export function ImageGalleryViewer({
                 aria-label={text.nextAria}
                 title={text.nextTitle}
               >
-                ›
+                <ChevronIcon direction="next" />
               </button>
             ) : (
               <span className="image-viewer__nav-spacer" aria-hidden="true" />
@@ -958,5 +959,17 @@ export function ImageGalleryViewer({
 
       {isMounted && viewer ? createPortal(viewer, document.body) : null}
     </>
+  );
+}
+
+function ChevronIcon({ direction }: { direction: "prev" | "next" }) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      {direction === "prev" ? (
+        <path d="M14.5 6.5 9 12l5.5 5.5" />
+      ) : (
+        <path d="M9.5 6.5 15 12l-5.5 5.5" />
+      )}
+    </svg>
   );
 }

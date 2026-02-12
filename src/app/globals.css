@@ -1721,13 +1721,17 @@ input[type="number"] {
   position: fixed;
   inset: 0;
   z-index: 2200;
-  background: color-mix(in srgb, #020817 90%, transparent);
+  background: color-mix(in srgb, #221510 78%, transparent);
   backdrop-filter: blur(6px);
   display: grid;
   place-items: center;
   padding: clamp(0.6rem, 1.8vw, 1.5rem);
   overscroll-behavior: contain;
   animation: image-viewer-fade 160ms ease;
+}
+
+:root[data-theme="dark"] .image-viewer {
+  background: color-mix(in srgb, #0b0605 86%, transparent);
 }
 
 :root.has-image-viewer,
@@ -1738,10 +1742,22 @@ input[type="number"] {
 .image-viewer__surface {
   width: min(1200px, 96vw);
   height: min(92vh, 900px);
-  background: linear-gradient(165deg, #0b1b2f 0%, #071426 100%);
-  border: 1px solid color-mix(in srgb, var(--line) 82%, transparent);
+  background:
+    radial-gradient(
+      circle at 14% 10%,
+      color-mix(in srgb, var(--warm) 22%, transparent),
+      transparent 56%
+    ),
+    radial-gradient(
+      circle at 86% 18%,
+      color-mix(in srgb, var(--accent) 18%, transparent),
+      transparent 62%
+    ),
+    var(--surface-gradient);
+  border: 1px solid color-mix(in srgb, var(--line) 72%, var(--primary) 28%);
   border-radius: 18px;
-  box-shadow: 0 24px 50px color-mix(in srgb, black 48%, transparent);
+  box-shadow: var(--shadow-heavy);
+  color: var(--ink);
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
   overflow: hidden;
@@ -1789,7 +1805,7 @@ input[type="number"] {
   font-size: 0.86rem;
   font-weight: 700;
   letter-spacing: 0.02em;
-  color: color-mix(in srgb, #f8fafc 88%, transparent);
+  color: var(--ink);
 }
 
 .image-viewer__actions {
@@ -1802,9 +1818,9 @@ input[type="number"] {
 
 .image-viewer__action,
 .image-viewer__action--link {
-  border: 1px solid color-mix(in srgb, var(--line) 78%, transparent);
-  background: color-mix(in srgb, #12263f 86%, transparent);
-  color: #f8fafc;
+  border: 1px solid color-mix(in srgb, var(--line) 72%, var(--primary) 28%);
+  background: color-mix(in srgb, var(--chip-bg) 82%, var(--surface-strong));
+  color: var(--ink);
   min-width: 2rem;
   height: 2rem;
   padding: 0 0.52rem;
@@ -1818,16 +1834,29 @@ input[type="number"] {
   line-height: 1;
   cursor: pointer;
   text-decoration: none;
+  transition: border-color 140ms ease, background 140ms ease, color 140ms ease;
 }
 
 .image-viewer__action:hover,
 .image-viewer__action--link:hover {
-  background: color-mix(in srgb, #183459 88%, transparent);
+  background: color-mix(in srgb, var(--chip-bg) 72%, var(--surface-strong));
+  border-color: color-mix(in srgb, var(--primary) 42%, var(--line));
 }
 
 .image-viewer__action:disabled {
   opacity: 0.45;
   cursor: not-allowed;
+}
+
+.image-viewer__action--toggle[aria-pressed="true"] {
+  border-color: transparent;
+  background: linear-gradient(125deg, var(--accent), var(--warm));
+  color: var(--on-primary);
+  box-shadow: 0 10px 20px color-mix(in srgb, var(--accent) 32%, transparent);
+}
+
+.image-viewer__action--toggle[aria-pressed="true"]:hover {
+  filter: brightness(1.03);
 }
 
 .image-viewer__action--toggle {
@@ -1850,10 +1879,10 @@ input[type="number"] {
 
 .image-viewer__frame {
   margin: 0;
-  border: 1px solid color-mix(in srgb, var(--line) 80%, transparent);
+  border: 1px solid color-mix(in srgb, var(--line) 72%, var(--primary) 28%);
   border-radius: 14px;
   overflow: hidden;
-  background: #020617;
+  background: color-mix(in srgb, #221510 88%, #000000 12%);
   position: relative;
   width: 100%;
   height: clamp(280px, 62vh, 680px);
@@ -1961,7 +1990,11 @@ input[type="number"] {
   inset: 0;
   display: grid;
   place-items: center;
-  background: radial-gradient(circle at center, rgba(18, 38, 63, 0.62), rgba(2, 6, 23, 0.96));
+  background: radial-gradient(
+    circle at center,
+    color-mix(in srgb, var(--warm) 22%, transparent),
+    color-mix(in srgb, #221510 92%, #000000 8%)
+  );
   z-index: 1;
 }
 
@@ -1982,9 +2015,9 @@ input[type="number"] {
 }
 
 .image-viewer__icon {
-  border: 1px solid color-mix(in srgb, var(--line) 78%, transparent);
-  background: color-mix(in srgb, #12263f 86%, transparent);
-  color: #f8fafc;
+  border: 1px solid color-mix(in srgb, var(--line) 72%, var(--primary) 28%);
+  background: color-mix(in srgb, var(--chip-bg) 82%, var(--surface-strong));
+  color: var(--ink);
   width: 2.2rem;
   height: 2.2rem;
   border-radius: 999px;
@@ -1994,10 +2027,29 @@ input[type="number"] {
   line-height: 1;
   font-size: 1.24rem;
   cursor: pointer;
+  transition: border-color 140ms ease, background 140ms ease, color 140ms ease;
+}
+
+.image-viewer__icon svg {
+  width: 1.15rem;
+  height: 1.15rem;
+  display: block;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .image-viewer__icon:hover {
-  background: color-mix(in srgb, #183459 88%, transparent);
+  background: color-mix(in srgb, var(--chip-bg) 70%, var(--surface-strong));
+  border-color: color-mix(in srgb, var(--primary) 42%, var(--line));
+}
+
+.image-viewer__close:hover {
+  color: color-mix(in srgb, var(--danger) 76%, var(--ink) 24%);
+  border-color: color-mix(in srgb, var(--danger) 40%, var(--line));
+  background: color-mix(in srgb, var(--danger) 12%, var(--chip-bg));
 }
 
 .image-viewer__close {
@@ -2006,8 +2058,9 @@ input[type="number"] {
   font-size: 1.45rem;
 }
 
-.image-viewer__nav {
-  font-size: 1.66rem;
+.image-viewer__nav svg {
+  width: 1.3rem;
+  height: 1.3rem;
 }
 
 .image-viewer__nav-spacer {
@@ -2031,8 +2084,8 @@ input[type="number"] {
   height: 54px;
   border-radius: 10px;
   overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--line) 78%, transparent);
-  background: #0b1b31;
+  border: 1px solid color-mix(in srgb, var(--line) 72%, var(--primary) 28%);
+  background: color-mix(in srgb, var(--subtle-bg) 88%, #221510 12%);
   scroll-snap-align: center;
 }
 
