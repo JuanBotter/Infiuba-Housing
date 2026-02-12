@@ -13,7 +13,6 @@ let mockedDb: typeof import("@/lib/db");
 
 const ORIGINAL_VISITOR_CONTACTS = process.env.VISITOR_CAN_VIEW_OWNER_CONTACTS;
 const ORIGINAL_VISITOR_CONTACTS_PROD_ACK = process.env.VISITOR_CAN_VIEW_OWNER_CONTACTS_ALLOW_PRODUCTION;
-const ORIGINAL_NODE_ENV = process.env.NODE_ENV;
 
 beforeAll(async () => {
   auth = await import("@/lib/auth");
@@ -24,7 +23,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   process.env.VISITOR_CAN_VIEW_OWNER_CONTACTS = ORIGINAL_VISITOR_CONTACTS;
   process.env.VISITOR_CAN_VIEW_OWNER_CONTACTS_ALLOW_PRODUCTION = ORIGINAL_VISITOR_CONTACTS_PROD_ACK;
-  process.env.NODE_ENV = ORIGINAL_NODE_ENV;
+  process.env.NODE_ENV = "test";
 });
 
 describe("auth session helpers", () => {
