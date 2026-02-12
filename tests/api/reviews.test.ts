@@ -276,6 +276,28 @@ describe("/api/reviews", () => {
     expect(response.status).toBe(400);
   });
 
+  it("rejects new listing text fields containing html payload characters", async () => {
+    mockedAuth.getRoleFromRequestAsync.mockResolvedValueOnce("whitelisted");
+    mockedAuth.canSubmitReviews.mockReturnValueOnce(true);
+
+    const response = await POST(
+      buildReviewRequest({
+        ...baseReviewPayload,
+        address: "Calle <script>alert(1)</script>",
+        neighborhood: "Palermo",
+        contacts: "+54 9 11 5555-5555",
+        capacity: 2,
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual(
+      expect.objectContaining({
+        code: REVIEW_API_ERROR_CODES.INVALID_ADDRESS,
+      }),
+    );
+  });
+
   it("creates a new listing and revalidates tags", async () => {
     mockedAuth.getRoleFromRequestAsync.mockResolvedValueOnce("whitelisted");
     mockedAuth.canSubmitReviews.mockReturnValueOnce(true);
@@ -318,8 +340,8 @@ describe("/api/reviews", () => {
           "https://example.com/property-photo.jpg",
         ],
         reviewImageUrls: [
-          "https://example.com/review-photo.jpg",
-          "https://example.com/review-photo.jpg",
+          "https://demo.public.blob.vercel-storage.com/review-photo.jpg",
+          "https://demo.public.blob.vercel-storage.com/review-photo.jpg",
         ],
       }),
     );
@@ -331,7 +353,29 @@ describe("/api/reviews", () => {
     expect(createListingPayload?.imageUrls).toBeUndefined();
     expect(mockedReviews.appendPendingReview).toHaveBeenCalledWith(
       expect.objectContaining({
-        imageUrls: ["https://example.com/review-photo.jpg"],
+        imageUrls: ["https://demo.public.blob.vercel-storage.com/review-photo.jpg"],
+      }),
+    );
+  });
+
+  it("rejects review image URLs outside trusted upload hosts", async () => {
+    mockedAuth.getRoleFromRequestAsync.mockResolvedValueOnce("whitelisted");
+    mockedAuth.canSubmitReviews.mockReturnValueOnce(true);
+    mockedData.getListingById.mockResolvedValueOnce({ id: "listing-1" } as never);
+
+    const response = await POST(
+      buildReviewRequest({
+        listingId: "listing-1",
+        confirmExistingDetails: true,
+        ...baseReviewPayload,
+        reviewImageUrls: ["https://example.com/review-photo.jpg"],
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual(
+      expect.objectContaining({
+        code: REVIEW_API_ERROR_CODES.REVIEW_IMAGES_INVALID,
       }),
     );
   });

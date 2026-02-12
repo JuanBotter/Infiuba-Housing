@@ -1,8 +1,16 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/auth", () => ({
+  buildMagicLinkStateCookie: vi.fn(() => ({
+    name: "infiuba_magic_state",
+    value: "magic-state",
+    path: "/",
+    httpOnly: true,
+    sameSite: "lax",
+  })),
   buildRoleCookie: vi.fn(() => ({ name: "infiuba_role", value: "test", path: "/" })),
   buildRoleCookieClear: vi.fn(() => ({ name: "infiuba_role", value: "", path: "/", maxAge: 0 })),
+  createMagicLinkState: vi.fn(() => "magic-state"),
   getAuthSessionFromRequest: vi.fn(async () => ({ role: "visitor" })),
   requestLoginOtp: vi.fn(),
   verifyLoginOtp: vi.fn(),
@@ -104,6 +112,7 @@ describe("/api/session", () => {
     const payload = await response.json();
     expect(payload.ok).toBe(true);
     expect(payload.email).toBe("student@example.com");
+    expect(response.headers.get("set-cookie")).toContain("infiuba_magic_state=magic-state");
   });
 
   it("passes requestOtp language and origin context", async () => {
@@ -123,6 +132,7 @@ describe("/api/session", () => {
       {
         lang: "fr",
         appOrigin: "http://localhost",
+        magicLinkState: "magic-state",
       },
     );
   });

@@ -1,6 +1,8 @@
 import {
+  buildMagicLinkStateCookie,
   buildRoleCookie,
   buildRoleCookieClear,
+  createMagicLinkState,
   getAuthSessionFromRequest,
   requestLoginOtp,
   verifyLoginOtp,
@@ -12,11 +14,30 @@ import { getRequestNetworkFingerprint } from "@/lib/request-network";
 import { asObject, parseBoolean, parseEnum, parseString } from "@/lib/request-validation";
 import { recordSecurityAuditEvent } from "@/lib/security-audit";
 
+const OTP_REQUEST_RESPONSE_MIN_MS = process.env.NODE_ENV === "test" ? 0 : 320;
+const OTP_REQUEST_RESPONSE_JITTER_MS = process.env.NODE_ENV === "test" ? 0 : 120;
+
 function buildOtpRequestAcceptedResponse(email: string) {
   return jsonNoStore({
     ok: true,
     email,
   });
+}
+
+function resolveOtpRequestTargetDelayMs() {
+  if (OTP_REQUEST_RESPONSE_JITTER_MS <= 0) {
+    return OTP_REQUEST_RESPONSE_MIN_MS;
+  }
+  return OTP_REQUEST_RESPONSE_MIN_MS + Math.floor(Math.random() * (OTP_REQUEST_RESPONSE_JITTER_MS + 1));
+}
+
+async function normalizeOtpRequestLatency(startedAtMs: number, targetDelayMs: number) {
+  const elapsedMs = Date.now() - startedAtMs;
+  const waitMs = targetDelayMs - elapsedMs;
+  if (waitMs <= 0) {
+    return;
+  }
+  await new Promise((resolve) => setTimeout(resolve, waitMs));
 }
 
 export async function GET(request: Request) {
@@ -56,9 +77,14 @@ export async function POST(request: Request) {
       return jsonError("Missing email", { status: 400, noStore: true });
     }
 
+    const requestStartedAtMs = Date.now();
+    const targetDelayMs = resolveOtpRequestTargetDelayMs();
+    const magicLinkState = createMagicLinkState();
+
     const requested = await requestLoginOtp(email, networkFingerprint, {
       lang,
       appOrigin: new URL(request.url).origin,
+      magicLinkState,
     });
     if (!requested.ok) {
       await recordSecurityAuditEvent({
@@ -68,16 +94,21 @@ export async function POST(request: Request) {
         networkFingerprint,
       });
       if (requested.reason === "db_unavailable") {
+        await normalizeOtpRequestLatency(requestStartedAtMs, targetDelayMs);
         return jsonError("Database is required for OTP login", {
           status: 503,
           noStore: true,
         });
       }
       if (requested.reason === "invalid_email") {
+        await normalizeOtpRequestLatency(requestStartedAtMs, targetDelayMs);
         return jsonError("Invalid email", { status: 400, noStore: true });
       }
       // Prevent account enumeration via request OTP response semantics.
-      return buildOtpRequestAcceptedResponse(email);
+      await normalizeOtpRequestLatency(requestStartedAtMs, targetDelayMs);
+      const response = buildOtpRequestAcceptedResponse(email);
+      response.cookies.set(buildMagicLinkStateCookie(magicLinkState));
+      return response;
     }
 
     await recordSecurityAuditEvent({
@@ -87,7 +118,10 @@ export async function POST(request: Request) {
       networkFingerprint,
       metadata: { expiresAt: requested.expiresAt },
     });
-    return buildOtpRequestAcceptedResponse(requested.email);
+    await normalizeOtpRequestLatency(requestStartedAtMs, targetDelayMs);
+    const response = buildOtpRequestAcceptedResponse(requested.email);
+    response.cookies.set(buildMagicLinkStateCookie(magicLinkState));
+    return response;
   }
 
   if (!email || !otpCode) {

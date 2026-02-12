@@ -1,6 +1,29 @@
 import { isIP } from "node:net";
 
 const UNKNOWN_NETWORK_KEY = "unknown";
+const TRUSTED_IP_HEADER_ENV = "TRUSTED_IP_HEADER";
+const TRUSTED_PROXY_HOPS_ENV = "TRUSTED_PROXY_HOPS";
+const DEFAULT_TRUSTED_IP_HEADER = "x-forwarded-for";
+const DEFAULT_TRUSTED_PROXY_HOPS = 1;
+const CHAIN_IP_HEADERS = new Set(["x-forwarded-for", "x-vercel-forwarded-for"]);
+const ALLOWED_TRUSTED_IP_HEADERS = new Set([
+  "x-forwarded-for",
+  "x-vercel-forwarded-for",
+  "cf-connecting-ip",
+  "x-real-ip",
+]);
+
+type TrustedIpHeader = "x-forwarded-for" | "x-vercel-forwarded-for" | "cf-connecting-ip" | "x-real-ip";
+
+interface RequestNetworkConfig {
+  trustedIpHeader: TrustedIpHeader;
+  trustedProxyHops: number;
+}
+
+let cachedRequestNetworkConfig: RequestNetworkConfig | null = null;
+let hasWarnedMissingTrustedHeaderConfig = false;
+let hasWarnedInvalidTrustedHeaderConfig = false;
+let hasWarnedInvalidTrustedProxyHops = false;
 
 export interface RequestNetworkFingerprint {
   ipKey: string;
@@ -24,7 +47,7 @@ function parseIpv4TailToHextets(value: string) {
     return parsed;
   });
 
-  if (numbers.some((value) => Number.isNaN(value))) {
+  if (numbers.some((entry) => Number.isNaN(entry))) {
     return null;
   }
 
@@ -114,44 +137,104 @@ function normalizeIpCandidate(value: string) {
   return isIP(withoutZone) ? withoutZone : "";
 }
 
-function getIpCandidates(request: Request) {
-  const candidates: string[] = [];
-
-  const forwardedFor = request.headers.get("x-forwarded-for");
-  if (forwardedFor) {
-    candidates.push(...forwardedFor.split(",").map((part) => part.trim()));
+function resolveTrustedProxyHops() {
+  const raw = process.env[TRUSTED_PROXY_HOPS_ENV];
+  if (!raw) {
+    return DEFAULT_TRUSTED_PROXY_HOPS;
   }
 
-  const cfConnectingIp = request.headers.get("cf-connecting-ip");
-  if (cfConnectingIp) {
-    candidates.push(cfConnectingIp);
-  }
-
-  const realIp = request.headers.get("x-real-ip");
-  if (realIp) {
-    candidates.push(realIp);
-  }
-
-  const forwarded = request.headers.get("forwarded");
-  if (forwarded) {
-    for (const segment of forwarded.split(",")) {
-      const match = segment.match(/for=([^;]+)/i);
-      if (match?.[1]) {
-        candidates.push(match[1].trim());
-      }
+  const parsed = Number.parseInt(raw.trim(), 10);
+  if (!Number.isFinite(parsed) || parsed < 1) {
+    if (!hasWarnedInvalidTrustedProxyHops) {
+      console.warn(
+        `[REQUEST_NETWORK] Invalid ${TRUSTED_PROXY_HOPS_ENV} value '${raw}'. Falling back to ${DEFAULT_TRUSTED_PROXY_HOPS}.`,
+      );
+      hasWarnedInvalidTrustedProxyHops = true;
     }
+    return DEFAULT_TRUSTED_PROXY_HOPS;
   }
 
-  return candidates;
+  return parsed;
+}
+
+function resolveTrustedIpHeader() {
+  const raw = process.env[TRUSTED_IP_HEADER_ENV]?.trim().toLowerCase();
+  if (raw && ALLOWED_TRUSTED_IP_HEADERS.has(raw)) {
+    return raw as TrustedIpHeader;
+  }
+
+  if (raw && !ALLOWED_TRUSTED_IP_HEADERS.has(raw)) {
+    if (!hasWarnedInvalidTrustedHeaderConfig) {
+      console.warn(
+        `[REQUEST_NETWORK] Invalid ${TRUSTED_IP_HEADER_ENV} value '${raw}'. Falling back to ${DEFAULT_TRUSTED_IP_HEADER}.`,
+      );
+      hasWarnedInvalidTrustedHeaderConfig = true;
+    }
+    return DEFAULT_TRUSTED_IP_HEADER as TrustedIpHeader;
+  }
+
+  if (process.env.NODE_ENV === "production" && !hasWarnedMissingTrustedHeaderConfig) {
+    console.warn(
+      `[REQUEST_NETWORK] ${TRUSTED_IP_HEADER_ENV} is not set in production. Using '${DEFAULT_TRUSTED_IP_HEADER}' fallback; configure this explicitly for trusted ingress.`,
+    );
+    hasWarnedMissingTrustedHeaderConfig = true;
+  }
+
+  return DEFAULT_TRUSTED_IP_HEADER as TrustedIpHeader;
+}
+
+function getRequestNetworkConfig(): RequestNetworkConfig {
+  if (!cachedRequestNetworkConfig) {
+    cachedRequestNetworkConfig = {
+      trustedIpHeader: resolveTrustedIpHeader(),
+      trustedProxyHops: resolveTrustedProxyHops(),
+    };
+  }
+  return cachedRequestNetworkConfig;
+}
+
+function getTrustedHeaderCandidates(
+  request: Request,
+  trustedIpHeader: TrustedIpHeader,
+  trustedProxyHops: number,
+) {
+  const rawHeaderValue = request.headers.get(trustedIpHeader);
+  if (!rawHeaderValue) {
+    return [];
+  }
+
+  if (!CHAIN_IP_HEADERS.has(trustedIpHeader)) {
+    return [rawHeaderValue];
+  }
+
+  const chain = rawHeaderValue
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  if (chain.length === 0) {
+    return [];
+  }
+
+  const trustedIndex = Math.max(chain.length - trustedProxyHops, 0);
+  return [chain[trustedIndex]];
 }
 
 function resolveClientIp(request: Request) {
-  for (const candidate of getIpCandidates(request)) {
+  const config = getRequestNetworkConfig();
+  const candidates = getTrustedHeaderCandidates(
+    request,
+    config.trustedIpHeader,
+    config.trustedProxyHops,
+  );
+
+  for (const candidate of candidates) {
     const normalized = normalizeIpCandidate(candidate);
     if (normalized) {
       return normalized;
     }
   }
+
   return UNKNOWN_NETWORK_KEY;
 }
 

@@ -1,64 +1,90 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { getRequestNetworkFingerprint } from "@/lib/request-network";
+const ORIGINAL_ENV = { ...process.env };
+
+async function loadRequestNetworkWithEnv(env: Record<string, string | undefined>) {
+  process.env = { ...ORIGINAL_ENV, ...env };
+  vi.resetModules();
+  return await import("@/lib/request-network");
+}
+
+afterEach(() => {
+  process.env = { ...ORIGINAL_ENV };
+  vi.restoreAllMocks();
+});
 
 describe("request network fingerprint", () => {
-  it("uses x-forwarded-for IPv4", () => {
-    const request = new Request("https://example.com", {
-      headers: { "x-forwarded-for": "203.0.113.5" },
+  it("uses trusted x-forwarded-for chain and defaults to the right-most hop", async () => {
+    const requestNetwork = await loadRequestNetworkWithEnv({
+      TRUSTED_IP_HEADER: "x-forwarded-for",
+      TRUSTED_PROXY_HOPS: "1",
     });
-    const fingerprint = getRequestNetworkFingerprint(request);
-    expect(fingerprint.ipKey).toBe("ipv4:203.0.113.5");
+    const request = new Request("https://example.com", {
+      headers: { "x-forwarded-for": "198.51.100.5, 203.0.113.9" },
+    });
+
+    const fingerprint = requestNetwork.getRequestNetworkFingerprint(request);
+    expect(fingerprint.ipKey).toBe("ipv4:203.0.113.9");
     expect(fingerprint.subnetKey).toBe("ipv4-subnet:203.0.113.0/24");
   });
 
-  it("uses forwarded IPv6", () => {
-    const request = new Request("https://example.com", {
-      headers: { forwarded: "for=2001:db8:85a3::8a2e:370:7334" },
+  it("supports configurable trusted proxy hops for x-forwarded-for", async () => {
+    const requestNetwork = await loadRequestNetworkWithEnv({
+      TRUSTED_IP_HEADER: "x-forwarded-for",
+      TRUSTED_PROXY_HOPS: "2",
     });
-    const fingerprint = getRequestNetworkFingerprint(request);
-    expect(fingerprint.ipKey).toBe("ipv6:2001:db8:85a3::8a2e:370:7334");
-    expect(fingerprint.subnetKey.startsWith("ipv6-subnet:")).toBe(true);
-  });
-
-  it("falls back to unknown when no ip headers", () => {
-    const request = new Request("https://example.com");
-    const fingerprint = getRequestNetworkFingerprint(request);
-    expect(fingerprint.ipKey).toBe("unknown");
-    expect(fingerprint.subnetKey).toBe("unknown");
-  });
-
-  it("handles forwarded header with quoted IPv6", () => {
     const request = new Request("https://example.com", {
-      headers: { forwarded: 'for="[2001:db8::1]"' },
+      headers: { "x-forwarded-for": "198.51.100.5, 203.0.113.9" },
     });
-    const fingerprint = getRequestNetworkFingerprint(request);
-    expect(fingerprint.ipKey).toBe("ipv6:2001:db8::1");
-    expect(fingerprint.subnetKey.startsWith("ipv6-subnet:")).toBe(true);
-  });
 
-  it("handles IPv4 with port in x-forwarded-for list", () => {
-    const request = new Request("https://example.com", {
-      headers: { "x-forwarded-for": "unknown, 198.51.100.42:1234, 203.0.113.5" },
-    });
-    const fingerprint = getRequestNetworkFingerprint(request);
-    expect(fingerprint.ipKey).toBe("ipv4:198.51.100.42");
+    const fingerprint = requestNetwork.getRequestNetworkFingerprint(request);
+    expect(fingerprint.ipKey).toBe("ipv4:198.51.100.5");
     expect(fingerprint.subnetKey).toBe("ipv4-subnet:198.51.100.0/24");
   });
 
-  it("handles IPv6 zone identifiers", () => {
-    const request = new Request("https://example.com", {
-      headers: { "x-forwarded-for": "fe80::1%en0" },
+  it("uses the explicitly trusted canonical header", async () => {
+    const requestNetwork = await loadRequestNetworkWithEnv({
+      TRUSTED_IP_HEADER: "cf-connecting-ip",
+      TRUSTED_PROXY_HOPS: "1",
     });
-    const fingerprint = getRequestNetworkFingerprint(request);
-    expect(fingerprint.ipKey).toBe("ipv6:fe80::1");
+    const request = new Request("https://example.com", {
+      headers: {
+        "x-forwarded-for": "198.51.100.5, 203.0.113.9",
+        "cf-connecting-ip": "203.0.113.11",
+      },
+    });
+
+    const fingerprint = requestNetwork.getRequestNetworkFingerprint(request);
+    expect(fingerprint.ipKey).toBe("ipv4:203.0.113.11");
+    expect(fingerprint.subnetKey).toBe("ipv4-subnet:203.0.113.0/24");
   });
 
-  it("uses cf-connecting-ip when available", () => {
-    const request = new Request("https://example.com", {
-      headers: { "cf-connecting-ip": "203.0.113.9" },
+  it("warns in production when trusted header configuration is missing", async () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const requestNetwork = await loadRequestNetworkWithEnv({
+      NODE_ENV: "production",
+      TRUSTED_IP_HEADER: undefined,
     });
-    const fingerprint = getRequestNetworkFingerprint(request);
-    expect(fingerprint.ipKey).toBe("ipv4:203.0.113.9");
+
+    requestNetwork.getRequestNetworkFingerprint(
+      new Request("https://example.com", {
+        headers: { "x-forwarded-for": "198.51.100.5" },
+      }),
+    );
+
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining("TRUSTED_IP_HEADER is not set in production"),
+    );
+  });
+
+  it("falls back to unknown when no trusted header value is present", async () => {
+    const requestNetwork = await loadRequestNetworkWithEnv({
+      TRUSTED_IP_HEADER: "x-real-ip",
+    });
+    const request = new Request("https://example.com");
+
+    const fingerprint = requestNetwork.getRequestNetworkFingerprint(request);
+    expect(fingerprint.ipKey).toBe("unknown");
+    expect(fingerprint.subnetKey).toBe("unknown");
   });
 });

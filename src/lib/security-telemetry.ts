@@ -66,6 +66,14 @@ function sumAllOutcomes(outcomes: Record<string, number>) {
   return Object.values(outcomes).reduce((total, value) => total + value, 0);
 }
 
+function parseBooleanEnvFlag(raw: string | undefined) {
+  if (!raw) {
+    return false;
+  }
+  const normalized = raw.trim().toLowerCase();
+  return normalized === "1" || normalized === "true" || normalized === "yes" || normalized === "on";
+}
+
 function redactEmail(value: string | null) {
   if (!value) {
     return null;
@@ -158,8 +166,19 @@ function buildAlerts(input: {
   moderation1h: Record<string, number>;
   adminUserActions1h: Record<string, number>;
   rateLimitScopeHits24h: Array<{ scope: string; hits: number }>;
+  visitorOwnerContactOverrideActive: boolean;
 }) {
   const alerts: SecurityAlert[] = [];
+
+  if (input.visitorOwnerContactOverrideActive) {
+    alerts.push({
+      code: "visitor_owner_contact_override_active",
+      severity: "critical",
+      message: "Emergency visitor owner-contact override is active.",
+      currentValue: 1,
+      threshold: 0,
+    });
+  }
 
   const otpVerifyFailures15m = sumOutcomes(input.otpVerify15m, [
     "invalid_code",
@@ -275,6 +294,9 @@ export async function getSecurityTelemetrySnapshot(): Promise<TelemetryResult> {
       moderation1h,
       adminUserActions1h,
       rateLimitScopeHits24h,
+      visitorOwnerContactOverrideActive: parseBooleanEnvFlag(
+        process.env.VISITOR_CAN_VIEW_OWNER_CONTACTS,
+      ),
     });
 
     return {

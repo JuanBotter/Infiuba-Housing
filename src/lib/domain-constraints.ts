@@ -7,6 +7,7 @@ export const LISTING_NEIGHBORHOOD_MAX_LENGTH = 80;
 export const LISTING_CONTACTS_MAX_ITEMS = 20;
 export const LISTING_CONTACT_MAX_LENGTH = 180;
 export const LISTING_CAPACITY_MAX = 50;
+const SAFE_LISTING_TEXT_PATTERN = /^[\p{L}\p{M}\p{N}.,'"’"()\-_/#+&:;°ºª· ]+$/u;
 
 interface NormalizeContactsOptions {
   dedupe?: boolean;
@@ -56,6 +57,22 @@ export function normalizeListingContacts(
 
 export function hasListingContactTooLong(values: string[]) {
   return values.some((value) => value.length > LISTING_CONTACT_MAX_LENGTH);
+}
+
+function isSafeListingText(value: string, maxLength: number) {
+  const normalized = value.trim();
+  if (!normalized || normalized.length > maxLength) {
+    return false;
+  }
+  return SAFE_LISTING_TEXT_PATTERN.test(normalized);
+}
+
+export function isSafeListingAddress(value: string) {
+  return isSafeListingText(value, LISTING_ADDRESS_MAX_LENGTH);
+}
+
+export function isSafeListingNeighborhood(value: string) {
+  return isSafeListingText(value, LISTING_NEIGHBORHOOD_MAX_LENGTH);
 }
 
 export function isValidListingCapacity(value: number | undefined) {

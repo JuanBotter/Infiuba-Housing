@@ -14,16 +14,17 @@ afterEach(() => {
 });
 
 describe("next.config security headers", () => {
-  it("includes Vercel Blob CDN in production CSP img-src", async () => {
+  it("includes hardened browser headers in production", async () => {
     const config = await loadNextConfigWithEnv("production");
     const headers = await config.headers?.();
-    const cspHeader = headers?.[0]?.headers.find(
-      (header) => header.key === "Content-Security-Policy",
+    const hstsHeader = headers?.[0]?.headers.find(
+      (header) => header.key === "Strict-Transport-Security",
     );
+    const cspHeader = headers?.[0]?.headers.find((header) => header.key === "Content-Security-Policy");
 
-    expect(cspHeader).toBeDefined();
-    expect(cspHeader?.value).toContain("img-src");
-    expect(cspHeader?.value).toContain("https://*.public.blob.vercel-storage.com");
+    expect(hstsHeader).toBeDefined();
+    expect(hstsHeader?.value).toContain("max-age=63072000");
+    expect(cspHeader).toBeUndefined();
   });
 
   it("disables security headers in non-production", async () => {

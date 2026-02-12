@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   LISTING_CONTACTS_MAX_ITEMS,
   hasListingContactTooLong,
+  isSafeListingAddress,
+  isSafeListingNeighborhood,
   isValidListingCapacity,
   normalizeListingContacts,
   normalizeReviewerContactFields,
@@ -55,6 +57,13 @@ describe("domain-constraints", () => {
     expect(isValidListingCapacity(0)).toBe(false);
     expect(isValidListingCapacity(51)).toBe(false);
     expect(isValidListingCapacity(Number.NaN)).toBe(false);
+  });
+
+  it("rejects listing address/neighborhood values with HTML payload characters", () => {
+    expect(isSafeListingAddress("Av. Corrientes 1234, Piso 3")).toBe(true);
+    expect(isSafeListingNeighborhood("Recoleta")).toBe(true);
+    expect(isSafeListingAddress("<script>alert(1)</script>")).toBe(false);
+    expect(isSafeListingNeighborhood("Palermo <img src=x onerror=1>")).toBe(false);
   });
 
   it("normalizes reviewer email-like fields with strict validation", () => {

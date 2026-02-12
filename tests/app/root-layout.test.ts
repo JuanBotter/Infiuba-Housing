@@ -13,7 +13,12 @@ vi.mock("next/font/google", () => ({
 }));
 
 vi.mock("next/script", () => ({
-  default: (props: { src: string }) => React.createElement("script", { src: props.src }),
+  default: (props: { src: string; nonce?: string }) =>
+    React.createElement("script", { src: props.src, nonce: props.nonce }),
+}));
+
+vi.mock("next/headers", () => ({
+  headers: vi.fn(async () => new Headers({ "x-nonce": "test-nonce" })),
 }));
 
 vi.mock("@/app/globals.css", () => ({}));
@@ -26,17 +31,14 @@ beforeAll(async () => {
 });
 
 describe("RootLayout", () => {
-  it("applies loaded font variables to html className", () => {
-    const markup = renderToStaticMarkup(
-      React.createElement(
-        RootLayout,
-        null,
-        React.createElement("main", null, "content"),
-      ),
-    );
+  it("applies loaded font variables to html className", async () => {
+    const element = await RootLayout({
+      children: React.createElement("main", null, "content"),
+    });
+    const markup = renderToStaticMarkup(element);
 
     expect(markup).toContain('<html lang="en" class="font-plus-jakarta font-work-sans font-inter">');
-    expect(markup).toContain('<script src="/theme-init.js"></script>');
+    expect(markup).toContain('<script src="/theme-init.js" nonce="test-nonce"></script>');
     expect(markup).toContain("<main>content</main>");
     expect(plusJakartaMock).toHaveBeenCalledTimes(1);
     expect(workSansMock).toHaveBeenCalledTimes(1);

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter, Plus_Jakarta_Sans, Work_Sans } from "next/font/google";
+import { headers } from "next/headers";
 import Script from "next/script";
 
 import "@/app/globals.css";
@@ -31,13 +32,15 @@ export const metadata: Metadata = {
   description: "Housing reviews from exchange students in Buenos Aires.",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const fontVariablesClassName = `${plusJakartaSans.variable} ${workSans.variable} ${inter.variable}`;
+  const requestHeaders = await headers();
+  const nonce = requestHeaders.get("x-nonce") || undefined;
 
   return (
     <html lang="en" suppressHydrationWarning className={fontVariablesClassName}>
       <head>
-        <Script src="/theme-init.js" strategy="beforeInteractive" />
+        <Script src="/theme-init.js" strategy="beforeInteractive" nonce={nonce} />
       </head>
       <body>{children}</body>
     </html>

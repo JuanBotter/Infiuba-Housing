@@ -1,7 +1,5 @@
 "use client";
 
-import { type CSSProperties } from "react";
-
 interface StarRatingProps {
   value: string;
   onChange: (value: string) => void;
@@ -23,15 +21,14 @@ export function StarRating({
 }: StarRatingProps) {
   const numericValue = Number(value);
   const clampedValue = Number.isFinite(numericValue) ? Math.max(0, Math.min(5, numericValue)) : 0;
+  const selectedStars = Math.max(0, Math.min(5, Math.round(clampedValue)));
   const hintId = hint ? `${name}-hint` : undefined;
   const describedBy = [hintId, errorId].filter(Boolean).join(" ") || undefined;
-  const percent = Math.max(0, Math.min(100, (clampedValue / 5) * 100));
-  const style = { "--rating-percent": `${percent}%` } as CSSProperties;
 
   return (
     <div className={`star-rating${hasError ? " is-invalid" : ""}`}>
       <span className="star-rating__label">{label}</span>
-      <div className="star-rating__slider" style={style}>
+      <div className="star-rating__slider">
         <input
           className="star-rating__input"
           type="range"
@@ -57,7 +54,7 @@ export function StarRating({
             <StarIcon />
             <StarIcon />
           </div>
-          <div className="star-rating__stars-fill">
+          <div className={`star-rating__stars-fill is-value-${selectedStars}`}>
             <StarIcon />
             <StarIcon />
             <StarIcon />

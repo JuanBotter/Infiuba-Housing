@@ -1,24 +1,7 @@
 /** @type {import('next').NextConfig} */
 const isProduction = process.env.NODE_ENV === "production";
 
-const contentSecurityPolicy = [
-  "default-src 'self'",
-  "base-uri 'self'",
-  "object-src 'none'",
-  "frame-ancestors 'none'",
-  "form-action 'self'",
-  "script-src 'self' 'unsafe-inline'",
-  "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: https://*.tile.openstreetmap.org https://*.public.blob.vercel-storage.com",
-  "font-src 'self' data:",
-  "connect-src 'self'",
-].join("; ");
-
 const securityHeaders = [
-  {
-    key: "Content-Security-Policy",
-    value: contentSecurityPolicy,
-  },
   {
     key: "Strict-Transport-Security",
     value: "max-age=63072000; includeSubDomains",

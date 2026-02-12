@@ -146,7 +146,7 @@ describe("/api/admin/reviews POST", () => {
         studentContact: "+54 11 1234 1234",
         studentEmail: "jane@example.com",
         shareContactInfo: true,
-        reviewImageUrls: ["https://example.com/review-1.jpg"],
+        reviewImageUrls: ["https://demo.public.blob.vercel-storage.com/review-1.jpg"],
       }),
     );
 
@@ -157,8 +157,28 @@ describe("/api/admin/reviews POST", () => {
         rating: 4,
         recommended: true,
         comment: "Updated review text",
-        imageUrls: ["https://example.com/review-1.jpg"],
+        imageUrls: ["https://demo.public.blob.vercel-storage.com/review-1.jpg"],
       }),
     );
+  });
+
+  it("rejects edit payload with untrusted review image host", async () => {
+    mockedRouteHelpers.requireAdminSession.mockResolvedValueOnce({
+      ok: true,
+      session: { role: "admin", email: "admin@example.com" },
+    });
+
+    const response = await POST(
+      buildRequest({
+        action: "edit",
+        reviewId: "review-1",
+        rating: 4,
+        recommended: true,
+        comment: "Updated review text",
+        reviewImageUrls: ["https://example.com/review-1.jpg"],
+      }),
+    );
+
+    expect(response.status).toBe(400);
   });
 });

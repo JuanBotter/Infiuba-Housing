@@ -239,6 +239,11 @@ function clampZoom(value: number) {
   return Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, Number(value.toFixed(2))));
 }
 
+function getZoomStepIndex(zoomLevel: number) {
+  const stepIndex = Math.round((zoomLevel - MIN_ZOOM) / ZOOM_STEP);
+  return Math.max(0, Math.min(10, stepIndex));
+}
+
 export function ImageGalleryViewer({
   lang,
   images,
@@ -266,6 +271,7 @@ export function ImageGalleryViewer({
   const canNavigate = validImages.length > 1;
   const activeUrl = activeIndex === null ? null : validImages[activeIndex] ?? null;
   const activeImageLoaded = activeUrl ? Boolean(loadedImages[activeUrl]) : false;
+  const zoomClassName = `is-zoom-${getZoomStepIndex(zoomLevel)}`;
   const text = viewerTextByLang[lang];
 
   function markImageLoaded(url: string | null) {
@@ -586,10 +592,9 @@ export function ImageGalleryViewer({
               {!activeImageLoaded ? <div className="image-viewer__loading" /> : null}
               <img
                 key={activeUrl}
-                className="image-viewer__image"
+                className={`image-viewer__image ${zoomClassName}`}
                 src={activeUrl}
                 alt={`${altBase} ${activeIndex + 1}`}
-                style={{ transform: `scale(${zoomLevel})` }}
                 onLoad={() => markImageLoaded(activeUrl)}
                 draggable={false}
               />

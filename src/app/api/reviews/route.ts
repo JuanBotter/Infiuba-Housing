@@ -10,6 +10,8 @@ import {
   LISTING_ID_MAX_LENGTH,
   LISTING_NEIGHBORHOOD_MAX_LENGTH,
   hasListingContactTooLong,
+  isSafeListingAddress,
+  isSafeListingNeighborhood,
   isValidListingCapacity,
   normalizeReviewerContactFields,
   parseListingContactsFromDelimited,
@@ -153,7 +155,17 @@ export async function POST(request: Request) {
       if (address.length < 6) {
         return reviewApiError(REVIEW_API_ERROR_CODES.INVALID_ADDRESS, "Invalid address", 400);
       }
+      if (!isSafeListingAddress(address)) {
+        return reviewApiError(REVIEW_API_ERROR_CODES.INVALID_ADDRESS, "Invalid address", 400);
+      }
       if (neighborhood.length < 2) {
+        return reviewApiError(
+          REVIEW_API_ERROR_CODES.INVALID_NEIGHBORHOOD,
+          "Invalid neighborhood",
+          400,
+        );
+      }
+      if (!isSafeListingNeighborhood(neighborhood)) {
         return reviewApiError(
           REVIEW_API_ERROR_CODES.INVALID_NEIGHBORHOOD,
           "Invalid neighborhood",

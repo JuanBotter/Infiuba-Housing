@@ -1,7 +1,14 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/auth", () => ({
+  buildMagicLinkStateCookieClear: vi.fn(() => ({
+    name: "infiuba_magic_state",
+    value: "",
+    path: "/",
+    maxAge: 0,
+  })),
   buildRoleCookie: vi.fn(() => ({ name: "infiuba_role", value: "test", path: "/" })),
+  getMagicLinkStateFromCookieHeader: vi.fn(() => "magic-state"),
   resolveOtpMagicLinkToken: vi.fn(() => ({ ok: false })),
   verifyLoginOtp: vi.fn(),
 }));
@@ -59,6 +66,7 @@ describe("/api/session/magic", () => {
       ok: true,
       email: "student@example.com",
       otpCode: "123456",
+      magicLinkState: "magic-state",
     });
     mockedAuth.verifyLoginOtp.mockResolvedValueOnce({
       ok: true,
@@ -67,7 +75,9 @@ describe("/api/session/magic", () => {
     });
 
     const response = await GET(
-      new Request("http://localhost/api/session/magic?lang=de&token=valid-token"),
+      new Request("http://localhost/api/session/magic?lang=de&token=valid-token", {
+        headers: { cookie: "infiuba_magic_state=magic-state" },
+      }),
     );
 
     expect(response.status).toBe(307);
@@ -88,6 +98,33 @@ describe("/api/session/magic", () => {
         eventType: "auth.otp.verify",
         outcome: "ok",
         actorEmail: "student@example.com",
+      }),
+    );
+  });
+
+  it("rejects magic links with mismatched state cookie", async () => {
+    mockedAuth.resolveOtpMagicLinkToken.mockReturnValueOnce({
+      ok: true,
+      email: "student@example.com",
+      otpCode: "123456",
+      magicLinkState: "different-state",
+    });
+
+    const response = await GET(
+      new Request("http://localhost/api/session/magic?lang=de&token=valid-token", {
+        headers: { cookie: "infiuba_magic_state=magic-state" },
+      }),
+    );
+
+    expect(response.status).toBe(307);
+    expect(mockedAuth.verifyLoginOtp).not.toHaveBeenCalled();
+    expect(mockedAudit.recordSecurityAuditEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: "auth.otp.verify",
+        outcome: "invalid_request",
+        metadata: expect.objectContaining({
+          reason: "state_mismatch",
+        }),
       }),
     );
   });

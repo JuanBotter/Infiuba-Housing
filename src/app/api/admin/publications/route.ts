@@ -14,6 +14,8 @@ import {
   LISTING_ADDRESS_MAX_LENGTH,
   LISTING_ID_MAX_LENGTH,
   LISTING_NEIGHBORHOOD_MAX_LENGTH,
+  isSafeListingAddress,
+  isSafeListingNeighborhood,
   parseListingContactsFromUnknown,
   toOptionalNumber,
 } from "@/lib/domain-constraints";
@@ -166,6 +168,16 @@ export async function POST(request: Request) {
     const capacity = toOptionalNumber(payload?.capacity);
 
     if (!address || !neighborhood || !contacts) {
+      await recordSecurityAuditEvent({
+        eventType: "admin.publication.update",
+        outcome: "invalid_request",
+        actorEmail: session.email,
+        metadata: { listingId },
+      });
+      return jsonNoStore({ error: "Invalid payload" }, { status: 400 });
+    }
+
+    if (!isSafeListingAddress(address) || !isSafeListingNeighborhood(neighborhood)) {
       await recordSecurityAuditEvent({
         eventType: "admin.publication.update",
         outcome: "invalid_request",

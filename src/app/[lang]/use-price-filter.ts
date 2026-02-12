@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useRef } from "react";
-import type { CSSProperties, Dispatch, SetStateAction } from "react";
+import type { Dispatch, SetStateAction } from "react";
 
 import type { Listing } from "@/types";
 
@@ -134,13 +134,6 @@ export function usePriceFilter({
     };
   }, [effectivePriceRange.sliderMax, effectivePriceRange.sliderMin, priceBounds]);
 
-  const priceRangeTrackStyle = useMemo(() => {
-    return {
-      "--start-percent": `${priceRangePercents.start}%`,
-      "--end-percent": `${priceRangePercents.end}%`,
-    } as CSSProperties;
-  }, [priceRangePercents.end, priceRangePercents.start]);
-
   const priceHistogram = useMemo(() => {
     type HistogramBar = { id: number; heightPercent: number; isActive: boolean };
     if (!priceBounds) {
@@ -269,7 +262,7 @@ export function usePriceFilter({
     priceBounds,
     priceSliderStep,
     effectivePriceRange,
-    priceRangeTrackStyle,
+    priceRangePercents,
     priceHistogram,
     startPriceSliderDrag,
     endPriceSliderDrag,

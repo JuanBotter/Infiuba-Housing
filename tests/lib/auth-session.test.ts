@@ -12,6 +12,8 @@ let auth: typeof import("@/lib/auth");
 let mockedDb: typeof import("@/lib/db");
 
 const ORIGINAL_VISITOR_CONTACTS = process.env.VISITOR_CAN_VIEW_OWNER_CONTACTS;
+const ORIGINAL_VISITOR_CONTACTS_PROD_ACK = process.env.VISITOR_CAN_VIEW_OWNER_CONTACTS_ALLOW_PRODUCTION;
+const ORIGINAL_NODE_ENV = process.env.NODE_ENV;
 
 beforeAll(async () => {
   auth = await import("@/lib/auth");
@@ -21,6 +23,8 @@ beforeAll(async () => {
 beforeEach(() => {
   vi.clearAllMocks();
   process.env.VISITOR_CAN_VIEW_OWNER_CONTACTS = ORIGINAL_VISITOR_CONTACTS;
+  process.env.VISITOR_CAN_VIEW_OWNER_CONTACTS_ALLOW_PRODUCTION = ORIGINAL_VISITOR_CONTACTS_PROD_ACK;
+  process.env.NODE_ENV = ORIGINAL_NODE_ENV;
 });
 
 describe("auth session helpers", () => {
@@ -90,12 +94,39 @@ describe("auth session helpers", () => {
     expect(cleared.value).toBe("");
   });
 
+  it("builds and clears magic-link state cookies", () => {
+    const cookie = auth.buildMagicLinkStateCookie("magic-state-12345678901234567890");
+    expect(cookie.name).toBe(auth.MAGIC_LINK_STATE_COOKIE_NAME);
+    expect(cookie.maxAge).toBeGreaterThan(0);
+
+    const cleared = auth.buildMagicLinkStateCookieClear();
+    expect(cleared.name).toBe(auth.MAGIC_LINK_STATE_COOKIE_NAME);
+    expect(cleared.maxAge).toBe(0);
+  });
+
+  it("reads magic-link state from cookie headers", () => {
+    const value = auth.getMagicLinkStateFromCookieHeader(
+      `${auth.MAGIC_LINK_STATE_COOKIE_NAME}=magic-state-12345678901234567890`,
+    );
+    expect(value).toBe("magic-state-12345678901234567890");
+  });
+
   it("honors visitor contact override flag", () => {
     process.env.VISITOR_CAN_VIEW_OWNER_CONTACTS = "true";
     expect(auth.canViewOwnerContactInfo("visitor")).toBe(true);
 
     process.env.VISITOR_CAN_VIEW_OWNER_CONTACTS = "false";
     expect(auth.canViewOwnerContactInfo("visitor")).toBe(false);
+  });
+
+  it("blocks visitor contact override in production without explicit acknowledgement", () => {
+    process.env.NODE_ENV = "production";
+    process.env.VISITOR_CAN_VIEW_OWNER_CONTACTS = "true";
+    process.env.VISITOR_CAN_VIEW_OWNER_CONTACTS_ALLOW_PRODUCTION = "false";
+
+    expect(() => auth.canViewOwnerContactInfo("visitor")).toThrow(
+      /VISITOR_CAN_VIEW_OWNER_CONTACTS=true requires/,
+    );
   });
 
   it("validates OTP sessions against the database", async () => {

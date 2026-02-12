@@ -15,7 +15,9 @@ export type SecurityAuditEventType =
   | "admin.review.edit"
   | "admin.listing_images.reorder"
   | "admin.publication.update"
-  | "admin.publication.delete_image";
+  | "admin.publication.delete_image"
+  | "security.config.override"
+  | "security.csp.report";
 
 interface SecurityAuditEventInput {
   eventType: SecurityAuditEventType;

@@ -27,6 +27,7 @@ Do not defer AGENTS updates.
 - Core domain: listings, owner contacts, survey reviews, web reviews with moderation, multilingual review text, and review-level rent history.
 - Listings and reviews support photo galleries backed by Vercel Blob uploads. Review-level images (`reviews.image_urls`) are canonical, while listing-level gallery display is derived from approved review images and can be admin-ordered via listing image-order metadata (`listings.image_urls`).
 - Listing cards in list mode render image overlays for neighborhood + rent + rating and include a heart favorite control; list cards plus map-mode sidebar cards and map-selected detail media show inline previous/next photo controls with a `current/total` counter when photos exist (controls are disabled when only one photo is available). Favorites persist per logged-in user, while visitor clicks show a sign-in hint and do not save.
+- Map marker tooltip HTML is sanitized before passing data into Leaflet tooltip sinks so listing address/neighborhood values render as inert text.
 - Listing detail/admin galleries and review-form upload previews use an in-page image viewer (body-portal modal/lightbox with keyboard + thumbnail navigation) instead of opening images in a new tab; property galleries use a uniform same-size tile layout, and gallery/viewer frames use fixed-size layouts so image display size is consistent regardless of source resolution. The viewer supports fit/fill mode toggle, zoom controls (buttons, keyboard, wheel, double-click reset/toggle), swipe navigation on touch, and Home/End keyboard shortcuts.
 - Auth/login: email OTP in top-bar access menu; only active users present in `users` can sign in; login email field is required (label does not say optional).
 - Review submission requires a semester string in the format `1C-YYYY`/`2C-YYYY` from 2022–2030. UI uses a required text input with suggestions; API validates against the fixed list.
@@ -37,18 +38,26 @@ Do not defer AGENTS updates.
 - Testing: Vitest unit tests mock DB/email/Next cache for API routes and auth helpers.
 - API route test coverage includes session/session-magic, reviews, favorites, review-images, admin users/reviews/publications, contact-edits, admin contact-edits, and admin security endpoints.
 - OTP request/verify API responses are intentionally enumeration-safe: request responses are generic for allowed/not-allowed/rate-limited outcomes, and verify failures return a generic invalid-code response for auth failures.
-- OTP abuse controls are DB-backed and layered: OTP requests are rate limited by IP/subnet/global windows, and OTP verify failures are rate limited by IP and email+IP windows.
+- OTP request handling adds bounded latency normalization (minimum floor + jitter) so allowed/disallowed request paths are harder to distinguish via timing.
+- OTP abuse controls are DB-backed and layered: OTP requests are hard-limited by IP/subnet windows while global request buckets are telemetry-only (no hard-stop lockout), and OTP verify failures are rate limited by IP and email+IP windows.
+- OTP network fingerprinting now uses a single trusted ingress header (`TRUSTED_IP_HEADER`, with optional hop-count parsing for chain headers) instead of opportunistically trusting multiple forwarding headers.
 - OTP emails are localized using the user-selected UI language (`requestOtp` payload `lang`) and include branded HTML (two-column layout with logo panel + styled content), a one-click magic login link, and the numeric OTP code as fallback.
 - Structured security audit events are recorded for OTP request/verify and admin-sensitive actions (user access changes, review moderation + review edits, publication edits including image reordering/removal, contact edit moderation, and contact edit submissions).
 - Sensitive auth/admin API responses explicitly send `Cache-Control: no-store` headers.
-- Stateful `POST`/`DELETE` API endpoints enforce same-origin checks (Origin/Referer must match request host) to reduce CSRF risk; `GET /api/session/magic` is a token-authenticated email-link exception.
+- Stateful `POST`/`DELETE` API endpoints enforce same-origin checks (Origin/Referer must match request host) to reduce CSRF risk; `GET /api/session/magic` additionally requires a pre-issued magic-link state cookie to match the signed token state.
 - Same-origin validation failures now return structured payloads (`code`, `message`) with legacy `error` alias (`request_origin_validation_failed`, `request_origin_invalid`, `request_origin_missing`) for client-safe error mapping.
 - API request parsing/normalization is centralized in `src/lib/request-validation.ts` and reused across session/reviews/admin endpoints.
 - Route guard/wrapper checks are centralized in `src/lib/api-route-helpers.ts` (`requireSameOrigin`, `requireAdminSession`, `requireDb`, `jsonError`) and reused across session/favorites/reviews/admin API handlers to reduce duplicated security and error-response boilerplate.
 - Client-side API calls for admin/auth UI flows are standardized via `src/lib/api-client.ts` (`apiGetJson`, `apiPostJson`, typed `ApiClientError`, and reusable status/code error mapping).
 - Shared listing/reviewer domain constraints and normalizers are centralized in `src/lib/domain-constraints.ts` (contacts/capacity limits, contact parsing+normalization, reviewer email-like normalization, and optional-number normalization) and reused across review/contact-edit/publication APIs plus listing/review data mappers.
-- In production, app-wide browser hardening headers are configured (`Content-Security-Policy`, `Strict-Transport-Security`, `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`) via `next.config.mjs`; CSP `img-src` explicitly allows OpenStreetMap tiles and Vercel Blob public CDN hosts (`https://*.public.blob.vercel-storage.com`).
+- New listing/publication address and neighborhood text is validated with a server-side safe-character allowlist (rejecting HTML-tag payload characters).
+- In production, browser hardening headers are split:
+  - Non-CSP headers (`Strict-Transport-Security`, `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`) are configured via `next.config.mjs`.
+  - CSP is configured via `middleware.ts` with per-request nonce (`x-nonce`) and report endpoint (`/api/security/csp-report`).
+  - CSP removes `unsafe-inline` from `script-src` and `style-src`, and enforces `script-src-attr 'none'` plus `style-src-attr 'none'`.
+  - CSP `img-src` explicitly allows OpenStreetMap tiles and Vercel Blob public CDN hosts (`https://*.public.blob.vercel-storage.com`).
 - Reviewer contact email handling is hardened: `/api/reviews` validates strict email format for `studentEmail` and email-like `studentContact`, and listing detail renders `mailto:` only for strict emails using URI-encoded hrefs.
+- Review image URLs accepted by review/admin-edit APIs are restricted to trusted Blob-host origins (`*.public.blob.vercel-storage.com`, plus optional explicit host allowlist env override for controlled deployments).
 - DB migrations are managed with node-pg-migrate (`migrations/` directory).
 - Survey import tooling now generates deterministic/stable survey review IDs from review content (instead of row order).
 - Admin UX: split views for reviews, contact edit requests, access management, security telemetry, and publication editing under `/{lang}/admin/*`; access view supports search, role changes, deletion, and bulk user creation.
@@ -56,6 +65,8 @@ Do not defer AGENTS updates.
 - Admin header copy is tab-aware: reviews/contact-edits/access/security/publications each show contextual title/description instead of a single reviews-only subtitle.
 - Admin security telemetry view is presented as a dashboard with KPI cards, alert cards, per-window outcome summaries, and a recent audit-events table (still fed by `getSecurityTelemetrySnapshot` and no-store APIs); security dashboard uses a local blue/green alert palette distinct from the orange public theme, matching Stitch references.
 - Security telemetry dashboard labels/descriptions are localized for all supported languages.
+- Security telemetry alerts include a critical signal when visitor owner-contact emergency override is active.
+- Admin runtime emits `security.config.override` audit events when visitor owner-contact emergency override is active.
 - Client components avoid importing `getMessages` directly; server boundaries pass selected-language message props (including scoped slices for small clients like `ThemeToggle` and `ListingsMap`) into client UIs such as review forms, admin panels, and auth/theme controls.
 - Admin reviews pending cards surface structured moderation context (submitted-at timestamp, rating/recommendation/rent/semester/photo count facts, full comment block, inline listing/review image galleries when present, and submitter contact/share-consent fields); when no reviewer phone/email is provided, cards show an explicit "no contact information provided" state.
 - Admin reviews moderation data is paginated for approved reviews: `GET /api/admin/reviews` accepts `approvedLimit`/`approvedOffset` (bounded), returns `approvedTotal`, and the reviews panel uses previous/next pagination controls instead of client-side slicing over full approved-review payloads.
@@ -107,6 +118,7 @@ Do not defer AGENTS updates.
 - Header menus (language/access) are layered above map controls/popups to avoid overlap while using map view.
 - Top-bar menus (`language-menu`, `role-menu`) close when users click outside the open menu via shared hook `src/lib/use-details-outside-close.ts`.
 - In the OTP login popover, the "Remember me" checkbox and label stay aligned on a single row.
+- Admin layout shows a warning banner whenever visitor owner-contact emergency override is active.
 
 ## Runtime and Commands
 
@@ -132,6 +144,7 @@ Do not defer AGENTS updates.
 - Migration CLI discovery is scoped to JS entry files (`migrations/*.js` with `--use-glob`) so helper `.sql`/docs are not imported as migrations.
 - Migration scripts run with `--check-order false` (legacy setting); migrations now use timestamp-style prefixes.
 - `scripts/db-migrate.mjs` rewrites legacy `pgmigrations.name` entries (from `001_` style) to the new timestamped names before running node-pg-migrate.
+- `scripts/db-migrate.mjs` applies the shared PG SSL policy (`scripts/pg-ssl.mjs`) both to the migration-history preflight client and the spawned node-pg-migrate process (`PGSSLMODE`/`PGSSLROOTCERT` wiring).
 - Legacy alias: `npm run db:init`
 - Seed DB: `npm run db:seed`
 - Init/migrate + seed: `npm run db:setup`
@@ -144,13 +157,17 @@ Do not defer AGENTS updates.
 - `PGSSL_CA_CERT`: optional PostgreSQL CA certificate in PEM format (supports escaped `\n`).
 - `PGSSL_ALLOW_INSECURE=true`: development-only override to disable certificate verification; forbidden in production.
 - `AUTH_SECRET`: secret for signing auth role cookie; required in production, minimum 32 characters, and must not be a known placeholder value.
+- `TRUSTED_IP_HEADER`: canonical request header used for auth rate-limit network fingerprinting (`x-forwarded-for`, `x-vercel-forwarded-for`, `cf-connecting-ip`, or `x-real-ip`). Strongly recommended in production.
+- `TRUSTED_PROXY_HOPS`: trusted hop count for chain-based trusted IP headers (defaults to `1`; only used for chain headers like `x-forwarded-for`).
 - `VISITOR_CAN_VIEW_OWNER_CONTACTS=true`: emergency read-only fallback to expose owner contacts to visitors (reviewer/student contacts remain protected).
+- `VISITOR_CAN_VIEW_OWNER_CONTACTS_ALLOW_PRODUCTION=true`: explicit production acknowledgement required to allow visitor owner-contact override in production.
 - `OTP_EMAIL_PROVIDER`: OTP delivery provider (`brevo`, `resend`, or `console`; defaults to `console` in non-production when unset).
 - `OTP_CONSOLE_ONLY_EMAIL`: optional single email forced to console OTP delivery (skips provider send); defaults to `mock@email.com` in non-production when unset.
 - `OTP_FROM_EMAIL`: optional provider-agnostic sender identity fallback (`Name <email@domain>`).
 - `OTP_LOGO_URL`: optional absolute public URL for OTP email logo rendering (recommended when using deployment protection/proxies); if unset, app uses `${origin}/infiuba-logo.png`.
 - `BLOB_READ_WRITE_TOKEN`: required for `@vercel/blob` server uploads used by `/api/review-images`.
 - `BLOB_UPLOAD_PREFIX`: optional path prefix for Blob uploads (sanitized lowercase slug path). When set, uploads are stored under `${BLOB_UPLOAD_PREFIX}/reviews/...`; when unset, uploads use `reviews/...`.
+- `REVIEW_IMAGE_ALLOWED_HOSTS`: optional comma-separated host allowlist extension for review image URL validation (in addition to `*.public.blob.vercel-storage.com`).
 - `BREVO_API_KEY`: required when `OTP_EMAIL_PROVIDER=brevo`.
 - `BREVO_FROM_EMAIL`: sender identity for Brevo OTP emails.
 - `RESEND_API_KEY`: required when `OTP_EMAIL_PROVIDER=resend`.
@@ -160,6 +177,7 @@ Notes:
 
 - If `AUTH_SECRET` changes, all active sessions are invalidated.
 - In production, missing or weak `AUTH_SECRET` causes auth signing operations to fail fast.
+- In production, `VISITOR_CAN_VIEW_OWNER_CONTACTS=true` without `VISITOR_CAN_VIEW_OWNER_CONTACTS_ALLOW_PRODUCTION=true` throws at runtime to prevent accidental public contact exposure.
 
 ## Access Control Model
 
@@ -193,12 +211,13 @@ Implementation:
     - `{ action: "requestOtp", email, lang? }` to send OTP, then
     - `{ action: "verifyOtp", email, otpCode, trustDevice }` to sign in.
     - Verify path sets signed role cookie.
+    - Request path issues a short-lived `infiuba_magic_state` cookie used to bind magic-link completion to the requesting browser session.
     - `requestOtp` intentionally returns a generic success payload for most auth-related outcomes to reduce account enumeration.
     - `verifyOtp` intentionally returns generic invalid-code failures for non-success auth outcomes (`not_allowed`, invalid/expired codes, etc.).
-    - OTP abuse throttling uses request network fingerprints derived from proxy headers (`x-forwarded-for`, `cf-connecting-ip`, `x-real-ip`, `forwarded`).
+    - OTP abuse throttling uses request network fingerprints derived from a configured trusted ingress header (`TRUSTED_IP_HEADER`) with optional trusted-hop parsing (`TRUSTED_PROXY_HOPS`) for chain headers.
     - OTP request/verify outcomes are logged to `security_audit_events` (with redacted email display and hashed network keys).
     - Session API responses are returned with `Cache-Control: no-store`.
-  - `GET /api/session/magic?token=<otp-link-token>&lang=<lang>` verifies one-click OTP link tokens, sets the signed role cookie on success, records OTP verify audit events, and redirects to `/{lang}`.
+  - `GET /api/session/magic?token=<otp-link-token>&lang=<lang>` verifies one-click OTP link tokens, requires a matching `infiuba_magic_state` cookie state, sets the signed role cookie on success, clears state cookie, records OTP verify audit events, and redirects to `/{lang}`.
   - `DELETE /api/session` -> logout (clears cookie).
   - `GET /api/session` -> current resolved role (DB-validated for cookie-backed sessions).
   - Sign-in paths are OTP-only: `POST /api/session` (`verifyOtp`) and one-click OTP magic links via `GET /api/session/magic`.
@@ -230,7 +249,7 @@ Seed/import tooling:
 
 ## Database Schema (Current)
 
-Defined in `migrations/20260206090000000_initial_schema.sql`, `migrations/20260206090100000_otp_rate_limit_buckets.sql`, `migrations/20260206090200000_listing_contact_length_limit.sql`, `migrations/20260206090300000_dataset_meta_bootstrap.sql`, `migrations/20260206090400000_drop_legacy_invites.sql`, `migrations/20260206090500000_security_audit_events.sql`, `migrations/20260207090000000_contact_edit_requests.sql`, `migrations/20260208090000000_contact_edit_capacity.sql`, `migrations/20260209100000000_listing_review_images.sql`, `migrations/20260210130000000_listing_image_order_metadata.sql`, and `migrations/20260210170000000_listing_favorites.sql` (applied via node-pg-migrate; rollback behavior documented in `migrations/ROLLBACK_POLICY.md`).
+Defined in `migrations/20260206090000000_initial_schema.sql`, `migrations/20260206090100000_otp_rate_limit_buckets.sql`, `migrations/20260206090200000_listing_contact_length_limit.sql`, `migrations/20260206090300000_dataset_meta_bootstrap.sql`, `migrations/20260206090400000_drop_legacy_invites.sql`, `migrations/20260206090500000_security_audit_events.sql`, `migrations/20260207090000000_contact_edit_requests.sql`, `migrations/20260208090000000_contact_edit_capacity.sql`, `migrations/20260209100000000_listing_review_images.sql`, `migrations/20260210130000000_listing_image_order_metadata.sql`, `migrations/20260210170000000_listing_favorites.sql`, and `migrations/20260212100000000_listing_text_html_safety.sql` (applied via node-pg-migrate; rollback behavior documented in `migrations/ROLLBACK_POLICY.md`).
 
 Finite-state fields use PostgreSQL enums:
 
@@ -398,7 +417,7 @@ Indexes:
 - `idx_reviews_listing_status ON reviews(listing_id, status, source)`
 - `idx_reviews_status_created ON reviews(status, created_at DESC)`
 
-Integrity hardening (enforced in `migrations/20260206090000000_initial_schema.sql`, `migrations/20260206090100000_otp_rate_limit_buckets.sql`, `migrations/20260206090200000_listing_contact_length_limit.sql`, `migrations/20260206090300000_dataset_meta_bootstrap.sql`, `migrations/20260206090400000_drop_legacy_invites.sql`, `migrations/20260206090500000_security_audit_events.sql`, `migrations/20260207090000000_contact_edit_requests.sql`, `migrations/20260208090000000_contact_edit_capacity.sql`, `migrations/20260209100000000_listing_review_images.sql`, `migrations/20260210130000000_listing_image_order_metadata.sql`, and `migrations/20260210170000000_listing_favorites.sql`):
+Integrity hardening (enforced in `migrations/20260206090000000_initial_schema.sql`, `migrations/20260206090100000_otp_rate_limit_buckets.sql`, `migrations/20260206090200000_listing_contact_length_limit.sql`, `migrations/20260206090300000_dataset_meta_bootstrap.sql`, `migrations/20260206090400000_drop_legacy_invites.sql`, `migrations/20260206090500000_security_audit_events.sql`, `migrations/20260207090000000_contact_edit_requests.sql`, `migrations/20260208090000000_contact_edit_capacity.sql`, `migrations/20260209100000000_listing_review_images.sql`, `migrations/20260210130000000_listing_image_order_metadata.sql`, `migrations/20260210170000000_listing_favorites.sql`, and `migrations/20260212100000000_listing_text_html_safety.sql`):
 
 - Non-empty checks for core text identifiers (`users.email`, `deleted_users.email`, `auth_email_otps.email`, listing address/neighborhood, listing contact).
 - Numeric range checks for ratings, recommendation rates, coordinates, and year fields.
@@ -411,6 +430,7 @@ Integrity hardening (enforced in `migrations/20260206090000000_initial_schema.sq
 - Contact edit requests enforce non-empty requester emails and at least one requested field (contacts or max students); requested/current capacity values must be null or > 0.
 - Listing favorites enforce non-empty user email and listing id.
 - Review image arrays enforce count caps (`reviews.image_urls <= 6`); listing image-order metadata is intentionally uncapped.
+- Listing text fields reject angle-bracket HTML tag characters (`listings.address`, `listings.neighborhood`) and legacy rows with these characters are sanitized by migration.
 - `dataset_meta` bootstrap row (`id=1`) is created if missing via migration.
 - Legacy invite DB artifacts (`auth_invites`, `invite_consumed_reason_enum`) are dropped by migration.
 - Legacy-row normalization before constraints are applied (trim/canonicalize emails, null-out invalid ranges, dedupe users by case-insensitive email).
@@ -438,6 +458,7 @@ Integrity hardening (enforced in `migrations/20260206090000000_initial_schema.sq
 - Listing-level gallery display is derived from approved review images (survey + web).
 - `listings.image_urls` stores admin-managed ordering metadata for the derived gallery; the first ordered image is the listing cover image in cards.
 - Upload endpoint `POST /api/review-images` is role-gated to `whitelisted`/`admin`, same-origin protected, and accepts only `jpeg`/`png`/`webp`/`gif`/`avif` with a per-file 5MB limit and max 6 files per request.
+- Review/admin-edit payload URL validation for `reviewImageUrls` accepts only trusted Blob hosts (`*.public.blob.vercel-storage.com`) plus optional explicit allowlist extensions from `REVIEW_IMAGE_ALLOWED_HOSTS`.
 - Blob upload path supports environment separation via optional `BLOB_UPLOAD_PREFIX` (for example `prod`, `preview`, `local`).
 - Review submit payload supports optional `reviewImageUrls` only.
 - Admin publication edit APIs:
@@ -491,7 +512,7 @@ Moderation:
 Must remain true:
 
 1. Visitors never see reviewer contact info.
-2. Owner contacts are visible only to whitelisted/admin, except when emergency fallback `VISITOR_CAN_VIEW_OWNER_CONTACTS=true` is explicitly enabled.
+2. Owner contacts are visible only to whitelisted/admin, except when emergency fallback `VISITOR_CAN_VIEW_OWNER_CONTACTS=true` is explicitly enabled (and in production requires `VISITOR_CAN_VIEW_OWNER_CONTACTS_ALLOW_PRODUCTION=true`).
 3. Reviewer contact info is shown only if:
    - User role is whitelisted/admin, and
    - Reviewer opted into sharing (`allow_contact_sharing = true`).
@@ -526,8 +547,10 @@ Must remain true:
 - Admin security telemetry API: `src/app/api/admin/security/route.ts`
 - Review image upload API: `src/app/api/review-images/route.ts`
 - App security headers config: `next.config.mjs`
+- CSP nonce middleware: `middleware.ts`
 - Root layout + theme bootstrap script loader: `src/app/layout.tsx`
 - Theme bootstrap script (static, beforeInteractive): `public/theme-init.js`
+- CSP report ingestion API: `src/app/api/security/csp-report/route.ts`
 - Request validation helpers: `src/lib/request-validation.ts`
 - Frontend API client helpers: `src/lib/api-client.ts`
 - Cache-tag invalidation helpers: `src/lib/cache-tags.ts`
@@ -545,6 +568,7 @@ Must remain true:
 - Email/contact helpers: `src/lib/email.ts`
 - No-store response helper: `src/lib/http-cache.ts`
 - Request network fingerprint helper: `src/lib/request-network.ts`
+- Leaflet tooltip sanitizer helper: `src/lib/map-tooltip.ts`
 - Security audit event writer: `src/lib/security-audit.ts`
 - Security telemetry snapshot builder: `src/lib/security-telemetry.ts`
 - OTP mail delivery helper: `src/lib/otp-mailer.ts`

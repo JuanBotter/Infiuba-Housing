@@ -228,8 +228,6 @@ label.filters-panel__range {
 }
 
 .filters-panel__range-slider {
-  --start-percent: 0%;
-  --end-percent: 100%;
   position: relative;
   min-height: 2.55rem;
   display: flex;
@@ -237,51 +235,30 @@ label.filters-panel__range {
   padding-bottom: 0.14rem;
 }
 
-.filters-panel__range-histogram {
+.filters-panel__range-chart {
   position: absolute;
   inset: 0 0 0.62rem;
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(0, 1fr);
-  gap: 2px;
-  align-items: end;
+  width: 100%;
+  height: calc(100% - 0.62rem);
   pointer-events: none;
   z-index: 1;
 }
 
 .filters-panel__range-bar {
-  --bar-height: 0%;
-  height: var(--bar-height);
-  border-radius: 3px 3px 0 0;
-  background: color-mix(in srgb, var(--line) 72%, var(--subtle-bg) 28%);
+  fill: color-mix(in srgb, var(--line) 72%, var(--subtle-bg) 28%);
   opacity: 0.85;
 }
 
 .filters-panel__range-bar.is-active {
-  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 82%, white 18%), var(--warm));
+  fill: color-mix(in srgb, var(--accent) 78%, var(--warm) 22%);
 }
 
-.filters-panel__range-slider::before,
-.filters-panel__range-slider::after {
-  content: "";
-  position: absolute;
-  bottom: 0.56rem;
-  height: 4px;
-  border-radius: 999px;
-  pointer-events: none;
-  z-index: 2;
+.filters-panel__range-track {
+  fill: color-mix(in srgb, var(--line) 72%, var(--subtle-bg) 28%);
 }
 
-.filters-panel__range-slider::before {
-  left: 0;
-  right: 0;
-  background: color-mix(in srgb, var(--line) 72%, var(--subtle-bg) 28%);
-}
-
-.filters-panel__range-slider::after {
-  left: var(--start-percent);
-  right: calc(100% - var(--end-percent));
-  background: linear-gradient(120deg, var(--accent), var(--warm));
+.filters-panel__range-track-active {
+  fill: color-mix(in srgb, var(--accent) 82%, var(--warm) 18%);
 }
 
 .filters-panel__range-input {
@@ -1322,8 +1299,32 @@ textarea {
 
 .star-rating__stars-fill {
   color: var(--star-on);
-  width: var(--rating-percent, 0%);
+  width: 0%;
   overflow: hidden;
+}
+
+.star-rating__stars-fill.is-value-0 {
+  width: 0%;
+}
+
+.star-rating__stars-fill.is-value-1 {
+  width: 20%;
+}
+
+.star-rating__stars-fill.is-value-2 {
+  width: 40%;
+}
+
+.star-rating__stars-fill.is-value-3 {
+  width: 60%;
+}
+
+.star-rating__stars-fill.is-value-4 {
+  width: 80%;
+}
+
+.star-rating__stars-fill.is-value-5 {
+  width: 100%;
 }
 
 .star-rating__stars-base svg,
@@ -1832,7 +1833,52 @@ input[type="number"] {
   object-fit: contain;
   object-position: center;
   transform-origin: center;
+  transform: scale(1);
   transition: transform 140ms ease;
+}
+
+.image-viewer__image.is-zoom-0 {
+  transform: scale(1);
+}
+
+.image-viewer__image.is-zoom-1 {
+  transform: scale(1.2);
+}
+
+.image-viewer__image.is-zoom-2 {
+  transform: scale(1.4);
+}
+
+.image-viewer__image.is-zoom-3 {
+  transform: scale(1.6);
+}
+
+.image-viewer__image.is-zoom-4 {
+  transform: scale(1.8);
+}
+
+.image-viewer__image.is-zoom-5 {
+  transform: scale(2);
+}
+
+.image-viewer__image.is-zoom-6 {
+  transform: scale(2.2);
+}
+
+.image-viewer__image.is-zoom-7 {
+  transform: scale(2.4);
+}
+
+.image-viewer__image.is-zoom-8 {
+  transform: scale(2.6);
+}
+
+.image-viewer__image.is-zoom-9 {
+  transform: scale(2.8);
+}
+
+.image-viewer__image.is-zoom-10 {
+  transform: scale(3);
 }
 
 .image-viewer__frame.is-fill .image-viewer__image {
@@ -2986,6 +3032,16 @@ input[type="number"] {
   gap: 0.88rem;
 }
 
+.admin-override-banner {
+  margin: 0;
+  padding: 0.72rem 0.9rem;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--danger) 62%, #ffffff);
+  background: color-mix(in srgb, var(--danger) 12%, #fff6f3);
+  color: color-mix(in srgb, var(--danger) 72%, #2f1b15);
+  font-weight: 600;
+}
+
 .admin-moderation-column {
   min-height: 380px;
 }
@@ -3331,21 +3387,21 @@ input[type="number"] {
   border-color: color-mix(in srgb, var(--line) 74%, var(--primary) 26%);
 }
 
-:root[data-theme="dark"] .filters-panel__range-slider::before {
-  background: color-mix(in srgb, var(--line) 66%, #1a100c 34%);
+:root[data-theme="dark"] .filters-panel__range-track {
+  fill: color-mix(in srgb, var(--line) 66%, #1a100c 34%);
+}
+
+:root[data-theme="dark"] .filters-panel__range-track-active {
+  fill: color-mix(in srgb, var(--accent) 76%, #f6ab7b 24%);
 }
 
 :root[data-theme="dark"] .filters-panel__range-bar {
-  background: color-mix(in srgb, var(--line) 62%, #261812 38%);
+  fill: color-mix(in srgb, var(--line) 62%, #261812 38%);
   opacity: 0.95;
 }
 
 :root[data-theme="dark"] .filters-panel__range-bar.is-active {
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--accent) 76%, #ffd6be 24%),
-    color-mix(in srgb, var(--warm) 82%, #f59c6e 18%)
-  );
+  fill: color-mix(in srgb, var(--accent) 74%, #ffd6be 26%);
 }
 
 :root[data-theme="dark"] .filters-panel__range-input {

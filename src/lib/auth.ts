@@ -7,6 +7,7 @@ import { sendLoginOtp } from "@/lib/otp-mailer";
 import type { AuthMethod, Lang, UserRole } from "@/types";
 
 export const ROLE_COOKIE_NAME = "infiuba_role";
+export const MAGIC_LINK_STATE_COOKIE_NAME = "infiuba_magic_state";
 
 const ROLE_COOKIE_DEFAULT_MAX_AGE_SECONDS = 60 * 60 * 24 * 120;
 const ROLE_COOKIE_TRUSTED_DEVICE_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
@@ -18,7 +19,7 @@ const OTP_MAX_ATTEMPTS = 5;
 const OTP_RATE_LIMIT_WINDOW_SECONDS = 60 * 10;
 const OTP_REQUEST_MAX_PER_IP = 5;
 const OTP_REQUEST_MAX_PER_SUBNET = 30;
-const OTP_REQUEST_MAX_GLOBAL = 300;
+const OTP_REQUEST_GLOBAL_SOFT_LIMIT = 1_000_000_000;
 const OTP_VERIFY_FAILURE_MAX_PER_IP = 20;
 const OTP_VERIFY_FAILURE_MAX_PER_EMAIL_IP = 8;
 const OTP_RATE_LIMIT_RETENTION_SECONDS = 60 * 60 * 24;
@@ -32,8 +33,12 @@ const OTP_RATE_LIMIT_SCOPE_VERIFY_FAILURE_IP = "otp_verify_failure_ip";
 const OTP_RATE_LIMIT_SCOPE_VERIFY_FAILURE_EMAIL_IP = "otp_verify_failure_email_ip";
 const OTP_MAGIC_LINK_VERSION = "v1";
 const OTP_MAGIC_LINK_SIGNING_CONTEXT = "otp_magic_link";
+const OTP_MAGIC_LINK_STATE_LENGTH_BYTES = 24;
+const OTP_MAGIC_LINK_STATE_MAX_AGE_SECONDS = OTP_EXPIRY_MINUTES * 60;
+const MAGIC_LINK_STATE_PATTERN = /^[A-Za-z0-9_-]{24,200}$/;
 const OTP_LOGO_CACHE_BUST_VERSION = "20260209";
 const AUTH_SECRET_MIN_LENGTH = 32;
+const VISITOR_CONTACT_OVERRIDE_PROD_ACK_ENV = "VISITOR_CAN_VIEW_OWNER_CONTACTS_ALLOW_PRODUCTION";
 const AUTH_SECRET_WEAK_VALUES = new Set([
   "replace-with-a-long-random-secret",
   "changeme",
@@ -47,6 +52,7 @@ let runtimeSecret: string | null = null;
 let lastRateLimitCleanupAt = 0;
 let hasWarnedAuthSecretFallback = false;
 let hasWarnedWeakAuthSecret = false;
+let hasWarnedVisitorOwnerOverride = false;
 
 function isUserRole(value: string): value is UserRole {
   return value === "visitor" || value === "whitelisted" || value === "admin";
@@ -133,6 +139,7 @@ export interface OtpRateLimitContext {
 export interface RequestLoginOtpOptions {
   lang?: Lang;
   appOrigin?: string;
+  magicLinkState?: string;
 }
 
 export interface AuthSession {
@@ -194,6 +201,18 @@ function isValidOtpCode(value: string) {
   return new RegExp(`^[0-9]{${OTP_CODE_LENGTH}}$`).test(value);
 }
 
+function normalizeMagicLinkState(value: string | undefined) {
+  const normalized = value?.trim() || "";
+  if (!normalized) {
+    return "";
+  }
+  return MAGIC_LINK_STATE_PATTERN.test(normalized) ? normalized : "";
+}
+
+export function createMagicLinkState() {
+  return randomBytes(OTP_MAGIC_LINK_STATE_LENGTH_BYTES).toString("base64url");
+}
+
 function resolveAppOrigin(value: string | undefined) {
   const candidate = value?.trim();
   if (!candidate) {
@@ -211,12 +230,18 @@ function resolveAppOrigin(value: string | undefined) {
   }
 }
 
-function createOtpMagicLinkToken(email: string, code: string, expiresAt: string) {
+function createOtpMagicLinkToken(
+  email: string,
+  code: string,
+  expiresAt: string,
+  magicLinkState: string,
+) {
   const payload = JSON.stringify({
     v: OTP_MAGIC_LINK_VERSION,
     email: normalizeEmail(email),
     code: normalizeOtpCode(code),
     exp: expiresAt,
+    state: magicLinkState,
   });
   const encodedPayload = Buffer.from(payload, "utf8").toString("base64url");
   const signature = sign(`${OTP_MAGIC_LINK_SIGNING_CONTEXT}|${encodedPayload}`);
@@ -257,7 +282,7 @@ function resolveOtpLogoUrl(appOrigin: string) {
 
 export function resolveOtpMagicLinkToken(
   token: string,
-): { ok: true; email: string; otpCode: string } | { ok: false } {
+): { ok: true; email: string; otpCode: string; magicLinkState: string } | { ok: false } {
   const trimmed = token.trim();
   const separatorIndex = trimmed.lastIndexOf(".");
   if (!trimmed || separatorIndex < 0) {
@@ -281,6 +306,7 @@ export function resolveOtpMagicLinkToken(
       email?: unknown;
       code?: unknown;
       exp?: unknown;
+      state?: unknown;
     };
 
     if (parsed.v !== OTP_MAGIC_LINK_VERSION) {
@@ -290,8 +316,15 @@ export function resolveOtpMagicLinkToken(
     const email = typeof parsed.email === "string" ? normalizeEmail(parsed.email) : "";
     const otpCode = typeof parsed.code === "string" ? normalizeOtpCode(parsed.code) : "";
     const expiresAt = typeof parsed.exp === "string" ? new Date(parsed.exp).getTime() : Number.NaN;
+    const magicLinkState =
+      typeof parsed.state === "string" ? normalizeMagicLinkState(parsed.state) : "";
 
-    if (!isLikelyEmail(email) || !isValidOtpCode(otpCode) || Number.isNaN(expiresAt)) {
+    if (
+      !isLikelyEmail(email) ||
+      !isValidOtpCode(otpCode) ||
+      Number.isNaN(expiresAt) ||
+      !magicLinkState
+    ) {
       return { ok: false };
     }
     if (expiresAt <= Date.now()) {
@@ -302,6 +335,7 @@ export function resolveOtpMagicLinkToken(
       ok: true,
       email,
       otpCode,
+      magicLinkState,
     };
   } catch {
     return { ok: false };
@@ -442,7 +476,7 @@ async function isBlockedByRateLimitRules(rules: OtpRateLimitRule[]) {
 
 async function consumeOtpRequestRateLimits(context?: OtpRateLimitContext) {
   const network = resolveRateLimitContext(context);
-  return consumeRateLimitRules([
+  const scopedResult = await consumeRateLimitRules([
     {
       scope: OTP_RATE_LIMIT_SCOPE_REQUEST_IP,
       key: network.ipKey,
@@ -455,13 +489,19 @@ async function consumeOtpRequestRateLimits(context?: OtpRateLimitContext) {
       limit: OTP_REQUEST_MAX_PER_SUBNET,
       windowSeconds: OTP_RATE_LIMIT_WINDOW_SECONDS,
     },
+  ]);
+
+  // Global request volume is recorded for telemetry only and intentionally does not hard-block.
+  await consumeRateLimitRules([
     {
       scope: OTP_RATE_LIMIT_SCOPE_REQUEST_GLOBAL,
       key: OTP_RATE_LIMIT_GLOBAL_KEY,
-      limit: OTP_REQUEST_MAX_GLOBAL,
+      limit: OTP_REQUEST_GLOBAL_SOFT_LIMIT,
       windowSeconds: OTP_RATE_LIMIT_WINDOW_SECONDS,
     },
   ]);
+
+  return scopedResult;
 }
 
 async function isOtpVerifyFailureRateLimited(email: string, context?: OtpRateLimitContext) {
@@ -855,7 +895,8 @@ export async function requestLoginOtp(
     const expiresAt = normalizeDateToIsoString(createdOtp.expires_at);
     const preferredLang = options?.lang || "es";
     const appOrigin = resolveAppOrigin(options?.appOrigin);
-    const magicLinkToken = createOtpMagicLinkToken(normalizedEmail, code, expiresAt);
+    const magicLinkState = normalizeMagicLinkState(options?.magicLinkState) || createMagicLinkState();
+    const magicLinkToken = createOtpMagicLinkToken(normalizedEmail, code, expiresAt, magicLinkState);
     const magicLinkUrl = appOrigin
       ? `${appOrigin}/api/session/magic?token=${encodeURIComponent(magicLinkToken)}&lang=${preferredLang}`
       : undefined;
@@ -1240,11 +1281,40 @@ export function canViewContactInfo(role: UserRole) {
   return role === "whitelisted" || role === "admin";
 }
 
+function isVisitorOwnerContactOverrideEnabled() {
+  const enabled = parseBooleanEnvFlag(process.env.VISITOR_CAN_VIEW_OWNER_CONTACTS);
+  if (!enabled) {
+    return false;
+  }
+
+  const isProduction = process.env.NODE_ENV === "production";
+  const allowInProduction = parseBooleanEnvFlag(process.env[VISITOR_CONTACT_OVERRIDE_PROD_ACK_ENV]);
+  if (isProduction && !allowInProduction) {
+    throw new Error(
+      `VISITOR_CAN_VIEW_OWNER_CONTACTS=true requires ${VISITOR_CONTACT_OVERRIDE_PROD_ACK_ENV}=true in production.`,
+    );
+  }
+
+  if (!hasWarnedVisitorOwnerOverride) {
+    const mode = isProduction ? "production" : "non-production";
+    console.warn(
+      `[AUTH] VISITOR_CAN_VIEW_OWNER_CONTACTS is enabled in ${mode}. Owner contacts are exposed to visitors.`,
+    );
+    hasWarnedVisitorOwnerOverride = true;
+  }
+
+  return true;
+}
+
 export function canViewOwnerContactInfo(role: UserRole) {
   if (canViewContactInfo(role)) {
     return true;
   }
 
+  return isVisitorOwnerContactOverrideEnabled();
+}
+
+export function isVisitorOwnerContactOverrideActive() {
   return parseBooleanEnvFlag(process.env.VISITOR_CAN_VIEW_OWNER_CONTACTS);
 }
 
@@ -1276,6 +1346,53 @@ export function buildRoleCookie(
     sameSite: "lax" as const,
     secure: process.env.NODE_ENV === "production",
   };
+}
+
+export function buildMagicLinkStateCookie(magicLinkState: string) {
+  const normalized = normalizeMagicLinkState(magicLinkState);
+  if (!normalized) {
+    throw new Error("Cannot build magic-link state cookie with empty/invalid value.");
+  }
+
+  return {
+    name: MAGIC_LINK_STATE_COOKIE_NAME,
+    value: normalized,
+    path: "/",
+    maxAge: OTP_MAGIC_LINK_STATE_MAX_AGE_SECONDS,
+    httpOnly: true,
+    sameSite: "lax" as const,
+    secure: process.env.NODE_ENV === "production",
+  };
+}
+
+export function buildMagicLinkStateCookieClear() {
+  return {
+    name: MAGIC_LINK_STATE_COOKIE_NAME,
+    value: "",
+    path: "/",
+    maxAge: 0,
+    httpOnly: true,
+    sameSite: "lax" as const,
+    secure: process.env.NODE_ENV === "production",
+  };
+}
+
+export function getMagicLinkStateFromCookieHeader(cookieHeader: string | null | undefined) {
+  if (!cookieHeader) {
+    return "";
+  }
+
+  const cookieMap = parseCookieHeader(cookieHeader);
+  const stateValue = cookieMap[MAGIC_LINK_STATE_COOKIE_NAME];
+  if (!stateValue) {
+    return "";
+  }
+
+  try {
+    return normalizeMagicLinkState(decodeURIComponent(stateValue));
+  } catch {
+    return normalizeMagicLinkState(stateValue);
+  }
 }
 
 export function buildRoleCookieClear() {

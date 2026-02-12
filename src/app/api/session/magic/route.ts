@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 
 import {
+  buildMagicLinkStateCookieClear,
   buildRoleCookie,
+  getMagicLinkStateFromCookieHeader,
   resolveOtpMagicLinkToken,
   verifyLoginOtp,
 } from "@/lib/auth";
@@ -15,11 +17,19 @@ function resolveRedirectLang(value: string | null): Lang {
   return value && isSupportedLanguage(value) ? value : "es";
 }
 
-function buildRedirectResponse(request: Request, lang: Lang) {
+function buildRedirectResponse(
+  request: Request,
+  lang: Lang,
+  options: { clearMagicLinkState?: boolean } = {},
+) {
   const redirectUrl = new URL(request.url);
   redirectUrl.pathname = `/${lang}`;
   redirectUrl.search = "";
-  return withNoStore(NextResponse.redirect(redirectUrl));
+  const response = withNoStore(NextResponse.redirect(redirectUrl));
+  if (options.clearMagicLinkState) {
+    response.cookies.set(buildMagicLinkStateCookieClear());
+  }
+  return response;
 }
 
 export async function GET(request: Request) {
@@ -35,7 +45,7 @@ export async function GET(request: Request) {
       networkFingerprint,
       metadata: { via: "magic_link" },
     });
-    return buildRedirectResponse(request, lang);
+    return buildRedirectResponse(request, lang, { clearMagicLinkState: true });
   }
 
   const resolvedToken = resolveOtpMagicLinkToken(token);
@@ -46,7 +56,19 @@ export async function GET(request: Request) {
       networkFingerprint,
       metadata: { via: "magic_link" },
     });
-    return buildRedirectResponse(request, lang);
+    return buildRedirectResponse(request, lang, { clearMagicLinkState: true });
+  }
+
+  const cookieState = getMagicLinkStateFromCookieHeader(request.headers.get("cookie"));
+  if (!cookieState || cookieState !== resolvedToken.magicLinkState) {
+    await recordSecurityAuditEvent({
+      eventType: "auth.otp.verify",
+      outcome: "invalid_request",
+      targetEmail: resolvedToken.email,
+      networkFingerprint,
+      metadata: { via: "magic_link", reason: "state_mismatch" },
+    });
+    return buildRedirectResponse(request, lang, { clearMagicLinkState: true });
   }
 
   const verified = await verifyLoginOtp(
@@ -62,7 +84,7 @@ export async function GET(request: Request) {
       networkFingerprint,
       metadata: { via: "magic_link" },
     });
-    return buildRedirectResponse(request, lang);
+    return buildRedirectResponse(request, lang, { clearMagicLinkState: true });
   }
 
   await recordSecurityAuditEvent({
@@ -78,7 +100,7 @@ export async function GET(request: Request) {
     },
   });
 
-  const response = buildRedirectResponse(request, lang);
+  const response = buildRedirectResponse(request, lang, { clearMagicLinkState: true });
   response.cookies.set(
     buildRoleCookie(verified.role, {
       authMethod: "otp",

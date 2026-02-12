@@ -3,7 +3,6 @@
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { CSSProperties } from "react";
 
 import { AddStayReviewForm } from "@/app/[lang]/add-stay-review-form";
 import { MapListingSidebarItem } from "@/app/[lang]/map-listing-sidebar-item";
@@ -139,7 +138,7 @@ export function PlaceFilters({
     priceBounds,
     priceSliderStep,
     effectivePriceRange,
-    priceRangeTrackStyle,
+    priceRangePercents,
     priceHistogram,
     startPriceSliderDrag,
     endPriceSliderDrag,
@@ -153,6 +152,7 @@ export function PlaceFilters({
     setPriceMax,
   });
   const previousSortByRef = useRef<SortBy>(sortBy);
+  const priceHistogramSlotWidth = priceHistogram.length > 0 ? 100 / priceHistogram.length : 0;
 
   function getListingActiveImageIndex(listingId: string, imageCount: number) {
     return normalizeCarouselIndex(listingImageIndexMap[listingId], imageCount);
@@ -589,16 +589,40 @@ export function PlaceFilters({
                     {messages.filterPriceMaxLabel}: {formatUsdAmount(effectivePriceRange.sliderMax)}
                   </p>
                 </div>
-                <div className="filters-panel__range-slider" style={priceRangeTrackStyle}>
-                  <div className="filters-panel__range-histogram" aria-hidden="true">
-                    {priceHistogram.map((bar) => (
-                      <span
-                        key={bar.id}
-                        className={`filters-panel__range-bar${bar.isActive ? " is-active" : ""}`}
-                        style={{ "--bar-height": `${bar.heightPercent}%` } as CSSProperties}
-                      />
-                    ))}
-                  </div>
+                <div className="filters-panel__range-slider">
+                  <svg
+                    className="filters-panel__range-chart"
+                    viewBox="0 0 100 100"
+                    preserveAspectRatio="none"
+                    aria-hidden="true"
+                  >
+                    {priceHistogram.map((bar, index) => {
+                      const barHeight = (bar.heightPercent / 100) * 76;
+                      const barWidth = Math.max(priceHistogramSlotWidth - 0.6, 0.8);
+                      const barX = index * priceHistogramSlotWidth + (priceHistogramSlotWidth - barWidth) / 2;
+                      const barY = 82 - barHeight;
+                      return (
+                        <rect
+                          key={bar.id}
+                          className={`filters-panel__range-bar${bar.isActive ? " is-active" : ""}`}
+                          x={barX}
+                          y={barY}
+                          width={barWidth}
+                          height={barHeight}
+                          rx={0.8}
+                        />
+                      );
+                    })}
+                    <rect className="filters-panel__range-track" x={0} y={88} width={100} height={4} rx={2} />
+                    <rect
+                      className="filters-panel__range-track-active"
+                      x={priceRangePercents.start}
+                      y={88}
+                      width={Math.max(priceRangePercents.end - priceRangePercents.start, 0)}
+                      height={4}
+                      rx={2}
+                    />
+                  </svg>
                   <input
                     className="filters-panel__range-input filters-panel__range-input--min"
                     type="range"

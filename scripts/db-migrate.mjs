@@ -1,7 +1,10 @@
 import { spawn } from "node:child_process";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 
 import { Client } from "pg";
+import { resolvePgSslConfig } from "./pg-ssl.mjs";
 
 const MIGRATION_RENAMES = new Map([
   ["001_initial_schema", "20260206090000000_initial_schema"],
@@ -18,7 +21,7 @@ async function renameMigrationHistory() {
     throw new Error("DATABASE_URL is not set.");
   }
 
-  const client = new Client({ connectionString });
+  const client = new Client({ connectionString, ssl: resolvePgSslConfig() });
   await client.connect();
 
   try {
@@ -45,6 +48,40 @@ async function renameMigrationHistory() {
   } finally {
     await client.end();
   }
+}
+
+async function buildMigrationChildEnv() {
+  const childEnv = { ...process.env };
+  const sslConfig = resolvePgSslConfig();
+
+  if (!sslConfig) {
+    childEnv.PGSSLMODE = "disable";
+    delete childEnv.PGSSLROOTCERT;
+    return { childEnv, cleanup: async () => {} };
+  }
+
+  if (sslConfig.rejectUnauthorized === false) {
+    childEnv.PGSSLMODE = "no-verify";
+    delete childEnv.PGSSLROOTCERT;
+    return { childEnv, cleanup: async () => {} };
+  }
+
+  childEnv.PGSSLMODE = "verify-full";
+  if (typeof sslConfig.ca === "string" && sslConfig.ca.trim()) {
+    const certDirectory = await mkdtemp(path.join(os.tmpdir(), "infiuba-pgssl-"));
+    const certPath = path.join(certDirectory, "ca.pem");
+    await writeFile(certPath, sslConfig.ca, "utf8");
+    childEnv.PGSSLROOTCERT = certPath;
+    return {
+      childEnv,
+      cleanup: async () => {
+        await rm(certDirectory, { recursive: true, force: true });
+      },
+    };
+  }
+
+  delete childEnv.PGSSLROOTCERT;
+  return { childEnv, cleanup: async () => {} };
 }
 
 async function runMigrations() {
@@ -75,21 +112,26 @@ async function runMigrations() {
     "DATABASE_URL",
   ];
 
-  const child = spawn(process.execPath, args, {
-    stdio: "inherit",
-    env: process.env,
-  });
-
-  await new Promise((resolve, reject) => {
-    child.on("exit", (code) => {
-      if (code === 0) {
-        resolve();
-        return;
-      }
-      reject(new Error(`db:migrate failed with exit code ${code ?? "unknown"}`));
+  const { childEnv, cleanup } = await buildMigrationChildEnv();
+  try {
+    const child = spawn(process.execPath, args, {
+      stdio: "inherit",
+      env: childEnv,
     });
-    child.on("error", reject);
-  });
+
+    await new Promise((resolve, reject) => {
+      child.on("exit", (code) => {
+        if (code === 0) {
+          resolve();
+          return;
+        }
+        reject(new Error(`db:migrate failed with exit code ${code ?? "unknown"}`));
+      });
+      child.on("error", reject);
+    });
+  } finally {
+    await cleanup();
+  }
 }
 
 runMigrations().catch((error) => {

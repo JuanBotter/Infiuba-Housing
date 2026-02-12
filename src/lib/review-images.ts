@@ -2,6 +2,7 @@ export const MAX_REVIEW_IMAGE_COUNT = 6;
 export const MAX_IMAGE_UPLOAD_FILES = 6;
 export const MAX_IMAGE_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 export const MAX_IMAGE_URL_LENGTH = 2048;
+const TRUSTED_REVIEW_IMAGE_HOST_SUFFIX = ".public.blob.vercel-storage.com";
 
 const ACCEPTED_IMAGE_MIME_TYPES = new Set([
   "image/jpeg",
@@ -10,6 +11,35 @@ const ACCEPTED_IMAGE_MIME_TYPES = new Set([
   "image/gif",
   "image/avif",
 ]);
+
+function getExtraAllowedImageHosts() {
+  const raw = process.env.REVIEW_IMAGE_ALLOWED_HOSTS;
+  if (!raw) {
+    return [];
+  }
+
+  return raw
+    .split(",")
+    .map((entry) => entry.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+function isTrustedReviewImageHost(hostname: string) {
+  const normalized = hostname.trim().toLowerCase();
+  if (!normalized) {
+    return false;
+  }
+
+  if (
+    normalized === TRUSTED_REVIEW_IMAGE_HOST_SUFFIX.slice(1) ||
+    normalized.endsWith(TRUSTED_REVIEW_IMAGE_HOST_SUFFIX)
+  ) {
+    return true;
+  }
+
+  const extraHosts = getExtraAllowedImageHosts();
+  return extraHosts.includes(normalized);
+}
 
 function normalizeImageUrlCandidate(value: string) {
   const trimmed = value.trim();
@@ -20,6 +50,9 @@ function normalizeImageUrlCandidate(value: string) {
   try {
     const parsed = new URL(trimmed);
     if (parsed.protocol !== "https:") {
+      return "";
+    }
+    if (!isTrustedReviewImageHost(parsed.hostname)) {
       return "";
     }
     return parsed.toString();

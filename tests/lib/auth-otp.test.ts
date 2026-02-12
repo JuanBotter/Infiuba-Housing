@@ -415,6 +415,7 @@ describe("auth OTP flow", () => {
         email: "Student@Example.com",
         code: "123456",
         exp: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
+        state: "magic-state-12345678901234567890",
       }),
       "utf8",
     ).toString("base64url");
@@ -427,6 +428,7 @@ describe("auth OTP flow", () => {
     if (result.ok) {
       expect(result.email).toBe("student@example.com");
       expect(result.otpCode).toBe("123456");
+      expect(result.magicLinkState).toBe("magic-state-12345678901234567890");
     }
   });
 
@@ -438,6 +440,7 @@ describe("auth OTP flow", () => {
         email: "student@example.com",
         code: "123456",
         exp: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
+        state: "magic-state-12345678901234567890",
       }),
       "utf8",
     ).toString("base64url");

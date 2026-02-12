@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef } from "react";
 
 import type { Messages } from "@/i18n/messages";
 import { getListingPoints } from "@/lib/map-points";
+import { buildListingTooltipHtml } from "@/lib/map-tooltip";
 import type { Listing } from "@/types";
 
 interface ListingsMapProps {
@@ -102,15 +103,12 @@ export function ListingsMap({
       const point = points[listing.id];
       const marker = L.circleMarker([point.lat, point.lng], markerOptions(false));
       marker
-        .bindTooltip(
-          `${listing.address} · ${listing.neighborhood}\n${listing.totalReviews} ${messages.reviewsLabel}`,
-          {
-            direction: "top",
-            offset: [0, -8],
-            opacity: 0.92,
-            sticky: true,
-          },
-        )
+        .bindTooltip(buildListingTooltipHtml(listing, messages.reviewsLabel), {
+          direction: "top",
+          offset: [0, -8],
+          opacity: 0.92,
+          sticky: true,
+        })
         .on("click", () => onSelectListing(listing.id))
         .addTo(map);
 
