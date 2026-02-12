@@ -1,7 +1,7 @@
 # Security Remediation Plan
 
-Date: 2026-02-11  
-Project: Infiuba Alojamientos Web  
+Date: 2026-02-11<br />
+Project: Infiuba Alojamientos Web<br />
 Source: Full application security review (current codebase)
 
 ## Objectives
