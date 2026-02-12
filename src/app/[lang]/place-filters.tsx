@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 
 import { AddStayReviewForm } from "@/app/[lang]/add-stay-review-form";
@@ -23,6 +23,7 @@ import { ReviewForm } from "@/app/[lang]/place/[id]/review-form";
 import { AdminReviewEditForm } from "@/components/admin-review-edit-form";
 import { ContactRichText } from "@/components/contact-rich-text";
 import { ContactEditRequestForm } from "@/components/contact-edit-request-form";
+import { cycleCarouselIndex, normalizeCarouselIndex } from "@/lib/carousel";
 import {
   formatDecimal,
   formatPercent,
@@ -66,6 +67,24 @@ interface ActiveFilterChip {
   label: string;
 }
 
+function CarouselChevronIcon({ direction }: { direction: "prev" | "next" }) {
+  return (
+    <svg viewBox="0 0 24 24" role="presentation" aria-hidden="true">
+      {direction === "prev" ? (
+        <path d="M14.5 6.5 9 12l5.5 5.5" />
+      ) : (
+        <path d="M9.5 6.5 15 12l-5.5 5.5" />
+      )}
+    </svg>
+  );
+}
+
+function getListingImageUrls(listing: Listing) {
+  return (listing.imageUrls || []).filter(
+    (url): url is string => typeof url === "string" && url.length > 0,
+  );
+}
+
 export function PlaceFilters({
   lang,
   messages,
@@ -78,6 +97,7 @@ export function PlaceFilters({
 }: PlaceFiltersProps) {
   const mapListItemRefs = useRef<Record<string, HTMLElement | null>>({});
   const mapRailItemRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const [listingImageIndexMap, setListingImageIndexMap] = useState<Record<string, number>>({});
   const {
     searchTerm,
     setSearchTerm,
@@ -133,6 +153,21 @@ export function PlaceFilters({
     setPriceMax,
   });
   const previousSortByRef = useRef<SortBy>(sortBy);
+
+  function getListingActiveImageIndex(listingId: string, imageCount: number) {
+    return normalizeCarouselIndex(listingImageIndexMap[listingId], imageCount);
+  }
+
+  function cycleListingImageIndex(listingId: string, imageCount: number, step: number) {
+    if (imageCount <= 1) {
+      return;
+    }
+
+    setListingImageIndexMap((current) => ({
+      ...current,
+      [listingId]: cycleCarouselIndex(current[listingId], imageCount, step),
+    }));
+  }
 
   const filtered = useMemo(() => {
     const normalizedSearch = searchTerm.trim().toLowerCase();
@@ -299,6 +334,24 @@ export function PlaceFilters({
     }
   }, [selectedMapListingId, viewMode]);
 
+  useEffect(() => {
+    const validListingIds = new Set(listings.map((listing) => listing.id));
+    setListingImageIndexMap((current) => {
+      let changed = false;
+      const next: Record<string, number> = {};
+
+      for (const [listingId, index] of Object.entries(current)) {
+        if (validListingIds.has(listingId)) {
+          next[listingId] = index;
+        } else {
+          changed = true;
+        }
+      }
+
+      return changed ? next : current;
+    });
+  }, [listings]);
+
   const selectedMapListing =
     filteredAndSorted.find((listing) => listing.id === selectedMapListingId) ||
     filteredAndSorted[0] ||
@@ -309,6 +362,13 @@ export function PlaceFilters({
   const selectedMapListingFavoritePending = selectedMapListing
     ? favoritePendingListingIdSet.has(selectedMapListing.id)
     : false;
+  const selectedMapListingImages = selectedMapListing ? getListingImageUrls(selectedMapListing) : [];
+  const selectedMapListingActiveImageIndex = selectedMapListing
+    ? getListingActiveImageIndex(selectedMapListing.id, selectedMapListingImages.length)
+    : 0;
+  const selectedMapListingActiveImage = selectedMapListing
+    ? selectedMapListingImages[selectedMapListingActiveImageIndex] || null
+    : null;
   const selectedMapQuery = selectedMapListing
     ? encodeURIComponent(
         `${selectedMapListing.address}, ${selectedMapListing.neighborhood}, Buenos Aires, Argentina`,
@@ -677,6 +737,11 @@ export function PlaceFilters({
             const isFavorite = favoriteListingIdSet.has(listing.id);
             const isFavoritePending = favoritePendingListingIdSet.has(listing.id);
             const favoriteAriaLabel = getFavoriteAriaLabel(isFavorite);
+            const listingImages = getListingImageUrls(listing);
+            const activeImageIndex = getListingActiveImageIndex(listing.id, listingImages.length);
+            const activeImage = listingImages[activeImageIndex] || null;
+            const hasImageControls = listingImages.length > 0;
+            const isSingleImage = listingImages.length <= 1;
 
             return (
               <div key={listing.id} className="place-card-stack">
@@ -687,9 +752,9 @@ export function PlaceFilters({
                       className="place-card__media-link"
                       aria-label={`${listing.address}, ${listing.neighborhood}`}
                     >
-                      {listing.imageUrls?.[0] ? (
+                      {activeImage ? (
                         <img
-                          src={listing.imageUrls[0]}
+                          src={activeImage}
                           alt={`${listing.address} · ${messages.imageAltProperty}`}
                           loading="lazy"
                         />
@@ -697,6 +762,39 @@ export function PlaceFilters({
                         <div className="place-card__media-placeholder" aria-hidden="true" />
                       )}
                     </Link>
+                    {hasImageControls ? (
+                      <>
+                        <p className="place-card__media-counter">
+                          {activeImageIndex + 1} / {listingImages.length}
+                        </p>
+                        <button
+                          type="button"
+                          className="place-card__media-nav place-card__media-nav--prev"
+                          aria-label={`${messages.imageCarouselPrevious} · ${listing.address}`}
+                          disabled={isSingleImage}
+                          onClick={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            cycleListingImageIndex(listing.id, listingImages.length, -1);
+                          }}
+                        >
+                          <CarouselChevronIcon direction="prev" />
+                        </button>
+                        <button
+                          type="button"
+                          className="place-card__media-nav place-card__media-nav--next"
+                          aria-label={`${messages.imageCarouselNext} · ${listing.address}`}
+                          disabled={isSingleImage}
+                          onClick={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            cycleListingImageIndex(listing.id, listingImages.length, 1);
+                          }}
+                        >
+                          <CarouselChevronIcon direction="next" />
+                        </button>
+                      </>
+                    ) : null}
                     <div className="place-card__media-overlay" aria-hidden="true">
                       <div className="place-card__overlay-pills">
                         <p className="place-card__overlay-pill">{listing.neighborhood}</p>
@@ -883,10 +981,47 @@ export function PlaceFilters({
                 </section>
 
                 <section className="map-selected-details">
-                  {selectedMapListing.imageUrls?.[0] ? (
+                  {selectedMapListingActiveImage ? (
                     <div className="map-selected-details__media">
+                      {selectedMapListingImages.length > 0 ? (
+                        <>
+                          <p className="map-selected-details__media-counter">
+                            {selectedMapListingActiveImageIndex + 1} / {selectedMapListingImages.length}
+                          </p>
+                          <button
+                            type="button"
+                            className="map-selected-details__media-nav map-selected-details__media-nav--prev"
+                            aria-label={`${messages.imageCarouselPrevious} · ${selectedMapListing.address}`}
+                            disabled={selectedMapListingImages.length <= 1}
+                            onClick={() =>
+                              cycleListingImageIndex(
+                                selectedMapListing.id,
+                                selectedMapListingImages.length,
+                                -1,
+                              )
+                            }
+                          >
+                            <CarouselChevronIcon direction="prev" />
+                          </button>
+                          <button
+                            type="button"
+                            className="map-selected-details__media-nav map-selected-details__media-nav--next"
+                            aria-label={`${messages.imageCarouselNext} · ${selectedMapListing.address}`}
+                            disabled={selectedMapListingImages.length <= 1}
+                            onClick={() =>
+                              cycleListingImageIndex(
+                                selectedMapListing.id,
+                                selectedMapListingImages.length,
+                                1,
+                              )
+                            }
+                          >
+                            <CarouselChevronIcon direction="next" />
+                          </button>
+                        </>
+                      ) : null}
                       <img
-                        src={selectedMapListing.imageUrls[0]}
+                        src={selectedMapListingActiveImage}
                         alt={`${selectedMapListing.address} · ${messages.imageAltProperty}`}
                         loading="lazy"
                       />

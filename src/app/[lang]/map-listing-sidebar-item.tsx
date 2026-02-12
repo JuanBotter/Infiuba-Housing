@@ -1,7 +1,9 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 
+import { cycleCarouselIndex, normalizeCarouselIndex } from "@/lib/carousel";
 import { formatDecimal, formatUsdRangePlain } from "@/lib/format";
 import type { Messages } from "@/i18n/messages";
 import type { Lang, Listing } from "@/types";
@@ -21,6 +23,18 @@ interface MapListingSidebarItemProps {
   adminEditLabel?: string;
 }
 
+function CarouselChevronIcon({ direction }: { direction: "prev" | "next" }) {
+  return (
+    <svg viewBox="0 0 24 24" role="presentation" aria-hidden="true">
+      {direction === "prev" ? (
+        <path d="M14.5 6.5 9 12l5.5 5.5" />
+      ) : (
+        <path d="M9.5 6.5 15 12l-5.5 5.5" />
+      )}
+    </svg>
+  );
+}
+
 export function MapListingSidebarItem({
   lang,
   listing,
@@ -35,6 +49,7 @@ export function MapListingSidebarItem({
   adminEditHref,
   adminEditLabel,
 }: MapListingSidebarItemProps) {
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
   const priceText = formatUsdRangePlain(
     {
       min: listing.minPriceUsd,
@@ -46,7 +61,17 @@ export function MapListingSidebarItem({
     typeof listing.averageRating === "number"
       ? formatDecimal(listing.averageRating, lang)
       : "-";
-  const coverImage = listing.imageUrls?.[0];
+  const listingImages = (listing.imageUrls || []).filter(
+    (url): url is string => typeof url === "string" && url.length > 0,
+  );
+  const hasImageControls = listingImages.length > 0;
+  const isSingleImage = listingImages.length <= 1;
+  const normalizedActiveIndex = normalizeCarouselIndex(activeImageIndex, listingImages.length);
+  const activeImage = listingImages[normalizedActiveIndex] || null;
+
+  useEffect(() => {
+    setActiveImageIndex((current) => normalizeCarouselIndex(current, listingImages.length));
+  }, [listingImages.length]);
 
   return (
     <article
@@ -54,18 +79,66 @@ export function MapListingSidebarItem({
       className={`map-listing ${isSelected ? "is-selected" : ""}`}
     >
       <div className="map-listing__select-wrap">
-        <button
-          type="button"
+        <div
+          role="button"
+          tabIndex={0}
           className="map-listing__select"
           aria-pressed={isSelected}
           onClick={onSelect}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              onSelect();
+            }
+          }}
         >
           <div className="map-listing__media">
-            {coverImage ? (
-              <img src={coverImage} alt={`${listing.address} · ${messages.imageAltProperty}`} loading="lazy" />
+            {activeImage ? (
+              <img
+                src={activeImage}
+                alt={`${listing.address} · ${messages.imageAltProperty}`}
+                loading="lazy"
+              />
             ) : (
               <div className="map-listing__media-placeholder" aria-hidden="true" />
             )}
+            {hasImageControls ? (
+              <>
+                <p className="map-listing__media-counter">
+                  {normalizedActiveIndex + 1} / {listingImages.length}
+                </p>
+                <button
+                  type="button"
+                  className="map-listing__media-nav map-listing__media-nav--prev"
+                  aria-label={`${messages.imageCarouselPrevious} · ${listing.address}`}
+                  disabled={isSingleImage}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    setActiveImageIndex((current) =>
+                      cycleCarouselIndex(current, listingImages.length, -1),
+                    );
+                  }}
+                >
+                  <CarouselChevronIcon direction="prev" />
+                </button>
+                <button
+                  type="button"
+                  className="map-listing__media-nav map-listing__media-nav--next"
+                  aria-label={`${messages.imageCarouselNext} · ${listing.address}`}
+                  disabled={isSingleImage}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    setActiveImageIndex((current) =>
+                      cycleCarouselIndex(current, listingImages.length, 1),
+                    );
+                  }}
+                >
+                  <CarouselChevronIcon direction="next" />
+                </button>
+              </>
+            ) : null}
             <div className="map-listing__media-overlay" aria-hidden="true">
               <div className="map-listing__overlay-pills">
                 <p className="map-listing__pill">{listing.neighborhood}</p>
@@ -87,7 +160,7 @@ export function MapListingSidebarItem({
             <p>{messages.ratingLabel}: {ratingText}</p>
             <p>{messages.priceLabel}: {priceText || "-"}</p>
           </div>
-        </button>
+        </div>
         <button
           type="button"
           className={`map-listing__favorite-button${isFavorite ? " is-active" : ""}`}
