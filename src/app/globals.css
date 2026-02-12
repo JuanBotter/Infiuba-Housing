@@ -1726,6 +1726,13 @@ input[type="number"] {
   display: grid;
   place-items: center;
   padding: clamp(0.6rem, 1.8vw, 1.5rem);
+  overscroll-behavior: contain;
+  animation: image-viewer-fade 160ms ease;
+}
+
+:root.has-image-viewer,
+:root.has-image-viewer body {
+  overflow: hidden;
 }
 
 .image-viewer__surface {
@@ -1738,6 +1745,34 @@ input[type="number"] {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
   overflow: hidden;
+  animation: image-viewer-pop 180ms cubic-bezier(0.2, 0.85, 0.2, 1);
+}
+
+@keyframes image-viewer-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes image-viewer-pop {
+  from {
+    transform: translateY(8px) scale(0.985);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .image-viewer,
+  .image-viewer__surface {
+    animation: none;
+  }
 }
 
 .image-viewer__header {
@@ -1822,8 +1857,87 @@ input[type="number"] {
   position: relative;
   width: 100%;
   height: clamp(280px, 62vh, 680px);
+  display: block;
+  overscroll-behavior: contain;
+  touch-action: none;
+  scrollbar-width: none;
+}
+
+.image-viewer__frame::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+.image-viewer__frame.is-zoomed {
+  overflow: auto;
+  cursor: grab;
+}
+
+.image-viewer__frame.is-zoomed.is-dragging {
+  cursor: grabbing;
+}
+
+.image-viewer__canvas {
+  width: 100%;
+  height: 100%;
   display: grid;
   place-items: center;
+  transition: width 140ms ease, height 140ms ease;
+}
+
+.image-viewer__canvas.is-zoom-0 {
+  width: 100%;
+  height: 100%;
+}
+
+.image-viewer__canvas.is-zoom-1 {
+  width: 120%;
+  height: 120%;
+}
+
+.image-viewer__canvas.is-zoom-2 {
+  width: 140%;
+  height: 140%;
+}
+
+.image-viewer__canvas.is-zoom-3 {
+  width: 160%;
+  height: 160%;
+}
+
+.image-viewer__canvas.is-zoom-4 {
+  width: 180%;
+  height: 180%;
+}
+
+.image-viewer__canvas.is-zoom-5 {
+  width: 200%;
+  height: 200%;
+}
+
+.image-viewer__canvas.is-zoom-6 {
+  width: 220%;
+  height: 220%;
+}
+
+.image-viewer__canvas.is-zoom-7 {
+  width: 240%;
+  height: 240%;
+}
+
+.image-viewer__canvas.is-zoom-8 {
+  width: 260%;
+  height: 260%;
+}
+
+.image-viewer__canvas.is-zoom-9 {
+  width: 280%;
+  height: 280%;
+}
+
+.image-viewer__canvas.is-zoom-10 {
+  width: 300%;
+  height: 300%;
 }
 
 .image-viewer__image {
@@ -1832,53 +1946,6 @@ input[type="number"] {
   height: 100%;
   object-fit: contain;
   object-position: center;
-  transform-origin: center;
-  transform: scale(1);
-  transition: transform 140ms ease;
-}
-
-.image-viewer__image.is-zoom-0 {
-  transform: scale(1);
-}
-
-.image-viewer__image.is-zoom-1 {
-  transform: scale(1.2);
-}
-
-.image-viewer__image.is-zoom-2 {
-  transform: scale(1.4);
-}
-
-.image-viewer__image.is-zoom-3 {
-  transform: scale(1.6);
-}
-
-.image-viewer__image.is-zoom-4 {
-  transform: scale(1.8);
-}
-
-.image-viewer__image.is-zoom-5 {
-  transform: scale(2);
-}
-
-.image-viewer__image.is-zoom-6 {
-  transform: scale(2.2);
-}
-
-.image-viewer__image.is-zoom-7 {
-  transform: scale(2.4);
-}
-
-.image-viewer__image.is-zoom-8 {
-  transform: scale(2.6);
-}
-
-.image-viewer__image.is-zoom-9 {
-  transform: scale(2.8);
-}
-
-.image-viewer__image.is-zoom-10 {
-  transform: scale(3);
 }
 
 .image-viewer__frame.is-fill .image-viewer__image {
@@ -1953,6 +2020,8 @@ input[type="number"] {
   display: flex;
   gap: 0.48rem;
   overflow-x: auto;
+  scroll-snap-type: x proximity;
+  scroll-padding-inline: 0.75rem;
 }
 
 .image-viewer__thumb {
@@ -1964,6 +2033,7 @@ input[type="number"] {
   overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--line) 78%, transparent);
   background: #0b1b31;
+  scroll-snap-align: center;
 }
 
 .image-viewer__thumb img {

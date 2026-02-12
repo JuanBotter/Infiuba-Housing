@@ -5,6 +5,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type PointerEvent as ReactPointerEvent,
   type TouchEvent as ReactTouchEvent,
   type WheelEvent as ReactWheelEvent,
 } from "react";
@@ -236,12 +237,35 @@ function cycleIndex(current: number, total: number, delta: number) {
 }
 
 function clampZoom(value: number) {
-  return Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, Number(value.toFixed(2))));
+  const clampedValue = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, value));
+  const stepIndex = Math.round((clampedValue - MIN_ZOOM) / ZOOM_STEP);
+  const snappedValue = MIN_ZOOM + stepIndex * ZOOM_STEP;
+  return Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, Number(snappedValue.toFixed(2))));
 }
 
 function getZoomStepIndex(zoomLevel: number) {
   const stepIndex = Math.round((zoomLevel - MIN_ZOOM) / ZOOM_STEP);
   return Math.max(0, Math.min(10, stepIndex));
+}
+
+function getTouchDistancePx(touches: ReactTouchEvent<HTMLElement>["touches"]) {
+  const first = touches[0];
+  const second = touches[1];
+  if (!first || !second) {
+    return 0;
+  }
+  const dx = first.clientX - second.clientX;
+  const dy = first.clientY - second.clientY;
+  return Math.hypot(dx, dy);
+}
+
+function applyScrollAnchor(container: HTMLElement, anchor: { x: number; y: number }) {
+  const maxScrollLeft = Math.max(0, container.scrollWidth - container.clientWidth);
+  const maxScrollTop = Math.max(0, container.scrollHeight - container.clientHeight);
+  const desiredLeft = anchor.x * Math.max(container.scrollWidth, 1) - container.clientWidth / 2;
+  const desiredTop = anchor.y * Math.max(container.scrollHeight, 1) - container.clientHeight / 2;
+  container.scrollLeft = Math.max(0, Math.min(maxScrollLeft, desiredLeft));
+  container.scrollTop = Math.max(0, Math.min(maxScrollTop, desiredTop));
 }
 
 export function ImageGalleryViewer({
@@ -258,7 +282,23 @@ export function ImageGalleryViewer({
   const [fitMode, setFitMode] = useState<"contain" | "cover">("contain");
   const [zoomLevel, setZoomLevel] = useState(MIN_ZOOM);
   const [loadedImages, setLoadedImages] = useState<Record<string, true>>({});
+  const surfaceRef = useRef<HTMLDivElement | null>(null);
+  const frameRef = useRef<HTMLElement | null>(null);
+  const closeButtonRef = useRef<HTMLButtonElement | null>(null);
+  const activeThumbRef = useRef<HTMLButtonElement | null>(null);
+  const previouslyFocusedRef = useRef<HTMLElement | null>(null);
+  const pendingScrollAnchorRef = useRef<{ x: number; y: number } | null>(null);
+  const dragStateRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    scrollLeft: number;
+    scrollTop: number;
+  } | null>(null);
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const pinchRef = useRef<{ distancePx: number; zoomLevel: number } | null>(null);
+  const canNavigateRef = useRef(false);
+  const imageCountRef = useRef(0);
 
   const validImages = useMemo(
     () =>
@@ -271,7 +311,9 @@ export function ImageGalleryViewer({
   const canNavigate = validImages.length > 1;
   const activeUrl = activeIndex === null ? null : validImages[activeIndex] ?? null;
   const activeImageLoaded = activeUrl ? Boolean(loadedImages[activeUrl]) : false;
+  const viewerOpen = activeIndex !== null;
   const zoomClassName = `is-zoom-${getZoomStepIndex(zoomLevel)}`;
+  const isZoomed = zoomLevel > MIN_ZOOM;
   const text = viewerTextByLang[lang];
 
   function markImageLoaded(url: string | null) {
@@ -289,12 +331,14 @@ export function ImageGalleryViewer({
     setActiveIndex(index);
     setFitMode("contain");
     setZoomLevel(MIN_ZOOM);
+    pendingScrollAnchorRef.current = { x: 0.5, y: 0.5 };
   }
 
   function showPrevious() {
     if (!canNavigate) {
       return;
     }
+    pendingScrollAnchorRef.current = { x: 0.5, y: 0.5 };
     setActiveIndex((current) => {
       if (current === null) {
         return current;
@@ -307,6 +351,7 @@ export function ImageGalleryViewer({
     if (!canNavigate) {
       return;
     }
+    pendingScrollAnchorRef.current = { x: 0.5, y: 0.5 };
     setActiveIndex((current) => {
       if (current === null) {
         return current;
@@ -316,18 +361,107 @@ export function ImageGalleryViewer({
   }
 
   function adjustZoom(delta: number) {
+    const frame = frameRef.current;
+    if (frame) {
+      pendingScrollAnchorRef.current = getFrameScrollAnchor(frame);
+    }
     setZoomLevel((current) => clampZoom(current + delta));
   }
 
   function resetZoom() {
+    pendingScrollAnchorRef.current = { x: 0.5, y: 0.5 };
     setZoomLevel(MIN_ZOOM);
   }
 
   function toggleFitMode() {
+    const frame = frameRef.current;
+    if (frame) {
+      pendingScrollAnchorRef.current = getFrameScrollAnchor(frame);
+    }
     setFitMode((current) => (current === "cover" ? "contain" : "cover"));
   }
 
+  function getFrameScrollAnchor(frame: HTMLElement) {
+    const scrollWidth = Math.max(frame.scrollWidth, 1);
+    const scrollHeight = Math.max(frame.scrollHeight, 1);
+    return {
+      x: (frame.scrollLeft + frame.clientWidth / 2) / scrollWidth,
+      y: (frame.scrollTop + frame.clientHeight / 2) / scrollHeight,
+    };
+  }
+
+  function handleFramePointerDown(event: ReactPointerEvent<HTMLElement>) {
+    if (!isZoomed) {
+      return;
+    }
+
+    if (event.button !== 0) {
+      return;
+    }
+
+    const frame = frameRef.current;
+    if (!frame) {
+      return;
+    }
+
+    dragStateRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      scrollLeft: frame.scrollLeft,
+      scrollTop: frame.scrollTop,
+    };
+
+    frame.classList.add("is-dragging");
+    frame.setPointerCapture(event.pointerId);
+    event.preventDefault();
+  }
+
+  function handleFramePointerMove(event: ReactPointerEvent<HTMLElement>) {
+    const frame = frameRef.current;
+    const dragState = dragStateRef.current;
+    if (!frame || !dragState || dragState.pointerId !== event.pointerId) {
+      return;
+    }
+
+    const deltaX = event.clientX - dragState.startX;
+    const deltaY = event.clientY - dragState.startY;
+    frame.scrollLeft = dragState.scrollLeft - deltaX;
+    frame.scrollTop = dragState.scrollTop - deltaY;
+    event.preventDefault();
+  }
+
+  function handleFramePointerUp(event: ReactPointerEvent<HTMLElement>) {
+    const frame = frameRef.current;
+    const dragState = dragStateRef.current;
+    if (!frame || !dragState || dragState.pointerId !== event.pointerId) {
+      return;
+    }
+
+    dragStateRef.current = null;
+    frame.classList.remove("is-dragging");
+    try {
+      frame.releasePointerCapture(event.pointerId);
+    } catch {
+      // Ignore failed release attempts.
+    }
+  }
+
   function handleStageTouchStart(event: ReactTouchEvent<HTMLDivElement>) {
+    if (event.touches.length === 2) {
+      pinchRef.current = {
+        distancePx: getTouchDistancePx(event.touches),
+        zoomLevel,
+      };
+      touchStartRef.current = null;
+      return;
+    }
+
+    if (zoomLevel > MIN_ZOOM) {
+      touchStartRef.current = null;
+      return;
+    }
+
     if (event.touches.length !== 1) {
       touchStartRef.current = null;
       return;
@@ -338,7 +472,29 @@ export function ImageGalleryViewer({
     };
   }
 
+  function handleStageTouchMove(event: ReactTouchEvent<HTMLDivElement>) {
+    const pinchState = pinchRef.current;
+    if (!pinchState || event.touches.length !== 2) {
+      return;
+    }
+
+    const nextDistance = getTouchDistancePx(event.touches);
+    if (pinchState.distancePx <= 0 || nextDistance <= 0) {
+      return;
+    }
+
+    const frame = frameRef.current;
+    if (frame) {
+      pendingScrollAnchorRef.current = getFrameScrollAnchor(frame);
+    }
+
+    const ratio = nextDistance / pinchState.distancePx;
+    setZoomLevel(clampZoom(pinchState.zoomLevel * ratio));
+    event.preventDefault();
+  }
+
   function handleStageTouchEnd(event: ReactTouchEvent<HTMLDivElement>) {
+    pinchRef.current = null;
     if (!canNavigate || !touchStartRef.current || event.changedTouches.length !== 1) {
       touchStartRef.current = null;
       return;
@@ -379,7 +535,12 @@ export function ImageGalleryViewer({
   }, []);
 
   useEffect(() => {
-    if (activeIndex === null) {
+    canNavigateRef.current = canNavigate;
+    imageCountRef.current = validImages.length;
+  }, [canNavigate, validImages.length]);
+
+  useEffect(() => {
+    if (!viewerOpen) {
       return;
     }
     if (validImages.length === 0) {
@@ -392,87 +553,143 @@ export function ImageGalleryViewer({
   }, [activeIndex, validImages.length]);
 
   useEffect(() => {
-    if (activeIndex === null) {
+    if (!viewerOpen) {
       return;
     }
 
-    const originalOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    previouslyFocusedRef.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+
+    const root = document.documentElement;
+    root.classList.add("has-image-viewer");
+
+    requestAnimationFrame(() => {
+      const closeButton = closeButtonRef.current;
+      if (closeButton) {
+        closeButton.focus();
+        return;
+      }
+      surfaceRef.current?.focus();
+    });
 
     const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Tab") {
+        const surface = surfaceRef.current;
+        if (!surface) {
+          return;
+        }
+
+        const focusable = Array.from(
+          surface.querySelectorAll<HTMLElement>(
+            'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])',
+          ),
+        ).filter((node) => node.offsetParent !== null);
+
+        if (focusable.length === 0) {
+          event.preventDefault();
+          surface.focus();
+          return;
+        }
+
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        const activeElement = document.activeElement;
+
+        if (event.shiftKey) {
+          if (activeElement === first || !surface.contains(activeElement)) {
+            event.preventDefault();
+            last.focus();
+          }
+          return;
+        }
+
+        if (activeElement === last) {
+          event.preventDefault();
+          first.focus();
+        }
+        return;
+      }
+
       if (event.key === "Escape") {
         event.preventDefault();
         closeViewer();
         return;
       }
+
       if (event.key === "ArrowLeft") {
         event.preventDefault();
-        if (canNavigate) {
-          setActiveIndex((current) => {
-            if (current === null) {
-              return current;
-            }
-            return cycleIndex(current, validImages.length, -1);
-          });
+        if (canNavigateRef.current) {
+          const total = imageCountRef.current;
+          setActiveIndex((current) => (current === null ? current : cycleIndex(current, total, -1)));
+          pendingScrollAnchorRef.current = { x: 0.5, y: 0.5 };
         }
         return;
       }
+
       if (event.key === "ArrowRight") {
         event.preventDefault();
-        if (canNavigate) {
-          setActiveIndex((current) => {
-            if (current === null) {
-              return current;
-            }
-            return cycleIndex(current, validImages.length, 1);
-          });
+        if (canNavigateRef.current) {
+          const total = imageCountRef.current;
+          setActiveIndex((current) => (current === null ? current : cycleIndex(current, total, 1)));
+          pendingScrollAnchorRef.current = { x: 0.5, y: 0.5 };
         }
         return;
       }
+
       if (event.key === "Home") {
         event.preventDefault();
         setActiveIndex(0);
+        pendingScrollAnchorRef.current = { x: 0.5, y: 0.5 };
         return;
       }
+
       if (event.key === "End") {
         event.preventDefault();
-        setActiveIndex(validImages.length - 1);
+        setActiveIndex(imageCountRef.current - 1);
+        pendingScrollAnchorRef.current = { x: 0.5, y: 0.5 };
         return;
       }
+
       if (event.key === "+" || event.key === "=") {
         event.preventDefault();
-        setZoomLevel((current) => clampZoom(current + ZOOM_STEP));
+        adjustZoom(ZOOM_STEP);
         return;
       }
+
       if (event.key === "-" || event.key === "_") {
         event.preventDefault();
-        setZoomLevel((current) => clampZoom(current - ZOOM_STEP));
+        adjustZoom(-ZOOM_STEP);
         return;
       }
+
       if (event.key === "0") {
         event.preventDefault();
-        setZoomLevel(MIN_ZOOM);
+        resetZoom();
         return;
       }
+
       if (event.key.toLowerCase() === "f") {
         event.preventDefault();
-        setFitMode((current) => (current === "cover" ? "contain" : "cover"));
+        toggleFitMode();
       }
     };
 
     window.addEventListener("keydown", onKeyDown);
     return () => {
       window.removeEventListener("keydown", onKeyDown);
-      document.body.style.overflow = originalOverflow;
+      root.classList.remove("has-image-viewer");
+
+      const previouslyFocused = previouslyFocusedRef.current;
+      if (previouslyFocused && document.contains(previouslyFocused)) {
+        requestAnimationFrame(() => previouslyFocused.focus());
+      }
     };
-  }, [activeIndex, canNavigate, validImages.length]);
+  }, [viewerOpen]);
 
   useEffect(() => {
     if (activeIndex === null || validImages.length === 0) {
       return;
     }
-
-    setZoomLevel(MIN_ZOOM);
 
     const adjacent = [
       validImages[activeIndex],
@@ -489,14 +706,56 @@ export function ImageGalleryViewer({
     }
   }, [activeIndex, loadedImages, validImages]);
 
+  useEffect(() => {
+    if (activeIndex === null || !activeUrl) {
+      return;
+    }
+
+    const frame = frameRef.current;
+    if (!frame) {
+      return;
+    }
+
+    dragStateRef.current = null;
+    frame.classList.remove("is-dragging");
+
+    const anchor = pendingScrollAnchorRef.current;
+    pendingScrollAnchorRef.current = null;
+    requestAnimationFrame(() => applyScrollAnchor(frame, anchor ?? { x: 0.5, y: 0.5 }));
+  }, [activeIndex, activeUrl, fitMode, zoomLevel]);
+
+  useEffect(() => {
+    if (activeIndex === null) {
+      return;
+    }
+
+    const thumb = activeThumbRef.current;
+    if (!thumb) {
+      return;
+    }
+
+    thumb.scrollIntoView({ block: "nearest", inline: "center" });
+  }, [activeIndex]);
+
   if (validImages.length === 0) {
     return null;
   }
 
   const viewer =
     activeIndex !== null && activeUrl ? (
-      <div className="image-viewer" role="dialog" aria-modal="true" onClick={closeViewer}>
-        <div className="image-viewer__surface" onClick={(event) => event.stopPropagation()}>
+      <div
+        className="image-viewer"
+        role="dialog"
+        aria-modal="true"
+        aria-label={ariaLabel ?? altBase}
+        onClick={closeViewer}
+      >
+        <div
+          ref={surfaceRef}
+          className="image-viewer__surface"
+          tabIndex={-1}
+          onClick={(event) => event.stopPropagation()}
+        >
           <header className="image-viewer__header">
             <p className="image-viewer__counter">
               {activeIndex + 1} / {validImages.length}
@@ -545,13 +804,14 @@ export function ImageGalleryViewer({
                 className="image-viewer__action image-viewer__action--link"
                 href={activeUrl}
                 target="_blank"
-                rel="noreferrer"
+                rel="noopener noreferrer"
                 aria-label={text.openOriginalAria}
                 title={text.openOriginalTitle}
               >
                 {text.openButton}
               </a>
               <button
+                ref={closeButtonRef}
                 type="button"
                 className="image-viewer__icon image-viewer__close"
                 onClick={closeViewer}
@@ -566,6 +826,7 @@ export function ImageGalleryViewer({
           <div
             className="image-viewer__stage"
             onTouchStart={handleStageTouchStart}
+            onTouchMove={handleStageTouchMove}
             onTouchEnd={handleStageTouchEnd}
             onWheel={handleStageWheel}
           >
@@ -584,20 +845,50 @@ export function ImageGalleryViewer({
             )}
 
             <figure
-              className={`image-viewer__frame${fitMode === "contain" ? " is-fit" : " is-fill"}`}
-              onDoubleClick={() =>
-                setZoomLevel((current) => (current > MIN_ZOOM ? MIN_ZOOM : clampZoom(2)))
-              }
+              ref={frameRef}
+              className={`image-viewer__frame${fitMode === "contain" ? " is-fit" : " is-fill"}${isZoomed ? " is-zoomed" : ""}`}
+              onPointerDown={handleFramePointerDown}
+              onPointerMove={handleFramePointerMove}
+              onPointerUp={handleFramePointerUp}
+              onPointerCancel={handleFramePointerUp}
+              onDoubleClick={(event) => {
+                if (zoomLevel > MIN_ZOOM) {
+                  pendingScrollAnchorRef.current = { x: 0.5, y: 0.5 };
+                  setZoomLevel(MIN_ZOOM);
+                  return;
+                }
+
+                const frame = frameRef.current;
+                if (!frame) {
+                  setZoomLevel(clampZoom(2));
+                  return;
+                }
+
+                const rect = frame.getBoundingClientRect();
+                const clickX =
+                  (event.clientX - rect.left + frame.scrollLeft) / Math.max(frame.scrollWidth, 1);
+                const clickY =
+                  (event.clientY - rect.top + frame.scrollTop) / Math.max(frame.scrollHeight, 1);
+
+                pendingScrollAnchorRef.current = {
+                  x: Math.max(0, Math.min(1, clickX)),
+                  y: Math.max(0, Math.min(1, clickY)),
+                };
+
+                setZoomLevel(clampZoom(2));
+              }}
             >
               {!activeImageLoaded ? <div className="image-viewer__loading" /> : null}
-              <img
-                key={activeUrl}
-                className={`image-viewer__image ${zoomClassName}`}
-                src={activeUrl}
-                alt={`${altBase} ${activeIndex + 1}`}
-                onLoad={() => markImageLoaded(activeUrl)}
-                draggable={false}
-              />
+              <div className={`image-viewer__canvas ${zoomClassName}`}>
+                <img
+                  key={activeUrl}
+                  className="image-viewer__image"
+                  src={activeUrl}
+                  alt={`${altBase} ${activeIndex + 1}`}
+                  onLoad={() => markImageLoaded(activeUrl)}
+                  draggable={false}
+                />
+              </div>
             </figure>
 
             {canNavigate ? (
@@ -622,9 +913,11 @@ export function ImageGalleryViewer({
                   key={`${url}-${index}-viewer`}
                   type="button"
                   className={`image-viewer__thumb${index === activeIndex ? " is-active" : ""}`}
+                  ref={index === activeIndex ? activeThumbRef : undefined}
                   onClick={() => {
                     setActiveIndex(index);
                     setZoomLevel(MIN_ZOOM);
+                    pendingScrollAnchorRef.current = { x: 0.5, y: 0.5 };
                   }}
                   aria-label={`${text.viewImageAriaPrefix} ${index + 1}`}
                 >
