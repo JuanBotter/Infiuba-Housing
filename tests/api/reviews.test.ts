@@ -2,6 +2,8 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { REVIEW_API_ERROR_CODES } from "@/lib/review-api-errors";
 
+const ORIGINAL_AUTO_GEOCODE_NEW_LISTINGS = process.env.AUTO_GEOCODE_NEW_LISTINGS;
+
 vi.mock("@/lib/auth", () => ({
   canSubmitReviews: vi.fn(),
   getRoleFromRequestAsync: vi.fn(),
@@ -43,6 +45,11 @@ beforeAll(async () => {
 beforeEach(() => {
   vi.clearAllMocks();
   mockedOrigin.validateSameOriginRequest.mockReturnValue({ ok: true });
+  if (ORIGINAL_AUTO_GEOCODE_NEW_LISTINGS === undefined) {
+    delete process.env.AUTO_GEOCODE_NEW_LISTINGS;
+  } else {
+    process.env.AUTO_GEOCODE_NEW_LISTINGS = ORIGINAL_AUTO_GEOCODE_NEW_LISTINGS;
+  }
 });
 
 function buildReviewRequest(body: Record<string, unknown>) {
@@ -320,6 +327,42 @@ describe("/api/reviews", () => {
     expect(mockedCache.revalidateTag).toHaveBeenCalledWith("public-listings", "max");
     expect(mockedCache.revalidateTag).toHaveBeenCalledWith("public-neighborhoods", "max");
     expect(mockedCache.revalidateTag).toHaveBeenCalledWith("public-dataset-meta", "max");
+  });
+
+  it("auto-geocodes new listing coordinates from the address when enabled", async () => {
+    process.env.AUTO_GEOCODE_NEW_LISTINGS = "true";
+    mockedAuth.getRoleFromRequestAsync.mockResolvedValueOnce("whitelisted");
+    mockedAuth.canSubmitReviews.mockReturnValueOnce(true);
+    mockedData.createListing.mockResolvedValueOnce({ listingId: "listing-geocoded" } as never);
+    mockedReviews.appendPendingReview.mockResolvedValueOnce();
+
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify([{ lat: "-34.6", lon: "-58.4" }]), { status: 200 }),
+      );
+
+    try {
+      const response = await POST(
+        buildReviewRequest({
+          ...baseReviewPayload,
+          address: "Calle Falsa 123",
+          neighborhood: "Palermo",
+          contacts: "+54 9 11 5555-5555",
+          capacity: 3,
+        }),
+      );
+
+      expect(response.status).toBe(201);
+      expect(mockedData.createListing).toHaveBeenCalledWith(
+        expect.objectContaining({
+          latitude: -34.6,
+          longitude: -58.4,
+        }),
+      );
+    } finally {
+      fetchSpy.mockRestore();
+    }
   });
 
   it("passes normalized review image URLs to persistence layers", async () => {

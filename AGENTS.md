@@ -79,7 +79,7 @@ Do not defer AGENTS updates.
 - Shared image gallery/lightbox controls and labels are localized by UI language (fit/fill, zoom, open-original, close, previous/next, thumbnails, and fallback remove text).
 - Admin bulk user upsert uses set-based SQL (`DELETE ... WHERE email = ANY(...)` + `INSERT ... SELECT FROM UNNEST(...)`) in one transaction.
 - Add-review and detail-review flows now share a unified review-form core: centralized validation/submission/upload helpers in `src/lib/review-form.ts`, shared client hook state in `src/lib/use-review-form-core.ts`, and shared field rendering via `src/components/review-core-fields.tsx`; client-side review error mapping still resolves localized UI copy with generic fallback for unknown server errors.
-- New listing fields in the add-review flow omit coordinates; latitude/longitude are not collected from users.
+- New listing fields in the add-review flow omit coordinates; latitude/longitude are not collected from users. When `AUTO_GEOCODE_NEW_LISTINGS=true`, the server attempts to derive coordinates for newly-created listings using the submitted address + neighborhood.
 - Add-review flow uses neighborhood autocomplete suggestions from known neighborhood values.
 - Main listings UI uses a view toggle: `Map` (default), `List`, and (for whitelisted/admin) `Add review`.
 - Cards/Map filters include search, neighborhood, recommendation, a dataset-driven dual-handle rent range slider (bounded to current review-rent min/max values) with histogram bars derived from review-rent distribution and active-range highlighting, minimum rating, sorting (default: newest), and a logged-in `Favorites` slider toggle rendered as the last filter control; the rent slider spans two filter columns on desktop and reverts to full-width on narrow screens. The range inputs suppress the global input focus halo and keep focus affordance on slider thumbs. Active filter chips support one-click removal plus clear-all and render inline with result count in a shared summary row that always reserves the inline-filters footprint (hidden when empty) to avoid layout shift when filters are toggled.
@@ -165,6 +165,9 @@ Do not defer AGENTS updates.
 - `VISITOR_CAN_SUBMIT_REVIEWS_ALLOW_PRODUCTION=true`: explicit production acknowledgement required to allow visitor review submission override in production.
 - `VISITOR_CAN_UPLOAD_REVIEW_IMAGES=true`: emergency override to allow visitors to upload review images (Blob uploads; higher abuse/cost risk).
 - `VISITOR_CAN_UPLOAD_REVIEW_IMAGES_ALLOW_PRODUCTION=true`: explicit production acknowledgement required to allow visitor review image uploads in production.
+- `AUTO_GEOCODE_NEW_LISTINGS=true`: when creating a new listing via review submission, attempt to geocode the address (Buenos Aires bounds) and store coordinates when the payload does not include them.
+- `AUTO_GEOCODE_NEW_LISTINGS_ALLOW_PRODUCTION=true`: explicit production acknowledgement required to enable auto-geocoding in production.
+- `GEOCODE_USER_AGENT`: optional `User-Agent` header used for geocoding requests (recommended to include a contact email/URL per Nominatim usage policy).
 - `OTP_EMAIL_PROVIDER`: OTP delivery provider (`brevo`, `resend`, or `console`; defaults to `console` in non-production when unset).
 - `OTP_CONSOLE_ONLY_EMAIL`: optional single email forced to console OTP delivery (skips provider send); defaults to `mock@email.com` in non-production when unset.
 - `OTP_FROM_EMAIL`: optional provider-agnostic sender identity fallback (`Name <email@domain>`).
@@ -184,6 +187,7 @@ Notes:
 - In production, `VISITOR_CAN_VIEW_OWNER_CONTACTS=true` without `VISITOR_CAN_VIEW_OWNER_CONTACTS_ALLOW_PRODUCTION=true` throws at runtime to prevent accidental public contact exposure.
 - In production, `VISITOR_CAN_SUBMIT_REVIEWS=true` without `VISITOR_CAN_SUBMIT_REVIEWS_ALLOW_PRODUCTION=true` throws at runtime to prevent accidentally opening review submission to the public.
 - In production, `VISITOR_CAN_UPLOAD_REVIEW_IMAGES=true` without `VISITOR_CAN_UPLOAD_REVIEW_IMAGES_ALLOW_PRODUCTION=true` throws at runtime to prevent accidentally opening anonymous image uploads.
+- In production, `AUTO_GEOCODE_NEW_LISTINGS=true` without `AUTO_GEOCODE_NEW_LISTINGS_ALLOW_PRODUCTION=true` throws at runtime to prevent accidentally enabling an external geocoding dependency.
 
 ## Access Control Model
 

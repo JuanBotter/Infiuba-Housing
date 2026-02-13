@@ -22,6 +22,7 @@ import {
   REVIEW_API_ERROR_CODES,
   type ReviewApiErrorCode,
 } from "@/lib/review-api-errors";
+import { maybeGeocodeBuenosAiresListingAddress } from "@/lib/listing-geocode";
 import { parseReviewImageUrls } from "@/lib/review-images";
 import { appendPendingReview } from "@/lib/reviews-store";
 import { isValidSemester } from "@/lib/semester-options";
@@ -221,13 +222,23 @@ export async function POST(request: Request) {
         );
       }
 
+      let resolvedLatitude = latitude;
+      let resolvedLongitude = longitude;
+      if (!latitudeProvided && !longitudeProvided) {
+        const geocoded = await maybeGeocodeBuenosAiresListingAddress({ address, neighborhood });
+        if (geocoded) {
+          resolvedLatitude = geocoded.latitude;
+          resolvedLongitude = geocoded.longitude;
+        }
+      }
+
       const created = await createListing({
         address,
         neighborhood,
         contacts,
         capacity,
-        latitude,
-        longitude,
+        latitude: resolvedLatitude,
+        longitude: resolvedLongitude,
       });
       resolvedListingId = created.listingId;
       createdNewListing = true;
