@@ -6,6 +6,7 @@ import { ReviewCoreFields } from "@/components/review-core-fields";
 import type { Messages } from "@/i18n/messages";
 import {
   buildReviewPayload,
+  getReviewFormErrorSummaryItems,
   submitReview,
 } from "@/lib/review-form";
 import { useReviewFormCore } from "@/lib/use-review-form-core";
@@ -34,6 +35,8 @@ export function ReviewForm({ lang, listingId, messages, canUploadImages = true }
   } = useReviewFormCore(t);
   const [status, setStatus] = useState<"idle" | "sending" | "success" | "error">("idle");
   const [serverMessage, setServerMessage] = useState("");
+  const errorSummaryItems =
+    status === "error" ? getReviewFormErrorSummaryItems(formErrors, t) : [];
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -116,7 +119,22 @@ export function ReviewForm({ lang, listingId, messages, canUploadImages = true }
       </button>
 
       {status === "success" ? <p className="form-status success">{t.formSuccess}</p> : null}
-      {status === "error" ? <p className="form-status error">{serverMessage || t.formError}</p> : null}
+      {status === "error" ? (
+        <div role="alert" aria-live="polite">
+          <p className="form-status error">{serverMessage || t.formError}</p>
+          {errorSummaryItems.length > 0 ? (
+            <ul className="form-status-list error">
+              {errorSummaryItems.map((item) => (
+                <li key={item.key}>
+                  {item.message === t.formRequiredField
+                    ? item.label
+                    : `${item.label}: ${item.message}`}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
+      ) : null}
     </form>
   );
 }

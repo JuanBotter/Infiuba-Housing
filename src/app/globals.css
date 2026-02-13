@@ -2524,6 +2524,25 @@ input[type="number"] {
   color: var(--danger);
 }
 
+.form-status-list {
+  margin: 0.35rem 0 0;
+  padding-left: 1.2rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.form-status-list li + li {
+  margin-top: 0.2rem;
+}
+
+.form-status-list.success {
+  color: var(--success);
+}
+
+.form-status-list.error {
+  color: var(--danger);
+}
+
 .moderation-toolbar {
   display: grid;
   gap: 0.65rem;

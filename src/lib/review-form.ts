@@ -77,6 +77,77 @@ export function validateReviewDraft(draft: ReviewDraft, messages: Messages) {
   return nextErrors;
 }
 
+export interface ReviewFormErrorSummaryItem {
+  key: string;
+  label: string;
+  message: string;
+}
+
+const REVIEW_FORM_ERROR_SUMMARY_ORDER = [
+  "address",
+  "neighborhood",
+  "contacts",
+  "capacity",
+  "priceUsd",
+  "rating",
+  "recommended",
+  "comment",
+  "semester",
+  "contactShare",
+] as const;
+
+export function getReviewFormErrorSummaryItems(
+  formErrors: Record<string, string>,
+  messages: Messages,
+): ReviewFormErrorSummaryItem[] {
+  const labelMap: Record<string, string> = {
+    address: messages.addPropertyAddressLabel,
+    neighborhood: messages.neighborhoodLabel,
+    contacts: messages.addPropertyContactsLabel,
+    capacity: messages.capacityLabel,
+    priceUsd: messages.formPriceLabel,
+    rating: messages.formRating,
+    recommended: messages.formRecommended,
+    comment: messages.formComment,
+    semester: messages.formSemester,
+    contactShare: messages.formContactSection,
+  };
+
+  const seen = new Set<string>();
+  const items: ReviewFormErrorSummaryItem[] = [];
+
+  for (const key of REVIEW_FORM_ERROR_SUMMARY_ORDER) {
+    const message = formErrors[key];
+    if (!message) {
+      continue;
+    }
+    seen.add(key);
+    items.push({
+      key,
+      label: labelMap[key] ?? key,
+      message,
+    });
+  }
+
+  const remainingKeys = Object.keys(formErrors)
+    .filter((key) => !seen.has(key))
+    .sort((a, b) => a.localeCompare(b));
+
+  for (const key of remainingKeys) {
+    const message = formErrors[key];
+    if (!message) {
+      continue;
+    }
+    items.push({
+      key,
+      label: labelMap[key] ?? key,
+      message,
+    });
+  }
+
+  return items;
+}
+
 export interface ReviewApiErrorResponse {
   code: string;
   message: string;

@@ -8,6 +8,7 @@ import { ReviewCoreFields } from "@/components/review-core-fields";
 import type { Messages } from "@/i18n/messages";
 import {
   buildReviewPayload,
+  getReviewFormErrorSummaryItems,
   submitReview,
 } from "@/lib/review-form";
 import { useReviewFormCore } from "@/lib/use-review-form-core";
@@ -65,6 +66,8 @@ export function AddStayReviewForm({
 
   const [status, setStatus] = useState<SubmitStatus>("idle");
   const [serverMessage, setServerMessage] = useState("");
+  const errorSummaryItems =
+    status === "error" ? getReviewFormErrorSummaryItems(formErrors, t) : [];
 
   const selectedListing = useMemo(
     () => listings.find((listing) => listing.id === selectedListingId) || null,
@@ -450,7 +453,20 @@ export function AddStayReviewForm({
         <p className="form-status error">{t.addReviewUnavailableError}</p>
       ) : null}
       {status === "error" ? (
-        <p className="form-status error">{serverMessage || t.formError}</p>
+        <div role="alert" aria-live="polite">
+          <p className="form-status error">{serverMessage || t.formError}</p>
+          {errorSummaryItems.length > 0 ? (
+            <ul className="form-status-list error">
+              {errorSummaryItems.map((item) => (
+                <li key={item.key}>
+                  {item.message === t.formRequiredField
+                    ? item.label
+                    : `${item.label}: ${item.message}`}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
       ) : null}
     </article>
   );
