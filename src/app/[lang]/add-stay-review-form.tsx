@@ -140,6 +140,11 @@ export function AddStayReviewForm({
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (uploadingReviewImages) {
+      setStatus("error");
+      setServerMessage(t.formUploadsInProgressError);
+      return;
+    }
 
     if (selectedListing && matchDecision === "pending") {
       setStatus("needsMatch");
@@ -432,7 +437,7 @@ export function AddStayReviewForm({
           variant="property"
         />
 
-        <button type="submit" disabled={status === "sending"}>
+        <button type="submit" disabled={status === "sending" || uploadingReviewImages}>
           {status === "sending" ? t.formSending : t.addReviewSubmit}
         </button>
       </form>

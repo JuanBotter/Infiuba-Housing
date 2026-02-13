@@ -37,6 +37,11 @@ export function ReviewForm({ lang, listingId, messages, canUploadImages = true }
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (uploadingImages) {
+      setStatus("error");
+      setServerMessage(t.formUploadsInProgressError);
+      return;
+    }
     const nextErrors = validateDraft();
 
     if (Object.keys(nextErrors).length > 0) {
@@ -106,7 +111,7 @@ export function ReviewForm({ lang, listingId, messages, canUploadImages = true }
         recommendationName={`review-recommend-${listingId}`}
       />
 
-      <button type="submit" disabled={status === "sending"}>
+      <button type="submit" disabled={status === "sending" || uploadingImages}>
         {status === "sending" ? t.formSending : t.formSubmit}
       </button>
 

@@ -79,6 +79,7 @@ Do not defer AGENTS updates.
 - Shared image gallery/lightbox controls and labels are localized by UI language (fit/fill, zoom, open-original, close, previous/next, thumbnails, and fallback remove text).
 - Admin bulk user upsert uses set-based SQL (`DELETE ... WHERE email = ANY(...)` + `INSERT ... SELECT FROM UNNEST(...)`) in one transaction.
 - Add-review and detail-review flows now share a unified review-form core: centralized validation/submission/upload helpers in `src/lib/review-form.ts`, shared client hook state in `src/lib/use-review-form-core.ts`, and shared field rendering via `src/components/review-core-fields.tsx`; client-side review error mapping still resolves localized UI copy with generic fallback for unknown server errors.
+- Review image uploads optionally compress large files client-side (downscale + JPEG re-encode; metadata stripped) and always compress over-limit files so uploads stay within the per-file cap; review-submit buttons are disabled while uploads are in progress.
 - New listing fields in the add-review flow omit coordinates; latitude/longitude are not collected from users. When `AUTO_GEOCODE_NEW_LISTINGS=true`, the server attempts to derive coordinates for newly-created listings using the submitted address + neighborhood.
 - Add-review flow uses neighborhood autocomplete suggestions from known neighborhood values.
 - Main listings UI uses a view toggle: `Map` (default), `List`, and (for whitelisted/admin) `Add review`.
