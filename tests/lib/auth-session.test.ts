@@ -15,6 +15,9 @@ const ORIGINAL_VISITOR_CONTACTS = process.env.VISITOR_CAN_VIEW_OWNER_CONTACTS;
 const ORIGINAL_VISITOR_CONTACTS_PROD_ACK = process.env.VISITOR_CAN_VIEW_OWNER_CONTACTS_ALLOW_PRODUCTION;
 const ORIGINAL_VISITOR_REVIEW_SUBMISSIONS = process.env.VISITOR_CAN_SUBMIT_REVIEWS;
 const ORIGINAL_VISITOR_REVIEW_SUBMISSIONS_PROD_ACK = process.env.VISITOR_CAN_SUBMIT_REVIEWS_ALLOW_PRODUCTION;
+const ORIGINAL_VISITOR_REVIEW_IMAGE_UPLOADS = process.env.VISITOR_CAN_UPLOAD_REVIEW_IMAGES;
+const ORIGINAL_VISITOR_REVIEW_IMAGE_UPLOADS_PROD_ACK =
+  process.env.VISITOR_CAN_UPLOAD_REVIEW_IMAGES_ALLOW_PRODUCTION;
 
 beforeAll(async () => {
   auth = await import("@/lib/auth");
@@ -27,6 +30,8 @@ beforeEach(() => {
   process.env.VISITOR_CAN_VIEW_OWNER_CONTACTS_ALLOW_PRODUCTION = ORIGINAL_VISITOR_CONTACTS_PROD_ACK;
   process.env.VISITOR_CAN_SUBMIT_REVIEWS = ORIGINAL_VISITOR_REVIEW_SUBMISSIONS;
   process.env.VISITOR_CAN_SUBMIT_REVIEWS_ALLOW_PRODUCTION = ORIGINAL_VISITOR_REVIEW_SUBMISSIONS_PROD_ACK;
+  process.env.VISITOR_CAN_UPLOAD_REVIEW_IMAGES = ORIGINAL_VISITOR_REVIEW_IMAGE_UPLOADS;
+  process.env.VISITOR_CAN_UPLOAD_REVIEW_IMAGES_ALLOW_PRODUCTION = ORIGINAL_VISITOR_REVIEW_IMAGE_UPLOADS_PROD_ACK;
   process.env.NODE_ENV = "test";
 });
 
@@ -147,6 +152,27 @@ describe("auth session helpers", () => {
 
     expect(() => auth.canSubmitReviews("visitor")).toThrow(
       /VISITOR_CAN_SUBMIT_REVIEWS=true requires/,
+    );
+  });
+
+  it("honors visitor review image upload override flag", () => {
+    process.env.VISITOR_CAN_SUBMIT_REVIEWS = "true";
+    process.env.VISITOR_CAN_UPLOAD_REVIEW_IMAGES = "true";
+    expect(auth.canUploadReviewImages("visitor")).toBe(true);
+
+    process.env.VISITOR_CAN_UPLOAD_REVIEW_IMAGES = "false";
+    expect(auth.canUploadReviewImages("visitor")).toBe(false);
+  });
+
+  it("blocks visitor review image upload override in production without explicit acknowledgement", () => {
+    process.env.NODE_ENV = "production";
+    process.env.VISITOR_CAN_SUBMIT_REVIEWS = "true";
+    process.env.VISITOR_CAN_SUBMIT_REVIEWS_ALLOW_PRODUCTION = "true";
+    process.env.VISITOR_CAN_UPLOAD_REVIEW_IMAGES = "true";
+    process.env.VISITOR_CAN_UPLOAD_REVIEW_IMAGES_ALLOW_PRODUCTION = "false";
+
+    expect(() => auth.canUploadReviewImages("visitor")).toThrow(
+      /VISITOR_CAN_UPLOAD_REVIEW_IMAGES=true requires/,
     );
   });
 
