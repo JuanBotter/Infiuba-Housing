@@ -161,6 +161,8 @@ Do not defer AGENTS updates.
 - `TRUSTED_PROXY_HOPS`: trusted hop count for chain-based trusted IP headers (defaults to `1`; only used for chain headers like `x-forwarded-for`).
 - `VISITOR_CAN_VIEW_OWNER_CONTACTS=true`: emergency read-only fallback to expose owner contacts to visitors (reviewer/student contacts remain protected).
 - `VISITOR_CAN_VIEW_OWNER_CONTACTS_ALLOW_PRODUCTION=true`: explicit production acknowledgement required to allow visitor owner-contact override in production.
+- `VISITOR_CAN_SUBMIT_REVIEWS=true`: emergency override to allow visitors to submit reviews (reviews are still moderated; image uploads remain restricted).
+- `VISITOR_CAN_SUBMIT_REVIEWS_ALLOW_PRODUCTION=true`: explicit production acknowledgement required to allow visitor review submission override in production.
 - `OTP_EMAIL_PROVIDER`: OTP delivery provider (`brevo`, `resend`, or `console`; defaults to `console` in non-production when unset).
 - `OTP_CONSOLE_ONLY_EMAIL`: optional single email forced to console OTP delivery (skips provider send); defaults to `mock@email.com` in non-production when unset.
 - `OTP_FROM_EMAIL`: optional provider-agnostic sender identity fallback (`Name <email@domain>`).
@@ -178,6 +180,7 @@ Notes:
 - If `AUTH_SECRET` changes, all active sessions are invalidated.
 - In production, missing or weak `AUTH_SECRET` causes auth signing operations to fail fast.
 - In production, `VISITOR_CAN_VIEW_OWNER_CONTACTS=true` without `VISITOR_CAN_VIEW_OWNER_CONTACTS_ALLOW_PRODUCTION=true` throws at runtime to prevent accidental public contact exposure.
+- In production, `VISITOR_CAN_SUBMIT_REVIEWS=true` without `VISITOR_CAN_SUBMIT_REVIEWS_ALLOW_PRODUCTION=true` throws at runtime to prevent accidentally opening review submission to the public.
 
 ## Access Control Model
 
@@ -187,7 +190,8 @@ Roles:
   - Can browse public listing/review content.
   - Cannot see owner contacts unless `VISITOR_CAN_VIEW_OWNER_CONTACTS=true`.
   - Cannot see reviewer contact info.
-  - Cannot submit reviews.
+  - Cannot submit reviews unless `VISITOR_CAN_SUBMIT_REVIEWS=true`.
+  - Cannot upload review images.
   - Cannot save listing favorites.
   - Cannot access admin moderation.
 - `whitelisted`:

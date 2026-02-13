@@ -15,9 +15,10 @@ interface ReviewFormProps {
   lang: Lang;
   listingId: string;
   messages: Messages;
+  canUploadImages?: boolean;
 }
 
-export function ReviewForm({ lang, listingId, messages }: ReviewFormProps) {
+export function ReviewForm({ lang, listingId, messages, canUploadImages = true }: ReviewFormProps) {
   const t = messages;
   const {
     reviewDraft,
@@ -99,6 +100,7 @@ export function ReviewForm({ lang, listingId, messages }: ReviewFormProps) {
         uploadingImages={uploadingImages}
         onUploadImages={onUploadImages}
         onRemoveImage={removeReviewImage}
+        canUploadImages={canUploadImages}
         idPrefix={`review-${listingId}`}
         ratingName={`review-rating-${listingId}`}
         recommendationName={`review-recommend-${listingId}`}

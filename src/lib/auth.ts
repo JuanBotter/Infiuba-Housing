@@ -39,6 +39,7 @@ const MAGIC_LINK_STATE_PATTERN = /^[A-Za-z0-9_-]{24,200}$/;
 const OTP_LOGO_CACHE_BUST_VERSION = "20260209";
 const AUTH_SECRET_MIN_LENGTH = 32;
 const VISITOR_CONTACT_OVERRIDE_PROD_ACK_ENV = "VISITOR_CAN_VIEW_OWNER_CONTACTS_ALLOW_PRODUCTION";
+const VISITOR_REVIEW_OVERRIDE_PROD_ACK_ENV = "VISITOR_CAN_SUBMIT_REVIEWS_ALLOW_PRODUCTION";
 const AUTH_SECRET_WEAK_VALUES = new Set([
   "replace-with-a-long-random-secret",
   "changeme",
@@ -53,6 +54,7 @@ let lastRateLimitCleanupAt = 0;
 let hasWarnedAuthSecretFallback = false;
 let hasWarnedWeakAuthSecret = false;
 let hasWarnedVisitorOwnerOverride = false;
+let hasWarnedVisitorReviewOverride = false;
 
 function isUserRole(value: string): value is UserRole {
   return value === "visitor" || value === "whitelisted" || value === "admin";
@@ -1306,6 +1308,31 @@ function isVisitorOwnerContactOverrideEnabled() {
   return true;
 }
 
+function isVisitorReviewSubmissionOverrideEnabled() {
+  const enabled = parseBooleanEnvFlag(process.env.VISITOR_CAN_SUBMIT_REVIEWS);
+  if (!enabled) {
+    return false;
+  }
+
+  const isProduction = process.env.NODE_ENV === "production";
+  const allowInProduction = parseBooleanEnvFlag(process.env[VISITOR_REVIEW_OVERRIDE_PROD_ACK_ENV]);
+  if (isProduction && !allowInProduction) {
+    throw new Error(
+      `VISITOR_CAN_SUBMIT_REVIEWS=true requires ${VISITOR_REVIEW_OVERRIDE_PROD_ACK_ENV}=true in production.`,
+    );
+  }
+
+  if (!hasWarnedVisitorReviewOverride) {
+    const mode = isProduction ? "production" : "non-production";
+    console.warn(
+      `[AUTH] VISITOR_CAN_SUBMIT_REVIEWS is enabled in ${mode}. Visitors can submit reviews.`,
+    );
+    hasWarnedVisitorReviewOverride = true;
+  }
+
+  return true;
+}
+
 export function canViewOwnerContactInfo(role: UserRole) {
   if (canViewContactInfo(role)) {
     return true;
@@ -1319,7 +1346,23 @@ export function isVisitorOwnerContactOverrideActive() {
 }
 
 export function canSubmitReviews(role: UserRole) {
+  if (role === "whitelisted" || role === "admin") {
+    return true;
+  }
+
+  return isVisitorReviewSubmissionOverrideEnabled();
+}
+
+export function canUploadReviewImages(role: UserRole) {
   return role === "whitelisted" || role === "admin";
+}
+
+export function canRequestContactEdits(role: UserRole) {
+  return role === "whitelisted" || role === "admin";
+}
+
+export function isVisitorReviewSubmissionOverrideActive() {
+  return parseBooleanEnvFlag(process.env.VISITOR_CAN_SUBMIT_REVIEWS);
 }
 
 export function canAccessAdmin(role: UserRole) {

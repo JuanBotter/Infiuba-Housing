@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/auth", () => ({
-  canSubmitReviews: vi.fn(),
+  canUploadReviewImages: vi.fn(),
   getRoleFromRequestAsync: vi.fn(),
 }));
 
@@ -31,7 +31,7 @@ beforeEach(() => {
   delete process.env.BLOB_UPLOAD_PREFIX;
   mockedOrigin.validateSameOriginRequest.mockReturnValue({ ok: true });
   mockedAuth.getRoleFromRequestAsync.mockResolvedValue("whitelisted");
-  mockedAuth.canSubmitReviews.mockReturnValue(true);
+  mockedAuth.canUploadReviewImages.mockReturnValue(true);
 });
 
 afterAll(() => {
@@ -56,7 +56,7 @@ function buildUploadRequest(files: File[]) {
 
 describe("/api/review-images", () => {
   it("rejects unauthorized uploads", async () => {
-    mockedAuth.canSubmitReviews.mockReturnValueOnce(false);
+    mockedAuth.canUploadReviewImages.mockReturnValueOnce(false);
 
     const response = await POST(
       buildUploadRequest([new File(["content"], "photo.jpg", { type: "image/jpeg" })]),

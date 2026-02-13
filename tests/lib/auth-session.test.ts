@@ -13,6 +13,8 @@ let mockedDb: typeof import("@/lib/db");
 
 const ORIGINAL_VISITOR_CONTACTS = process.env.VISITOR_CAN_VIEW_OWNER_CONTACTS;
 const ORIGINAL_VISITOR_CONTACTS_PROD_ACK = process.env.VISITOR_CAN_VIEW_OWNER_CONTACTS_ALLOW_PRODUCTION;
+const ORIGINAL_VISITOR_REVIEW_SUBMISSIONS = process.env.VISITOR_CAN_SUBMIT_REVIEWS;
+const ORIGINAL_VISITOR_REVIEW_SUBMISSIONS_PROD_ACK = process.env.VISITOR_CAN_SUBMIT_REVIEWS_ALLOW_PRODUCTION;
 
 beforeAll(async () => {
   auth = await import("@/lib/auth");
@@ -23,6 +25,8 @@ beforeEach(() => {
   vi.clearAllMocks();
   process.env.VISITOR_CAN_VIEW_OWNER_CONTACTS = ORIGINAL_VISITOR_CONTACTS;
   process.env.VISITOR_CAN_VIEW_OWNER_CONTACTS_ALLOW_PRODUCTION = ORIGINAL_VISITOR_CONTACTS_PROD_ACK;
+  process.env.VISITOR_CAN_SUBMIT_REVIEWS = ORIGINAL_VISITOR_REVIEW_SUBMISSIONS;
+  process.env.VISITOR_CAN_SUBMIT_REVIEWS_ALLOW_PRODUCTION = ORIGINAL_VISITOR_REVIEW_SUBMISSIONS_PROD_ACK;
   process.env.NODE_ENV = "test";
 });
 
@@ -125,6 +129,24 @@ describe("auth session helpers", () => {
 
     expect(() => auth.canViewOwnerContactInfo("visitor")).toThrow(
       /VISITOR_CAN_VIEW_OWNER_CONTACTS=true requires/,
+    );
+  });
+
+  it("honors visitor review submission override flag", () => {
+    process.env.VISITOR_CAN_SUBMIT_REVIEWS = "true";
+    expect(auth.canSubmitReviews("visitor")).toBe(true);
+
+    process.env.VISITOR_CAN_SUBMIT_REVIEWS = "false";
+    expect(auth.canSubmitReviews("visitor")).toBe(false);
+  });
+
+  it("blocks visitor review submission override in production without explicit acknowledgement", () => {
+    process.env.NODE_ENV = "production";
+    process.env.VISITOR_CAN_SUBMIT_REVIEWS = "true";
+    process.env.VISITOR_CAN_SUBMIT_REVIEWS_ALLOW_PRODUCTION = "false";
+
+    expect(() => auth.canSubmitReviews("visitor")).toThrow(
+      /VISITOR_CAN_SUBMIT_REVIEWS=true requires/,
     );
   });
 

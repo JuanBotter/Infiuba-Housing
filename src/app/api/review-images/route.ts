@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import { put } from "@vercel/blob";
 
-import { canSubmitReviews, getRoleFromRequestAsync } from "@/lib/auth";
+import { canUploadReviewImages, getRoleFromRequestAsync } from "@/lib/auth";
 import { jsonNoStore, withNoStore } from "@/lib/http-cache";
 import { validateSameOriginRequest } from "@/lib/request-origin";
 import {
@@ -61,7 +61,7 @@ export async function POST(request: Request) {
   }
 
   const role = await getRoleFromRequestAsync(request);
-  if (!canSubmitReviews(role)) {
+  if (!canUploadReviewImages(role)) {
     return jsonNoStore(
       { error: "Only whitelisted students can upload images." },
       { status: 403 },

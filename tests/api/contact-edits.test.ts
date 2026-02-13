@@ -1,7 +1,7 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/auth", () => ({
-  canSubmitReviews: vi.fn(),
+  canRequestContactEdits: vi.fn(),
   getAuthSessionFromRequest: vi.fn(),
   getRoleFromRequestAsync: vi.fn(),
 }));
@@ -37,7 +37,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   mockedRequestOrigin.validateSameOriginRequest.mockReturnValue({ ok: true });
   mockedAuth.getRoleFromRequestAsync.mockResolvedValue("whitelisted");
-  mockedAuth.canSubmitReviews.mockReturnValue(true);
+  mockedAuth.canRequestContactEdits.mockReturnValue(true);
   mockedDb.isDatabaseEnabled.mockReturnValue(true);
   mockedAuth.getAuthSessionFromRequest.mockResolvedValue({
     role: "whitelisted",
@@ -58,7 +58,7 @@ function buildRequest(body: Record<string, unknown>) {
 
 describe("/api/contact-edits POST", () => {
   it("rejects unauthorized users", async () => {
-    mockedAuth.canSubmitReviews.mockReturnValueOnce(false);
+    mockedAuth.canRequestContactEdits.mockReturnValueOnce(false);
 
     const response = await POST(buildRequest({ listingId: "listing-1", contacts: "owner@example.com" }));
 

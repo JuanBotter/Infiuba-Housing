@@ -21,6 +21,7 @@ interface ReviewCoreFieldsProps {
   uploadingImages: boolean;
   onUploadImages: (event: ChangeEvent<HTMLInputElement>) => void;
   onRemoveImage: (index: number) => void;
+  canUploadImages?: boolean;
   idPrefix: string;
   ratingName: string;
   recommendationName: string;
@@ -37,6 +38,7 @@ export function ReviewCoreFields({
   uploadingImages,
   onUploadImages,
   onRemoveImage,
+  canUploadImages = true,
   idPrefix,
   ratingName,
   recommendationName,
@@ -192,32 +194,34 @@ export function ReviewCoreFields({
         </datalist>
       </label>
 
-      <fieldset className={isPropertyVariant ? "review-images property-form__full" : "review-images"}>
-        <legend>{messages.formReviewPhotosLabel}</legend>
-        <p className="review-images__hint">
-          {messages.formPhotosHint.replace("{count}", String(MAX_REVIEW_IMAGE_COUNT))}
-        </p>
-        <label className="button-link review-images__upload">
-          <input
-            type="file"
-            accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
-            multiple
-            onChange={(event) => void onUploadImages(event)}
-            disabled={uploadingImages || reviewDraft.imageUrls.length >= MAX_REVIEW_IMAGE_COUNT}
-          />
-          <span>{uploadingImages ? messages.formPhotosUploading : messages.formPhotosUploadButton}</span>
-        </label>
-        {reviewDraft.imageUrls.length > 0 ? (
-          <ImageGalleryViewer
-            lang={lang}
-            images={reviewDraft.imageUrls}
-            altBase={messages.imageAltReview}
-            ariaLabel={messages.imageAriaSelectedReviewPhotos}
-            onRemoveImage={onRemoveImage}
-            removeLabel={messages.formPhotosRemoveButton}
-          />
-        ) : null}
-      </fieldset>
+      {canUploadImages ? (
+        <fieldset className={isPropertyVariant ? "review-images property-form__full" : "review-images"}>
+          <legend>{messages.formReviewPhotosLabel}</legend>
+          <p className="review-images__hint">
+            {messages.formPhotosHint.replace("{count}", String(MAX_REVIEW_IMAGE_COUNT))}
+          </p>
+          <label className="button-link review-images__upload">
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
+              multiple
+              onChange={(event) => void onUploadImages(event)}
+              disabled={uploadingImages || reviewDraft.imageUrls.length >= MAX_REVIEW_IMAGE_COUNT}
+            />
+            <span>{uploadingImages ? messages.formPhotosUploading : messages.formPhotosUploadButton}</span>
+          </label>
+          {reviewDraft.imageUrls.length > 0 ? (
+            <ImageGalleryViewer
+              lang={lang}
+              images={reviewDraft.imageUrls}
+              altBase={messages.imageAltReview}
+              ariaLabel={messages.imageAriaSelectedReviewPhotos}
+              onRemoveImage={onRemoveImage}
+              removeLabel={messages.formPhotosRemoveButton}
+            />
+          ) : null}
+        </fieldset>
+      ) : null}
 
       <fieldset
         className={`${isPropertyVariant ? "contact-section property-form__full" : "contact-section"}${

@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 
-import { canSubmitReviews, getAuthSessionFromRequest, getRoleFromRequestAsync } from "@/lib/auth";
+import {
+  canRequestContactEdits,
+  getAuthSessionFromRequest,
+  getRoleFromRequestAsync,
+} from "@/lib/auth";
 import { dbQuery, isDatabaseEnabled } from "@/lib/db";
 import {
   LISTING_CONTACT_MAX_LENGTH,
@@ -34,7 +38,7 @@ export async function POST(request: Request) {
     }
 
     const role = await getRoleFromRequestAsync(request);
-    if (!canSubmitReviews(role)) {
+    if (!canRequestContactEdits(role)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

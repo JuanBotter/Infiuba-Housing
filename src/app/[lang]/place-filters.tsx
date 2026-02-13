@@ -47,6 +47,8 @@ interface PlaceFiltersProps {
   neighborhoods: string[];
   canViewOwnerInfo: boolean;
   canWriteReviews: boolean;
+  canRequestContactEdits: boolean;
+  canUploadReviewImages: boolean;
   isLoggedIn: boolean;
   isAdmin: boolean;
 }
@@ -91,6 +93,8 @@ export function PlaceFilters({
   neighborhoods,
   canViewOwnerInfo,
   canWriteReviews,
+  canRequestContactEdits,
+  canUploadReviewImages,
   isLoggedIn,
   isAdmin,
 }: PlaceFiltersProps) {
@@ -740,6 +744,7 @@ export function PlaceFilters({
           messages={messages}
           listings={listings}
           neighborhoods={neighborhoods}
+          canUploadImages={canUploadReviewImages}
         />
       ) : filteredAndSorted.length === 0 ? (
         <p className="empty-state">{messages.noResults}</p>
@@ -1112,14 +1117,14 @@ export function PlaceFilters({
                   ) : (
                     <p className="contact-lock-hint">{messages.ownerContactsLoginHint}</p>
                   )}
-                  {canWriteReviews ? (
-                  <ContactEditRequestForm
-                    listingId={selectedMapListing.id}
-                    currentContacts={selectedMapListing.contacts}
-                    currentCapacity={selectedMapListing.capacity}
-                    messages={messages}
-                    compact
-                  />
+                  {canRequestContactEdits ? (
+                    <ContactEditRequestForm
+                      listingId={selectedMapListing.id}
+                      currentContacts={selectedMapListing.contacts}
+                      currentCapacity={selectedMapListing.capacity}
+                      messages={messages}
+                      compact
+                    />
                   ) : null}
                   <div className="map-selected-details__actions">
                     <button
@@ -1216,6 +1221,7 @@ export function PlaceFilters({
                       lang={lang}
                       listingId={selectedMapListing.id}
                       messages={messages}
+                      canUploadImages={canUploadReviewImages}
                     />
                   </section>
                 ) : null}

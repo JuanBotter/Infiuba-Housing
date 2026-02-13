@@ -2,7 +2,9 @@ import { notFound } from "next/navigation";
 
 import { PlaceFilters } from "@/app/[lang]/place-filters";
 import {
+  canRequestContactEdits,
   canSubmitReviews,
+  canUploadReviewImages,
   canViewContactInfo,
   canViewOwnerContactInfo,
   getCurrentUserRole,
@@ -39,7 +41,9 @@ export default async function ListingsPage({ params }: PageProps) {
   const canViewOwnerInfo = canViewOwnerContactInfo(role);
   const canViewReviewerInfo = canViewContactInfo(role);
   const canWriteReviews = canSubmitReviews(role);
-  const isVisitorSafeView = !canViewOwnerInfo && !canViewReviewerInfo && !canWriteReviews;
+  const canRequestEdits = canRequestContactEdits(role);
+  const canUploadImages = canUploadReviewImages(role);
+  const isVisitorSafeView = !canViewOwnerInfo && !canViewReviewerInfo;
   const [listings, neighborhoods, meta] = isVisitorSafeView
     ? await Promise.all([
         getCachedPublicListings(lang),
@@ -91,6 +95,8 @@ export default async function ListingsPage({ params }: PageProps) {
         neighborhoods={neighborhoods}
         canViewOwnerInfo={canViewOwnerInfo}
         canWriteReviews={canWriteReviews}
+        canRequestContactEdits={canRequestEdits}
+        canUploadReviewImages={canUploadImages}
         isLoggedIn={isLoggedIn}
         isAdmin={isAdmin}
       />

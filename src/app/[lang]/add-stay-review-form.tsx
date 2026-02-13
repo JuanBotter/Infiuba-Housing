@@ -18,6 +18,7 @@ interface AddStayReviewFormProps {
   messages: Messages;
   listings: Listing[];
   neighborhoods: string[];
+  canUploadImages?: boolean;
 }
 
 type MatchDecision = "pending" | "yes" | "no";
@@ -31,7 +32,13 @@ function normalizeText(value: string) {
     .replace(/\p{Diacritic}/gu, "");
 }
 
-export function AddStayReviewForm({ lang, messages, listings, neighborhoods }: AddStayReviewFormProps) {
+export function AddStayReviewForm({
+  lang,
+  messages,
+  listings,
+  neighborhoods,
+  canUploadImages = true,
+}: AddStayReviewFormProps) {
   const t = messages;
   const router = useRouter();
 
@@ -418,6 +425,7 @@ export function AddStayReviewForm({ lang, messages, listings, neighborhoods }: A
           uploadingImages={uploadingReviewImages}
           onUploadImages={onUploadReviewImages}
           onRemoveImage={removeReviewImage}
+          canUploadImages={canUploadImages}
           idPrefix="review"
           ratingName="review-rating"
           recommendationName="review-recommend"

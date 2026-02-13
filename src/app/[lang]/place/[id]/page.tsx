@@ -8,7 +8,9 @@ import { ContactRichText } from "@/components/contact-rich-text";
 import { ContactEditRequestForm } from "@/components/contact-edit-request-form";
 import { ImageGalleryViewer } from "@/components/image-gallery-viewer";
 import {
+  canRequestContactEdits,
   canSubmitReviews,
+  canUploadReviewImages,
   canViewContactInfo,
   canViewOwnerContactInfo,
   getCurrentUserRole,
@@ -44,7 +46,9 @@ export default async function PlaceDetailPage({ params }: PlaceDetailPageProps) 
   const canViewOwnerInfo = canViewOwnerContactInfo(role);
   const canViewReviewerInfo = canViewContactInfo(role);
   const canWriteReviews = canSubmitReviews(role);
-  const isVisitorSafeView = !canViewOwnerInfo && !canViewReviewerInfo && !canWriteReviews;
+  const canRequestEdits = canRequestContactEdits(role);
+  const canUploadImages = canUploadReviewImages(role);
+  const isVisitorSafeView = !canViewOwnerInfo && !canViewReviewerInfo;
   const listing = isVisitorSafeView
     ? await getCachedPublicListingById(resolvedParams.id, lang)
     : await getListingById(resolvedParams.id, lang, {
@@ -162,7 +166,7 @@ export default async function PlaceDetailPage({ params }: PlaceDetailPageProps) 
         ) : (
           <p className="contact-lock-hint">{messages.ownerContactsLoginHint}</p>
         )}
-        {canWriteReviews ? (
+        {canRequestEdits ? (
           <ContactEditRequestForm
             listingId={listing.id}
             currentContacts={listing.contacts}
@@ -258,7 +262,12 @@ export default async function PlaceDetailPage({ params }: PlaceDetailPageProps) 
         <article className="detail-card detail-card--form">
           <h2>{messages.leaveReviewTitle}</h2>
           <p>{messages.leaveReviewSubtitle}</p>
-          <ReviewForm lang={lang} listingId={listing.id} messages={messages} />
+          <ReviewForm
+            lang={lang}
+            listingId={listing.id}
+            messages={messages}
+            canUploadImages={canUploadImages}
+          />
         </article>
       ) : null}
     </section>
